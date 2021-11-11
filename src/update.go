@@ -34,7 +34,7 @@ func BinaryUpdate() (err error) {
 	case "master", "beta":
 
 		var gitInfo = fmt.Sprintf("%s/%s/info.json?raw=true", System.Update.Git, System.Branch)
-		var zipFile = fmt.Sprintf("%s/%s/%s_%s_%s.zip?raw=true", System.Update.Git, System.Branch, System.AppName, System.OS, System.ARCH)
+		var zipFile = fmt.Sprintf("%s/releases/%s_%s_%s.zip?raw=true", System.Update.Git, System.AppName, System.OS, System.ARCH)
 		var body []byte
 
 		var git GitStruct

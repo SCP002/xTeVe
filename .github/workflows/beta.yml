@@ -1,8 +1,8 @@
 name: PlexTeVe Build
 on:
   push:
-    tags:
-      - 2.*
+    branches:
+      - beta
 jobs:
 
   build:
@@ -11,7 +11,7 @@ jobs:
     steps:
 
     - name: Set up Go 1.15
-      uses: actions/setup-go@v1
+      uses: actions/setup-go@v2
       with:
         go-version: 1.15
       id: go
@@ -37,3 +37,4 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         files: dist/*
+        prerelease: true
