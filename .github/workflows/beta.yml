@@ -1,4 +1,4 @@
-name: PlexTeVe Build
+name: PlexTeVe Beta Build
 on:
   push:
     branches:
