@@ -18,15 +18,16 @@ import (
 
 // GitHubStruct : GitHub Account. Über diesen Account werden die Updates veröffentlicht
 type GitHubStruct struct {
-	Branch string
-	Repo   string
-	Update bool
-	User   string
+	Branch  string
+	Repo    string
+	Update  bool
+	User    string
+	TagName string
 }
 
 // GitHub : GitHub Account
 // If you want to fork this project, enter your Github account here. This prevents a newer version of xTeVe from updating your version.
-var GitHub = GitHubStruct{Branch: "master", User: "Fyb3roptik", Repo: "PlexTeVe", Update: true}
+var GitHub = GitHubStruct{Branch: "beta", User: "Fyb3roptik", Repo: "PlexTeVe", Update: true}
 
 /*
 	Branch: GitHub Branch
@@ -39,7 +40,7 @@ var GitHub = GitHubStruct{Branch: "master", User: "Fyb3roptik", Repo: "PlexTeVe"
 const Name = "xTeVe"
 
 // Version : Version, die Build Nummer wird in der main func geparst.
-const Version = "2.3.3.0200"
+const Version = "2.3.3.0500"
 
 // DBVersion : Datanbank Version
 const DBVersion = "2.1.0"

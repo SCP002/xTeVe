@@ -90,15 +90,17 @@ type SystemStruct struct {
 	}
 
 	GitHub struct {
-		Branch string
-		Repo   string
-		Update bool
-		User   string
+		Branch  string
+		Repo    string
+		Update  bool
+		User    string
+		TagName string
 	}
 
 	Update struct {
-		Git  string
-		Name string
+		Git    string
+		Name   string
+		Github string
 	}
 
 	URLBase string
@@ -113,6 +115,11 @@ type SystemStruct struct {
 type GitStruct struct {
 	Filename string `json:"filename"`
 	Version  string `json:"version"`
+}
+
+type GithubReleaseInfo struct {
+	TagName    string `json:"tag_name"`
+	Prerelease bool   `json:"prerelease"`
 }
 
 // DataStruct : Alle Daten werden hier abgelegt. (Lineup, XMLTV)
@@ -197,6 +204,7 @@ type XEPGChannelStruct struct {
 	XUpdateChannelIcon bool   `json:"x-update-channel-icon,required"`
 	XUpdateChannelName bool   `json:"x-update-channel-name,required"`
 	XDescription       string `json:"x-description,required"`
+	Live               bool   `json:"live"`
 }
 
 // M3UChannelStructXEPG : M3U Struktur für XEPG

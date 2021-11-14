@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"path"
 	"regexp"
 	"runtime"
@@ -701,6 +700,12 @@ func createXMLTVFile() (err error) {
 				channel.Icon = Icon{Src: imgc.Image.GetURL(xepgChannel.TvgLogo)}
 				if xepgChannel.TvgName != "" {
 					channel.DisplayName = append(channel.DisplayName, DisplayName{Value: xepgChannel.TvgName})
+					var re = regexp.MustCompile(`(?m)(?i)PPV-\d+:?`)
+					ppv_matches := re.FindAllString(xepgChannel.TvgName, -1)
+					if Settings.XepgReplaceChannelTitle && len(ppv_matches) > 0 {
+						channel.Live = true
+						xepgChannel.Live = true
+					}
 				} else {
 					channel.DisplayName = append(channel.DisplayName, DisplayName{Value: xepgChannel.XName})
 				}
@@ -754,10 +759,20 @@ func getProgramData(xepgChannel XEPGChannelStruct) (xepgXML XMLTV, err error) {
 
 	}
 
+	has_program := false
+	for _, xmltvProgram := range xmltv.Program {
+		if xmltvProgram.Channel == channelID {
+			has_program = true
+		}
+	}
+	if xepgChannel.Live && !has_program {
+		program := createLiveProgram(xepgChannel, channelID)
+		xmltv.Program = append(xmltv.Program, program)
+	}
+
 	for _, xmltvProgram := range xmltv.Program {
 
 		if xmltvProgram.Channel == channelID {
-			//fmt.Println(&channelID)
 			var program = &Program{}
 
 			// Channel ID
@@ -778,7 +793,6 @@ func getProgramData(xepgChannel XEPGChannelStruct) (xepgXML XMLTV, err error) {
 			var re = regexp.MustCompile(`(?m)(?i)PPV-\d+:?`)
 			ppv_matches := re.FindAllString(name, -1)
 			if Settings.XepgReplaceChannelTitle && len(ppv_matches) > 0 {
-				log.Println("DEBUG: ", name)
 				title := []*Title{}
 				// Strip out channel name
 				title_parsed := strings.Replace(name, ppv_matches[0], "", -1)
@@ -852,6 +866,35 @@ func getProgramData(xepgChannel XEPGChannelStruct) (xepgXML XMLTV, err error) {
 	}
 
 	return
+}
+
+func createLiveProgram(xepgChannel XEPGChannelStruct, channelId string) *Program {
+	var program = &Program{}
+	program.Channel = channelId
+	var currentTime = time.Now()
+	var currentDay = currentTime.Format("20060102")
+	var startTime, _ = time.Parse("20060102150405", currentDay+"000000")
+	var stopTime = startTime.Add(time.Hour * time.Duration(12))
+	program.Start = startTime.String()
+	program.Stop = stopTime.String()
+
+	name := ""
+	if xepgChannel.TvgName != "" {
+		name = xepgChannel.TvgName
+	} else {
+		name = xepgChannel.XName
+	}
+	var re = regexp.MustCompile(`(?m)(?i)PPV-\d+:?`)
+	ppv_matches := re.FindAllString(name, -1)
+	if Settings.XepgReplaceChannelTitle && len(ppv_matches) > 0 {
+		title := []*Title{}
+		// Strip out channel name
+		title_parsed := strings.Replace(name, ppv_matches[0], "", -1)
+		t := &Title{Value: strings.TrimSpace(title_parsed)}
+		title = append(title, t)
+		program.Title = title
+	}
+	return program
 }
 
 // Dummy Daten erstellen (createXMLTVFile)

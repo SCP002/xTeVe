@@ -17,6 +17,7 @@ type Channel struct {
 	ID          string        `xml:"id,attr"`
 	DisplayName []DisplayName `xml:"display-name"`
 	Icon        Icon          `xml:"icon"`
+	Live        bool          `xml:"live"`
 }
 
 // DisplayName : Kanalname

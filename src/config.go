@@ -59,7 +59,8 @@ func Init() (err error) {
 
 	// Variablen für den Update Prozess
 	//System.Update.Git = "https://github.com/xteve-project/xTeVe-Downloads/blob"
-	System.Update.Git = fmt.Sprintf("https://github.com/%s/%s/blob", System.GitHub.User, System.GitHub.Repo)
+	System.Update.Git = fmt.Sprintf("https://github.com/%s/%s", System.GitHub.User, System.GitHub.Repo)
+	System.Update.Github = fmt.Sprintf("https://api.github.com/repos/%s/%s", System.GitHub.User, System.GitHub.Repo)
 	System.Update.Name = "xteve_2"
 
 	// Ordnerpfade festlegen

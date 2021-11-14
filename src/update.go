@@ -32,43 +32,49 @@ func BinaryUpdate() (err error) {
 
 	// Update von GitHub
 	case "master", "beta":
-
-		var gitInfo = fmt.Sprintf("%s/%s/info.json?raw=true", System.Update.Git, System.Branch)
-		var zipFile = fmt.Sprintf("%s/releases/%s_%s_%s.zip?raw=true", System.Update.Git, System.AppName, System.OS, System.ARCH)
+		var releaseInfo = fmt.Sprintf("%s/releases", System.Update.Github)
+		var latest string
 		var body []byte
 
-		var git GitStruct
+		var git []*GithubReleaseInfo
 
-		resp, err := http.Get(gitInfo)
+		resp, err := http.Get(releaseInfo)
 		if err != nil {
 			ShowError(err, 6003)
 			return nil
 		}
 
-		if resp.StatusCode != http.StatusOK {
-
-			if resp.StatusCode == 404 {
-				err = fmt.Errorf(fmt.Sprintf("Update Server: %s (%s)", http.StatusText(resp.StatusCode), gitInfo))
-				ShowError(err, 6003)
-				return nil
-			}
-
-			err = fmt.Errorf(fmt.Sprintf("%d: %s (%s)", resp.StatusCode, http.StatusText(resp.StatusCode), gitInfo))
-
-			return err
-		}
-
-		body, err = ioutil.ReadAll(resp.Body)
+		body, _ = ioutil.ReadAll(resp.Body)
 
 		err = json.Unmarshal(body, &git)
 		if err != nil {
 			return err
 		}
 
+		// Get latest prerelease tag name
+		if System.Branch == "beta" {
+			for _, release := range git {
+				if release.Prerelease {
+					latest = release.TagName
+					updater.Response.Version = release.TagName
+				}
+			}
+		}
+
+		// Latest master tag name
+		if System.Branch == "master" {
+			latest = "latest"
+			for _, release := range git {
+				if !release.Prerelease {
+					updater.Response.Version = release.TagName
+				}
+			}
+		}
+
+		var zipFile = fmt.Sprintf("%s/releases/download/%s/%s_%s_%s.zip?raw=true", System.Update.Git, latest, "PlexTeVe", System.OS, System.ARCH)
+
 		updater.Response.Status = true
 		updater.Response.UpdateZIP = zipFile
-		updater.Response.Version = git.Version
-		updater.Response.Filename = git.Filename
 
 	// Update vom eigenen Server
 	default:
@@ -106,9 +112,8 @@ func BinaryUpdate() (err error) {
 	var currentVersion = System.Version + "." + System.Build
 
 	// Versionsnummer überprüfen
-	if updater.Response.Version > currentVersion && updater.Response.Status == true {
-
-		if Settings.XteveAutoUpdate == true {
+	if updater.Response.Version > currentVersion && updater.Response.Status {
+		if Settings.XteveAutoUpdate {
 			// Update durchführen
 			var fileType, url string
 
@@ -118,7 +123,7 @@ func BinaryUpdate() (err error) {
 
 			// Update von GitHub
 			case "master", "beta":
-				showInfo(fmt.Sprintf("Update Server:GitHub"))
+				showInfo("Update Server:GitHub")
 
 			// Update vom eigenen Server
 			default:
