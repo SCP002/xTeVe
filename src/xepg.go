@@ -878,7 +878,7 @@ func createLiveProgram(xepgChannel XEPGChannelStruct, channelId string) *Program
 	var currentTime = time.Now()
 	var currentDay = currentTime.Format("20060102")
 	var startTime, _ = time.Parse("20060102150405", currentDay+"000000")
-	var stopTime = startTime.Add(time.Hour * time.Duration(12))
+	var stopTime, _ = time.Parse("20060102150405", currentDay+"235959")
 	program.Start = startTime.String()
 	program.Stop = stopTime.String()
 
