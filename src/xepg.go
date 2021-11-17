@@ -703,8 +703,11 @@ func createXMLTVFile() (err error) {
 					var re = regexp.MustCompile(`(?m)(?i)PPV-\d+:?`)
 					ppv_matches := re.FindAllString(xepgChannel.TvgName, -1)
 					if Settings.XepgReplaceChannelTitle && len(ppv_matches) > 0 {
-						channel.Live = true
-						xepgChannel.Live = true
+						title_parsed := strings.Replace(xepgChannel.TvgName, ppv_matches[0], "", -1)
+						if title_parsed != "" {
+							channel.Live = true
+							xepgChannel.Live = true
+						}
 					}
 				} else {
 					channel.DisplayName = append(channel.DisplayName, DisplayName{Value: xepgChannel.XName})
@@ -765,7 +768,8 @@ func getProgramData(xepgChannel XEPGChannelStruct) (xepgXML XMLTV, err error) {
 			has_program = true
 		}
 	}
-	if xepgChannel.Live && !has_program {
+
+	if Settings.XepgReplaceChannelTitle && xepgChannel.Live && !has_program {
 		program := createLiveProgram(xepgChannel, channelID)
 		xmltv.Program = append(xmltv.Program, program)
 	}
