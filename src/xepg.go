@@ -762,14 +762,14 @@ func getProgramData(xepgChannel XEPGChannelStruct) (xepgXML XMLTV, err error) {
 
 	}
 
-	has_program := false
-	for _, xmltvProgram := range xmltv.Program {
-		if xmltvProgram.Channel == channelID {
-			has_program = true
-		}
-	}
+	// has_program := false
+	// for _, xmltvProgram := range xmltv.Program {
+	// 	if xmltvProgram.Channel == channelID {
+	// 		has_program = true
+	// 	}
+	// }
 
-	if Settings.XepgReplaceChannelTitle && xepgChannel.Live && !has_program {
+	if Settings.XepgReplaceChannelTitle && xepgChannel.Live {
 		program := createLiveProgram(xepgChannel, channelID)
 		xmltv.Program = append(xmltv.Program, program)
 	}
@@ -876,11 +876,10 @@ func createLiveProgram(xepgChannel XEPGChannelStruct, channelId string) *Program
 	var program = &Program{}
 	program.Channel = channelId
 	var currentTime = time.Now()
-	var currentDay = currentTime.Format("20060102")
-	var startTime, _ = time.Parse("20060102150405", currentDay+"000000")
-	var stopTime, _ = time.Parse("20060102150405", currentDay+"235959")
-	program.Start = startTime.String()
-	program.Stop = stopTime.String()
+	startTime := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(), 13, 0, 0, currentTime.Nanosecond(), currentTime.Location()).Format("20060102150405 -0700")
+	stopTime := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(), 23, 59, 59, currentTime.Nanosecond(), currentTime.Location()).Format("20060102150405 -0700")
+	program.Start = startTime
+	program.Stop = stopTime
 
 	name := ""
 	if xepgChannel.TvgName != "" {
