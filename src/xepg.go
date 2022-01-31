@@ -691,9 +691,7 @@ func createXMLTVFile() (err error) {
 		var xepgChannel XEPGChannelStruct
 		err := json.Unmarshal([]byte(mapToJSON(dxc)), &xepgChannel)
 		if err == nil {
-
-			if xepgChannel.XActive == true {
-
+			if xepgChannel.XActive {
 				// Kanäle
 				var channel Channel
 				channel.ID = xepgChannel.XChannelID
@@ -715,20 +713,12 @@ func createXMLTVFile() (err error) {
 				xepgXML.Channel = append(xepgXML.Channel, &channel)
 
 				// Programme
-
 				*tmpProgram, err = getProgramData(xepgChannel)
 				if err == nil {
-
-					for _, program := range tmpProgram.Program {
-						xepgXML.Program = append(xepgXML.Program, program)
-					}
-
+					xepgXML.Program = append(xepgXML.Program, tmpProgram.Program...)
 				}
-
 			}
-
 		}
-
 	}
 
 	var content, _ = xml.MarshalIndent(xepgXML, "  ", "    ")
@@ -794,31 +784,31 @@ func getProgramData(xepgChannel XEPGChannelStruct) (xepgXML XMLTV, err error) {
 				name = xepgChannel.XName
 			}
 
-			var re = regexp.MustCompile(`(?m)(?i)PPV-\d+:?`)
-			ppv_matches := re.FindAllString(name, -1)
-			if Settings.XepgReplaceChannelTitle && len(ppv_matches) > 0 {
-				title := []*Title{}
-				// Strip out channel name
-				title_parsed := strings.Replace(name, ppv_matches[0], "", -1)
-				t := &Title{Value: strings.TrimSpace(title_parsed)}
-				title = append(title, t)
-				program.Title = title
-			}
+			if Settings.XepgReplaceChannelTitle {
+				var re = regexp.MustCompile(`(?m)(?i)PPV-\d+:?`)
+				ppv_matches := re.FindAllString(name, -1)
+				if len(ppv_matches) > 0 {
+					title := []*Title{}
+					// Strip out channel name
+					title_parsed := strings.Replace(name, ppv_matches[0], "", -1)
+					t := &Title{Value: strings.TrimSpace(title_parsed)}
+					title = append(title, t)
+					program.Title = title
 
-			// Sub title (Untertitel)
-			program.SubTitle = xmltvProgram.SubTitle
+					desc := []*Desc{}
+					d := &Desc{Value: strings.TrimSpace(name)}
+					// Strip out channel name
+					desc_parsed := strings.Replace(name, ppv_matches[0], "", -1)
+					d = &Desc{Value: strings.TrimSpace(desc_parsed)}
+					desc = append(desc, d)
+					program.Desc = desc
+				}
 
-			// Description (Beschreibung)
-			program.Desc = xmltvProgram.Desc
-			// Map PPV Channel name to title/desc for PPV only
-			if Settings.XepgReplaceChannelTitle && len(ppv_matches) > 0 {
-				desc := []*Desc{}
-				d := &Desc{Value: strings.TrimSpace(name)}
-				// Strip out channel name
-				desc_parsed := strings.Replace(name, ppv_matches[0], "", -1)
-				d = &Desc{Value: strings.TrimSpace(desc_parsed)}
-				desc = append(desc, d)
-				program.Desc = desc
+				// Sub title (Untertitel)
+				program.SubTitle = xmltvProgram.SubTitle
+
+				// Description (Beschreibung)
+				program.Desc = xmltvProgram.Desc
 			}
 
 			// Category (Kategorie)
