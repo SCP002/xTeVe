@@ -692,11 +692,11 @@ func createXMLTVFile() (err error) {
 		err := json.Unmarshal([]byte(mapToJSON(dxc)), &xepgChannel)
 		if err == nil {
 			if xepgChannel.XActive {
-				// Kanäle
-				var channel Channel
-				channel.ID = xepgChannel.XChannelID
-				channel.Icon = Icon{Src: imgc.Image.GetURL(xepgChannel.TvgLogo)}
 				if Settings.XepgReplaceChannelTitle && xepgChannel.TvgName != "" {
+					// Kanäle
+					var channel Channel
+					channel.ID = xepgChannel.XChannelID
+					channel.Icon = Icon{Src: imgc.Image.GetURL(xepgChannel.TvgLogo)}
 					channel.DisplayName = append(channel.DisplayName, DisplayName{Value: xepgChannel.TvgName})
 					var re = regexp.MustCompile(`(?m)(?i)PPV-\d+:?`)
 					ppv_matches := re.FindAllString(xepgChannel.TvgName, -1)
@@ -707,10 +707,8 @@ func createXMLTVFile() (err error) {
 							xepgChannel.Live = true
 						}
 					}
-				} else {
-					channel.DisplayName = append(channel.DisplayName, DisplayName{Value: xepgChannel.XName})
+					xepgXML.Channel = append(xepgXML.Channel, &channel)
 				}
-				xepgXML.Channel = append(xepgXML.Channel, &channel)
 
 				// Programme
 				*tmpProgram, err = getProgramData(xepgChannel)
