@@ -696,7 +696,7 @@ func createXMLTVFile() (err error) {
 				var channel Channel
 				channel.ID = xepgChannel.XChannelID
 				channel.Icon = Icon{Src: imgc.Image.GetURL(xepgChannel.TvgLogo)}
-				if xepgChannel.TvgName != "" {
+				if Settings.XepgReplaceChannelTitle && xepgChannel.TvgName != "" {
 					channel.DisplayName = append(channel.DisplayName, DisplayName{Value: xepgChannel.TvgName})
 					var re = regexp.MustCompile(`(?m)(?i)PPV-\d+:?`)
 					ppv_matches := re.FindAllString(xepgChannel.TvgName, -1)
