@@ -345,13 +345,13 @@ function toggleChannelStatus(id) {
         channel["x-active"] = status;
         switch (channel["x-active"]) {
             case true:
-                if (channel["x-xmltv-file"] == "-" || channel["x-mapping"] == "-") {
-                    if (BULK_EDIT == false) {
-                        alert(channel["x-name"] + ": Missing XMLTV file / channel");
-                        checkbox.checked = false;
-                    }
-                    channel["x-active"] = false;
-                }
+                // if (channel["x-xmltv-file"] == "-" || channel["x-mapping"] == "-") {
+                //     if (BULK_EDIT == false) {
+                //         alert(channel["x-name"] + ": Missing XMLTV file / channel");
+                //         checkbox.checked = false;
+                //     }
+                //     channel["x-active"] = false;
+                // }
                 break;
             case false:
                 // code...
