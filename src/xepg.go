@@ -621,12 +621,12 @@ func mapping() (err error) {
 
 			if len(xepgChannel.XmltvFile) == 0 {
 				xepgChannel.XmltvFile = "-"
-				// xepgChannel.XActive = false
+				xepgChannel.XActive = true
 			}
 
 			if len(xepgChannel.XMapping) == 0 {
 				xepgChannel.XMapping = "-"
-				// xepgChannel.XActive = false
+				xepgChannel.XActive = true
 			}
 
 			Data.XEPG.Channels[xepg] = xepgChannel
