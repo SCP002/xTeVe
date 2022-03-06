@@ -692,7 +692,7 @@ func createXMLTVFile() (err error) {
 		var xepgChannel XEPGChannelStruct
 		err := json.Unmarshal([]byte(mapToJSON(dxc)), &xepgChannel)
 		if err == nil {
-			var re = regexp.MustCompile(`(?m)(?i)PPV-?\d+:?`)
+			var re = regexp.MustCompile(`(?m)(?i)PPV[ ]?-?\d+:?`)
 			ppv_matches := re.FindAllString(xepgChannel.TvgName, -1)
 			is_ppv := false
 			if len(ppv_matches) > 0 {
@@ -790,7 +790,7 @@ func getProgramData(xepgChannel XEPGChannelStruct, is_ppv bool) (xepgXML XMLTV, 
 			}
 
 			if Settings.XepgReplaceChannelTitle {
-				var re = regexp.MustCompile(`(?m)(?i)PPV-?\d+:?`)
+				var re = regexp.MustCompile(`(?m)(?i)PPV[ ]?-?\d+:?`)
 				ppv_matches := re.FindAllString(name, -1)
 				if len(ppv_matches) > 0 {
 					title := []*Title{}
@@ -882,7 +882,7 @@ func createLiveProgram(xepgChannel XEPGChannelStruct, channelId string) *Program
 	} else {
 		name = xepgChannel.XName
 	}
-	var re = regexp.MustCompile(`(?m)(?i)PPV-?\d+:?`)
+	var re = regexp.MustCompile(`(?m)(?i)PPV[ ]?-?\d+:?`)
 	ppv_matches := re.FindAllString(name, -1)
 	if Settings.XepgReplaceChannelTitle && len(ppv_matches) > 0 {
 		title := []*Title{}
