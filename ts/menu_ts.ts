@@ -2115,7 +2115,7 @@ function donePopupData(dataType:string, idsStr:string) {
           }
 
           if (value == "-") {
-            input["x-active"] = false
+            // input["x-active"] = false
           }
 
           (document.getElementById(id).childNodes[6].firstChild as HTMLElement).innerHTML = value
@@ -2123,7 +2123,7 @@ function donePopupData(dataType:string, idsStr:string) {
 
         case "x-mapping":
           if (value == "-") {
-            input["x-active"] = false
+            // input["x-active"] = false
           }
 
           (document.getElementById(id).childNodes[7].firstChild as HTMLElement).innerHTML = value
