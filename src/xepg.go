@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"path"
 	"regexp"
 	"runtime"
@@ -699,10 +698,7 @@ func createXMLTVFile() (err error) {
 				xepgChannel.XActive = true
 				is_ppv = true
 			}
-			log.Println("NAME: ", xepgChannel.TvgName)
-			log.Println("MATCHES: ", len(ppv_matches))
 			if xepgChannel.XActive {
-				log.Println("ACTIVE: ", xepgChannel.TvgName)
 				if Settings.XepgReplaceChannelTitle && xepgChannel.TvgName != "" {
 					// Kanäle
 					var channel Channel
@@ -995,7 +991,7 @@ func getPoster(program *Program, xmltvProgram *Program, xepgChannel XEPGChannelS
 
 		if len(xmltvProgram.Poster) == 0 {
 			var poster Poster
-			poster.Src = imgc.Image.GetURL(poster.Src)
+			poster.Src = imgc.Image.GetURL(xepgChannel.TvgLogo)
 			program.Poster = append(program.Poster, poster)
 		}
 
