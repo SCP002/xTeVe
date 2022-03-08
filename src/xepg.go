@@ -694,7 +694,7 @@ func createXMLTVFile() (err error) {
 			var re = regexp.MustCompile(`(?m)(?i)PPV[ ]?-?\d+:?`)
 			ppv_matches := re.FindAllString(xepgChannel.TvgName, -1)
 			is_ppv := false
-			if len(ppv_matches) > 0 {
+			if Settings.XepgReplaceChannelTitle && len(ppv_matches) > 0 {
 				xepgChannel.XActive = true
 				is_ppv = true
 			}
@@ -788,7 +788,7 @@ func getProgramData(xepgChannel XEPGChannelStruct, is_ppv bool) (xepgXML XMLTV, 
 			if Settings.XepgReplaceChannelTitle {
 				var re = regexp.MustCompile(`(?m)(?i)PPV[ ]?-?\d+:?`)
 				ppv_matches := re.FindAllString(name, -1)
-				if len(ppv_matches) > 0 {
+				if Settings.XepgReplaceChannelTitle && len(ppv_matches) > 0 {
 					title := []*Title{}
 					// Strip out channel name
 					title_parsed := strings.Replace(name, ppv_matches[0], "", -1)
