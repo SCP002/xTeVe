@@ -691,14 +691,11 @@ func createXMLTVFile() (err error) {
 		var xepgChannel XEPGChannelStruct
 		err := json.Unmarshal([]byte(mapToJSON(dxc)), &xepgChannel)
 		if err == nil {
-			var re = regexp.MustCompile(`(?m)(?i)PPV[ ]?-?\d+:?`)
-			ppv_matches := re.FindAllString(xepgChannel.TvgName, -1)
-			is_ppv := false
-			if Settings.XepgReplaceChannelTitle && len(ppv_matches) > 0 {
-				xepgChannel.XActive = true
-				is_ppv = true
-			}
 			if xepgChannel.XActive {
+				var re = regexp.MustCompile(`(?m)(?i)PPV[ ]?-?\d+:?`)
+				ppv_matches := re.FindAllString(xepgChannel.TvgName, -1)
+				is_ppv := false
+
 				if Settings.XepgReplaceChannelTitle && xepgChannel.TvgName != "" {
 					// Kanäle
 					var channel Channel
