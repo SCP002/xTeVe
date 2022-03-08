@@ -190,9 +190,7 @@ func buildM3U(groups []string) (m3u string, err error) {
 		var xepgChannel XEPGChannelStruct
 		err := json.Unmarshal([]byte(mapToJSON(dxc)), &xepgChannel)
 		if err == nil {
-			var re = regexp.MustCompile(`(?m)(?i)PPV[ ]?-?\d+:?`)
-			ppv_matches := re.FindAllString(xepgChannel.Name, -1)
-			if xepgChannel.XActive == true || len(ppv_matches) > 0 {
+			if xepgChannel.XActive == true {
 
 				if len(groups) > 0 {
 
