@@ -891,6 +891,21 @@ func createLiveProgram(xepgChannel XEPGChannelStruct, channelId string) *Program
 // Dummy Daten erstellen (createXMLTVFile)
 func createDummyProgram(xepgChannel XEPGChannelStruct) (dummyXMLTV XMLTV) {
 
+	name := ""
+	if xepgChannel.TvgName != "" {
+		name = xepgChannel.TvgName
+	} else {
+		name = xepgChannel.XName
+	}
+	var re = regexp.MustCompile(`(?m)(?i)PPV[ ]?-?\d+:?`)
+	ppv_matches := re.FindAllString(name, -1)
+	if len(ppv_matches) > 0 {
+		var channelID = xepgChannel.XMapping
+		program := createLiveProgram(xepgChannel, channelID)
+		dummyXMLTV.Program = append(dummyXMLTV.Program, program)
+		return
+	}
+
 	var imgc = Data.Cache.Images
 	var currentTime = time.Now()
 	var dateArray = strings.Fields(currentTime.String())
