@@ -30,6 +30,8 @@ func StartWebserver() (err error) {
 	http.HandleFunc("/api/", API)
 	http.HandleFunc("/images/", Images)
 	http.HandleFunc("/data_images/", DataImages)
+	http.HandleFunc("/ppv/enable", enablePPV)
+	http.HandleFunc("/ppv/disable", disablePPV)
 
 	//http.HandleFunc("/auto/", Auto)
 
@@ -1056,6 +1058,74 @@ func setDefaultResponseData(response ResponseStruct, data bool) (defaults Respon
 	}
 
 	return
+}
+
+func enablePPV(w http.ResponseWriter, r *http.Request) {
+	xepg, err := loadJSONFileToMap(System.File.XEPG)
+	if err != nil {
+		var response APIResponseStruct
+
+		response.Status = false
+		response.Error = err.Error()
+		w.Write([]byte(mapToJSON(response)))
+	}
+
+	for _, c := range xepg {
+
+		var xepgChannel = c.(map[string]interface{})
+
+		if xepgChannel["x-mapping"] == "PPV" {
+			xepgChannel["x-active"] = true
+		}
+	}
+
+	err = saveMapToJSONFile(System.File.XEPG, xepg)
+	if err != nil {
+		var response APIResponseStruct
+
+		response.Status = false
+		response.Error = err.Error()
+		w.Write([]byte(mapToJSON(response)))
+		w.WriteHeader(405)
+		return
+	}
+	buildXEPG(false)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+}
+
+func disablePPV(w http.ResponseWriter, r *http.Request) {
+	xepg, err := loadJSONFileToMap(System.File.XEPG)
+	if err != nil {
+		var response APIResponseStruct
+
+		response.Status = false
+		response.Error = err.Error()
+		w.Write([]byte(mapToJSON(response)))
+	}
+
+	for _, c := range xepg {
+
+		var xepgChannel = c.(map[string]interface{})
+
+		if xepgChannel["x-mapping"] == "PPV" && xepgChannel["x-active"] == true {
+			xepgChannel["x-active"] = false
+		}
+	}
+
+	err = saveMapToJSONFile(System.File.XEPG, xepg)
+	if err != nil {
+		var response APIResponseStruct
+
+		response.Status = false
+		response.Error = err.Error()
+		w.Write([]byte(mapToJSON(response)))
+	}
+	buildXEPG(false)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
 }
 
 func httpStatusError(w http.ResponseWriter, r *http.Request, httpStatusCode int) {
