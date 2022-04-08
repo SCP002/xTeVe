@@ -823,7 +823,7 @@ func createLiveProgram(xepgChannel XEPGChannelStruct, channelId string) *Program
 	if Settings.XepgReplaceChannelTitle && xepgChannel.XMapping == "PPV" {
 		title := []*Title{}
 		// Strip out channel name
-		var re = regexp.MustCompile(`(?m)(?i)PPV[ ]?-?\d+:?`)
+		var re = regexp.MustCompile(`(?m)(?i)PPV|EVENT[ ]?-?\d+:?`)
 		ppv_matches := re.FindAllString(name, -1)
 		title_parsed := strings.Replace(name, ppv_matches[0], "", -1)
 		t := &Title{Value: strings.TrimSpace(title_parsed)}
