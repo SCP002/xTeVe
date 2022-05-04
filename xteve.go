@@ -16,7 +16,7 @@ import (
 	"xteve/src"
 )
 
-// GitHubStruct : GitHub Account. Über diesen Account werden die Updates veröffentlicht
+// GitHubStruct : GitHub Account. The Updates are published via this Account
 type GitHubStruct struct {
 	Branch  string
 	Repo    string
@@ -27,23 +27,21 @@ type GitHubStruct struct {
 
 // GitHub : GitHub Account
 // If you want to fork this project, enter your Github account here. This prevents a newer version of xTeVe from updating your version.
-var GitHub = GitHubStruct{Branch: "beta", User: "Fyb3roptik", Repo: "PlexTeVe", Update: true}
+var GitHub = GitHubStruct{Branch: "master", User: "SCP002", Repo: "xTeVe", Update: false}
 
-/*
-	Branch: GitHub Branch
-	User: 	GitHub Username
-	Repo: 	GitHub Repository
-	Update: Automatic updates from the GitHub repository [true|false]
-*/
+// Branch:	GitHub Branch
+// User: 	GitHub Username
+// Repo: 	GitHub Repository
+// Update:	Automatic updates from the GitHub repository [true|false]
 
-// Name : Programmname
+// Name : Program Name
 const Name = "xTeVe"
 
-// Version : Version, die Build Nummer wird in der main func geparst.
-const Version = "2.3.4.0510"
+// Version : Version, the Build Number is parsed in the main func
+const Version = "2.4.1.0000"
 
-// DBVersion : Datanbank Version
-const DBVersion = "2.1.0"
+// DBVersion : Database Version
+const DBVersion = "2.2.3"
 
 // APIVersion : API Version
 const APIVersion = "1.1.0"
@@ -61,12 +59,12 @@ var debug = flag.Int("debug", 0, ": Debug level          [0 - 3] (default: 0)")
 var info = flag.Bool("info", false, ": Show system info")
 var h = flag.Bool("h", false, ": Show help")
 
-// Aktiviert den Entwicklungsmodus. Für den Webserver werden dann die lokalen Dateien verwendet.
+// Activates Development Mode. The local Files are then used for the Webserver.
 var dev = flag.Bool("dev", false, ": Activates the developer mode, the source code must be available. The local files for the web interface are used.")
 
 func main() {
 
-	// Build-Nummer von der Versionsnummer trennen
+	// Separate Build Number from Version Number
 	var build = strings.Split(Version, ".")
 
 	var system = &src.System
@@ -78,7 +76,7 @@ func main() {
 	system.Name = Name
 	system.Version = strings.Join(build[0:len(build)-1], ".")
 
-	// Panic !!!
+	// Panic
 	defer func() {
 
 		if r := recover(); r != nil {
@@ -124,7 +122,7 @@ func main() {
 
 	system.Dev = *dev
 
-	// Systeminformationen anzeigen
+	// Display System Information
 	if *info {
 
 		system.Flag.Info = true
@@ -158,12 +156,12 @@ func main() {
 		return
 	}
 
-	// Speicherort für die Konfigurationsdateien
+	// Storage location for the Configuration Files
 	if len(*configFolder) > 0 {
 		system.Folder.Config = *configFolder
 	}
 
-	// Backup wiederherstellen
+	// Restore Backup
 	if len(*restore) > 0 {
 
 		system.Flag.Restore = *restore
