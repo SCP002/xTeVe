@@ -45,10 +45,8 @@ func updateServerSettings(request RequestStruct) (settings SettingsStruct, err e
 
 					v = strings.ReplaceAll(v.(string), " ", "")
 
-					_, err := time.Parse("1504", v.(string))
-					if err != nil {
-						ShowError(err, 1012)
-						return Settings, err
+					if _, err := time.Parse("1504", v.(string)); err != nil {
+						return Settings, withCode(err, 1012)
 					}
 
 					newUpdateTimes = append(newUpdateTimes, v.(string))
@@ -327,7 +325,6 @@ func saveFiles(request RequestStruct, fileType string) (err error) {
 			delete(data.(map[string]interface{}), "new")
 
 			if err != nil {
-				ShowError(err, 0)
 				delete(filesMap, dataID)
 				return
 			}
@@ -388,7 +385,6 @@ func updateFile(request RequestStruct, fileType string) (err error) {
 	for dataID := range updateData {
 
 		if err = getProviderData(fileType, dataID); err != nil {
-			ShowError(err, 0)
 			return
 		}
 
@@ -708,14 +704,12 @@ func saveWizard(request RequestStruct) (nextStep int, err error) {
 				err = getProviderData(key, dataID)
 
 				if err != nil {
-					ShowError(err, 000)
 					delete(filesMap, dataID)
 					return
 				}
 
 				err = buildDatabaseDVR()
 				if err != nil {
-					ShowError(err, 000)
 					delete(filesMap, dataID)
 					return
 				}
@@ -731,11 +725,8 @@ func saveWizard(request RequestStruct) (nextStep int, err error) {
 				err = getProviderData(key, dataID)
 
 				if err != nil {
-
-					ShowError(err, 000)
 					delete(filesMap, dataID)
 					return
-
 				}
 
 				buildXEPG(false)
@@ -831,7 +822,7 @@ func buildDatabaseDVR() (err error) {
 
 		var playlistFile = getLocalProviderFiles(fileType)
 
-		for n, i := range playlistFile {
+		for _, i := range playlistFile {
 
 			var channels []interface{}
 			var groupTitle, tvgID, uuid = 0, 0, 0
@@ -841,20 +832,11 @@ func buildDatabaseDVR() (err error) {
 			var id = strings.TrimSuffix(getFilenameFromPath(i), path.Ext(getFilenameFromPath(i)))
 			var playlistName = getProviderParameter(id, fileType, "name")
 
-			switch fileType {
-
-			case "m3u":
-				channels, err = parsePlaylist(i, fileType)
-			case "hdhr":
-				channels, err = parsePlaylist(i, fileType)
-
-			}
-
-			if err != nil {
-				ShowError(err, 1005)
-				err = errors.New(playlistName + ": local copy of the file no longer exists")
-				ShowError(err, 0)
-				playlistFile = append(playlistFile[:n], playlistFile[n+1:]...)
+			channels, parseErr := parsePlaylist(i, fileType)
+			if parseErr != nil {
+				// The playlist is skipped, the others are still used
+				ShowError(fmt.Errorf("%s: %w", playlistName, parseErr), 1005)
+				continue
 			}
 
 			// Analyze Streams

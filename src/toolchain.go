@@ -334,7 +334,6 @@ func readStringFromFile(file string) (str string, err error) {
 
 	content, err = os.ReadFile(filename)
 	if err != nil {
-		ShowError(err, 0)
 		return
 	}
 

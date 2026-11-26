@@ -122,6 +122,11 @@ func ShowError(err error, errCode int) {
 
 	var mutex = sync.RWMutex{}
 
+	// A code that comes with the error itself (see withCode) is more specific than errCode
+	if code := errorCode(err); code != 0 {
+		errCode = code
+	}
+
 	var errMsg = getErrMsg(errCode)
 	var logMsg = fmt.Sprintf("[%s] [ERROR] %s (%s) - EC: %d", System.Name, userMessage(err), errMsg, errCode)
 

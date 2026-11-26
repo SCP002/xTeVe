@@ -129,7 +129,7 @@ func main() {
 		err := src.Init()
 		if err != nil {
 			src.ShowError(err, 0)
-			os.Exit(0)
+			os.Exit(1)
 		}
 
 		src.ShowSystemInfo()
@@ -168,12 +168,13 @@ func main() {
 		err := src.Init()
 		if err != nil {
 			src.ShowError(err, 0)
-			os.Exit(0)
+			os.Exit(1)
 		}
 
 		err = src.XteveRestoreFromCLI(*restore)
 		if err != nil {
 			src.ShowError(err, 0)
+			os.Exit(1)
 		}
 
 		os.Exit(0)
@@ -182,7 +183,7 @@ func main() {
 	err := src.Init()
 	if err != nil {
 		src.ShowError(err, 0)
-		os.Exit(0)
+		os.Exit(1)
 	}
 
 	err = src.BinaryUpdate()
@@ -193,19 +194,19 @@ func main() {
 	err = src.StartSystem(false)
 	if err != nil {
 		src.ShowError(err, 0)
-		os.Exit(0)
+		os.Exit(1)
 	}
 
 	err = src.InitMaintenance()
 	if err != nil {
 		src.ShowError(err, 0)
-		os.Exit(0)
+		os.Exit(1)
 	}
 
 	err = src.StartWebserver()
 	if err != nil {
 		src.ShowError(err, 0)
-		os.Exit(0)
+		os.Exit(1)
 	}
 
 }

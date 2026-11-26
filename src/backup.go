@@ -27,8 +27,7 @@ func xTeVeAutoBackup() (err error) {
 
 	err = checkFolder(System.Folder.Backup)
 	if err != nil {
-		ShowError(err, 1070)
-		return
+		return withCode(err, 1070)
 	}
 
 	// Delete Old Backups
@@ -123,10 +122,6 @@ func xteveBackup() (archive string, err error) {
 	}
 
 	err = zipFiles(sourceFiles, target)
-	if err != nil {
-		ShowError(err, 0)
-		return
-	}
 
 	return
 }
@@ -154,11 +149,14 @@ func xteveRestore(archive string) (newWebURL string, err error) {
 	// Load a new Config to check the Port and Version
 	newConfig, err := loadJSONFileToMap(tmpRestore + "settings.json")
 	if err != nil {
-		ShowError(err, 0)
 		return
 	}
 
-	backupVersion = newConfig["version"].(string)
+	backupVersion, ok := newConfig["version"].(string)
+	if !ok {
+		err = errors.New("invalid backup: settings.json has no version")
+		return
+	}
 	if backupVersion < System.Compatibility {
 		err = errors.New(getErrMsg(1013))
 		return
@@ -177,36 +175,27 @@ func xteveRestore(archive string) (newWebURL string, err error) {
 	// Load a new Config to check the Port and Version
 	newConfig, err = loadJSONFileToMap(System.Folder.Config + "settings.json")
 	if err != nil {
-		ShowError(err, 0)
 		return
 	}
 
-	newPort = newConfig["port"].(string)
+	newPort, ok = newConfig["port"].(string)
+	if !ok {
+		err = errors.New("invalid backup: settings.json has no port")
+		return
+	}
 	oldPort = Settings.Port
 
 	if newPort == oldPort {
-
-		if err != nil {
-			ShowError(err, 0)
-		}
 
 		if _, err = loadSettings(); err != nil {
 			return
 		}
 
-		err := Init()
-		if err != nil {
-			ShowError(err, 0)
+		if err = Init(); err != nil {
 			return "", err
 		}
 
-		err = StartSystem(true)
-		if err != nil {
-			ShowError(err, 0)
-			return "", err
-		}
-
-		return "", err
+		return "", StartSystem(true)
 	}
 
 	var url = System.URLBase + "/web/"

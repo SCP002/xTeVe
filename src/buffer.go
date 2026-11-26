@@ -1097,8 +1097,7 @@ func parseM3U8(stream *ThisStream) (err error) {
 						if err == nil {
 							segment.Duration = duration
 						} else {
-							ShowError(err, 1050)
-							return err
+							return withCode(err, 1050)
 						}
 
 					}

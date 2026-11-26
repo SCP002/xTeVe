@@ -61,7 +61,7 @@ func getCapability() (xmlContent []byte, err error) {
 
 	output, err := xml.MarshalIndent(capability, " ", "  ")
 	if err != nil {
-		ShowError(err, 1003)
+		return nil, withCode(err, 1003)
 	}
 
 	buffer.Write([]byte(xml.Header))
@@ -127,24 +127,25 @@ func getLineup() (jsonContent []byte, err error) {
 			switch len(m3uChannel.UUIDValue) {
 
 			case 0:
+				// The generated number is kept if no stored PMS ID is available
 				stream.GuideNumber = fmt.Sprintf("%d", i+1000)
-				guideNumber, err := getGuideNumberPMS(stream.GuideName)
-				if err != nil {
+				if guideNumber, err := getGuideNumberPMS(stream.GuideName); err != nil {
 					ShowError(err, 0)
+				} else {
+					stream.GuideNumber = guideNumber
 				}
-
-				stream.GuideNumber = guideNumber
 
 			default:
 				stream.GuideNumber = m3uChannel.UUIDValue
 
 			}
 
-			stream.URL, err = createStreamingURL("DVR", m3uChannel.FileM3UID, stream.GuideNumber, m3uChannel.Name, m3uChannel.URL)
-			if err == nil {
-				lineup = append(lineup, stream)
-			} else {
+			// A channel without a streaming URL is left out of the lineup
+			if streamURL, err := createStreamingURL("DVR", m3uChannel.FileM3UID, stream.GuideNumber, m3uChannel.Name, m3uChannel.URL); err != nil {
 				ShowError(err, 1202)
+			} else {
+				stream.URL = streamURL
+				lineup = append(lineup, stream)
 			}
 
 		}
@@ -163,11 +164,12 @@ func getLineup() (jsonContent []byte, err error) {
 				stream.GuideName = xepgChannel.XName
 				stream.GuideNumber = xepgChannel.XChannelID
 				//stream.URL = fmt.Sprintf("%s://%s/stream/%s-%s", System.ServerProtocol.DVR, System.Domain, xepgChannel.FileM3UID, base64.StdEncoding.EncodeToString([]byte(xepgChannel.URL)))
-				stream.URL, err = createStreamingURL("DVR", xepgChannel.FileM3UID, xepgChannel.XChannelID, xepgChannel.XName, xepgChannel.URL)
-				if err == nil {
-					lineup = append(lineup, stream)
-				} else {
+				// A channel without a streaming URL is left out of the lineup
+				if streamURL, err := createStreamingURL("DVR", xepgChannel.FileM3UID, xepgChannel.XChannelID, xepgChannel.XName, xepgChannel.URL); err != nil {
 					ShowError(err, 1202)
+				} else {
+					stream.URL = streamURL
+					lineup = append(lineup, stream)
 				}
 
 			}

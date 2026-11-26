@@ -89,8 +89,7 @@ func Init() (err error) {
 	// Create System Folder
 	err = createSystemFolders()
 	if err != nil {
-		ShowError(err, 1070)
-		return
+		return withCode(err, 1070)
 	}
 
 	if len(System.Flag.Restore) > 0 {
@@ -133,8 +132,7 @@ func Init() (err error) {
 	// Create System Files (If not available)
 	err = createSystemFiles()
 	if err != nil {
-		ShowError(err, 1071)
-		return
+		return withCode(err, 1071)
 	}
 
 	// Perform conditional Update Changes
@@ -148,7 +146,6 @@ func Init() (err error) {
 
 	_, err = loadSettings()
 	if err != nil {
-		ShowError(err, 0)
 		return
 	}
 
@@ -264,7 +261,6 @@ func StartSystem(updateProviderFiles bool) (err error) {
 
 	err = buildDatabaseDVR()
 	if err != nil {
-		ShowError(err, 0)
 		return
 	}
 

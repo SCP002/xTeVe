@@ -41,16 +41,14 @@ func BinaryUpdate() (err error) {
 
 		resp, err := http.Get(gitInfo)
 		if err != nil {
-			ShowError(err, 6003)
-			return nil
+			return withCode(err, 6003)
 		}
+		defer closeOrLog(resp.Body)
 
 		if resp.StatusCode != http.StatusOK {
 
 			if resp.StatusCode == 404 {
-				err = fmt.Errorf("update server: %s (%s)", http.StatusText(resp.StatusCode), gitInfo)
-				ShowError(err, 6003)
-				return nil
+				return withCode(fmt.Errorf("update server: %s (%s)", http.StatusText(resp.StatusCode), gitInfo), 6003)
 			}
 
 			err = fmt.Errorf("%d: %s (%s)", resp.StatusCode, http.StatusText(resp.StatusCode), gitInfo)
@@ -98,10 +96,7 @@ func BinaryUpdate() (err error) {
 
 		if len(updater.Response.Reason) > 0 {
 
-			err = fmt.Errorf("update server: %s", updater.Response.Reason)
-			ShowError(err, 6002)
-
-			return nil
+			return withCode(fmt.Errorf("update server: %s", updater.Response.Reason), 6002)
 		}
 
 	}
@@ -145,9 +140,8 @@ func BinaryUpdate() (err error) {
 
 			if len(url) > 0 {
 
-				err = up2date.DoUpdate(fileType, updater.Response.Filename)
-				if err != nil {
-					ShowError(err, 6002)
+				if err = up2date.DoUpdate(fileType, updater.Response.Filename); err != nil {
+					return withCode(err, 6002)
 				}
 
 			}
@@ -249,9 +243,7 @@ checkVersion:
 			Data.XEPG.XEPGCount = 0
 			Data.Cache.Streams = struct{ Active []string }{}
 
-			err = saveMapToJSONFile(System.File.XEPG, Data.XEPG.Channels)
-			if err != nil {
-				ShowError(err, 000)
+			if err = saveMapToJSONFile(System.File.XEPG, Data.XEPG.Channels); err != nil {
 				return err
 			}
 

@@ -70,6 +70,9 @@ func StartWebserver() (err error) {
 		var port = Settings.Port
 		server := http.Server{Addr: ":" + port}
 
+		// A server that cannot run stops xTeVe instead of leaving it without a web server
+		var serverErr = make(chan error, 1)
+
 		go func() {
 			var err error
 
@@ -82,6 +85,7 @@ func StartWebserver() (err error) {
 
 				err = server.ListenAndServeTLS(System.File.ServerCert, System.File.ServerCertPrivKey)
 				if err != nil && err != http.ErrServerClosed {
+					// Fall back to HTTP
 					ShowError(err, 1017)
 					err = server.ListenAndServe()
 				}
@@ -90,22 +94,25 @@ func StartWebserver() (err error) {
 			}
 
 			if err != nil && err != http.ErrServerClosed {
-				ShowError(err, 1001)
-				return
+				serverErr <- err
 			}
 		}()
 
-		<-restartWebserver
+		select {
+		case err = <-serverErr:
+			return withCode(err, 1001)
+		case <-restartWebserver:
+		}
+
 		showInfo("Web server:" + "Restarting")
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		if err = server.Shutdown(ctx); err != nil {
-			ShowError(err, 1016)
-			return
+		err = server.Shutdown(ctx)
+		cancel()
+		if err != nil {
+			return withCode(err, 1016)
 		}
 
-		<-ctx.Done()
 		showInfo("Web server:" + "Stopped")
 	}
 
@@ -166,6 +173,7 @@ func Index(w http.ResponseWriter, r *http.Request) {
 
 	}
 
+	ShowError(err, 0)
 	httpStatusError(w, r, 500)
 }
 
@@ -277,6 +285,7 @@ func xTeVe(w http.ResponseWriter, r *http.Request) {
 
 		content, err = readStringFromFile(file)
 		if err != nil {
+			logUnlessNotExist(err)
 			httpStatusError(w, r, 404)
 			return
 		}
@@ -637,7 +646,9 @@ func WS(w http.ResponseWriter, r *http.Request) {
 
 		}
 
+		// The single place where errors of web UI commands are reported
 		if err != nil {
+			ShowError(err, 0)
 			response.Status = false
 			response.Error = userMessage(err)
 			response.Settings = Settings
@@ -1047,6 +1058,7 @@ func Download(w http.ResponseWriter, r *http.Request) {
 
 	content, err := readStringFromFile(file)
 	if err != nil {
+		logUnlessNotExist(err)
 		w.WriteHeader(404)
 		return
 	}

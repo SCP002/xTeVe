@@ -203,10 +203,9 @@ func createXEPGMapping() {
 
 			err = getLocalXMLTV(file, &xmltv)
 			if err != nil {
-				Data.XMLTV.Files = append(Data.XMLTV.Files, Data.XMLTV.Files[i+1:]...)
-				var errMsg = err.Error()
-				err = errors.New(getProviderParameter(fileID, "xmltv", "name") + ": " + errMsg)
-				ShowError(err, 000)
+				// Safe while iterating backwards: only already visited files move
+				Data.XMLTV.Files = append(Data.XMLTV.Files[:i], Data.XMLTV.Files[i+1:]...)
+				ShowError(fmt.Errorf("%s: %w", getProviderParameter(fileID, "xmltv", "name"), err), 0)
 			}
 
 			// XML Parsing (Provider File)
@@ -270,8 +269,7 @@ func createXEPGDatabase() (err error) {
 
 	Data.XEPG.Channels, err = loadJSONFileToMap(System.File.XEPG)
 	if err != nil {
-		ShowError(err, 1004)
-		return err
+		return withCode(err, 1004)
 	}
 
 	var createNewID = func() (xepg string) {
@@ -743,11 +741,23 @@ func createXMLTVFile() (err error) {
 
 	var tmpProgram = &XMLTV{}
 
+	// A channel without program data is still listed; failures are reported once at the end
+	var failedChannels int
+	var firstChannelErr error
+	var channelFailed = func(err error) {
+		failedChannels++
+		if firstChannelErr == nil {
+			firstChannelErr = err
+		}
+	}
+
 	for _, dxc := range Data.XEPG.Channels {
 
 		var xepgChannel XEPGChannelStruct
 		err := json.Unmarshal([]byte(mapToJSON(dxc)), &xepgChannel)
-		if err == nil {
+		if err != nil {
+			channelFailed(err)
+		} else {
 
 			if xepgChannel.XActive {
 
@@ -762,7 +772,9 @@ func createXMLTVFile() (err error) {
 				// Programs
 
 				*tmpProgram, err = getProgramData(xepgChannel)
-				if err == nil {
+				if err != nil {
+					channelFailed(fmt.Errorf("%s: %w", xepgChannel.XName, err))
+				} else {
 
 					xepgXML.Program = append(xepgXML.Program, tmpProgram.Program...)
 
@@ -772,6 +784,10 @@ func createXMLTVFile() (err error) {
 
 		}
 
+	}
+
+	if failedChannels > 0 {
+		ShowError(fmt.Errorf("XMLTV: no program data for %d channels, first error: %w", failedChannels, firstChannelErr), 0)
 	}
 
 	content, err := xml.MarshalIndent(xepgXML, "  ", "    ")
@@ -1072,9 +1088,7 @@ func getLocalXMLTV(file string, xmltv *XMLTV) (err error) {
 
 		// Local XML File does not exist in the folder: Data
 		if err != nil {
-			ShowError(err, 1004)
-			err = errors.New("local copy of the file no longer exists")
-			return err
+			return withCode(fmt.Errorf("local copy of the file can not be read: %w", err), 1004)
 		}
 
 		// Parse XML File

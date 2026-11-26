@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"os/exec"
@@ -35,6 +36,14 @@ func closeKeepErr(c io.Closer, err *error) {
 // removeAllOrLog removes path and everything it contains and logs a failure.
 func removeAllOrLog(path string) {
 	if err := os.RemoveAll(path); err != nil {
+		ShowError(err, 0)
+	}
+}
+
+// logUnlessNotExist logs err unless it only says that a file does not exist,
+// which is an expected answer (HTTP 404) rather than a failure.
+func logUnlessNotExist(err error) {
+	if !errors.Is(err, fs.ErrNotExist) {
 		ShowError(err, 0)
 	}
 }
@@ -79,4 +88,32 @@ func userMessage(err error) string {
 		return msg
 	}
 	return string(unicode.ToUpper(r)) + msg[size:]
+}
+
+// codedError attaches an xTeVe error code (see getErrMsg) to an error, so that
+// the code reaches the caller that finally reports the error with ShowError.
+type codedError struct {
+	err  error
+	code int
+}
+
+func (e *codedError) Error() string { return e.err.Error() }
+
+func (e *codedError) Unwrap() error { return e.err }
+
+// withCode attaches an xTeVe error code to err. It returns nil if err is nil.
+func withCode(err error, code int) error {
+	if err == nil {
+		return nil
+	}
+	return &codedError{err: err, code: code}
+}
+
+// errorCode returns the xTeVe error code attached to err with withCode, or 0.
+func errorCode(err error) int {
+	var coded *codedError
+	if errors.As(err, &coded) {
+		return coded.code
+	}
+	return 0
 }
