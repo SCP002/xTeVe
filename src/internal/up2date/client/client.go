@@ -95,6 +95,9 @@ func serverRequest() (err error) {
 				return err
 			}
 		}
+		if resp != nil {
+			closeOrLog(resp.Body)
+		}
 		// ---
 
 		req, err := http.NewRequest("POST", Updater.URL, bytes.NewBuffer(jsonByte))
@@ -109,6 +112,7 @@ func serverRequest() (err error) {
 		if err != nil {
 			return err
 		}
+		defer closeOrLog(resp.Body)
 
 		if resp.StatusCode != http.StatusOK {
 			//fmt.Println(resp.StatusCode, Updater.URL, Updater.CMD)
@@ -117,9 +121,11 @@ func serverRequest() (err error) {
 		}
 
 		Updater.CMD = ""
-		defer resp.Body.Close()
 
-		body, _ := io.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
 
 		err = json.Unmarshal(body, &serverResponse)
 

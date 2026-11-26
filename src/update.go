@@ -48,7 +48,7 @@ func BinaryUpdate() (err error) {
 		if resp.StatusCode != http.StatusOK {
 
 			if resp.StatusCode == 404 {
-				err = fmt.Errorf("Update Server: %s (%s)", http.StatusText(resp.StatusCode), gitInfo)
+				err = fmt.Errorf("update server: %s (%s)", http.StatusText(resp.StatusCode), gitInfo)
 				ShowError(err, 6003)
 				return nil
 			}
@@ -98,7 +98,7 @@ func BinaryUpdate() (err error) {
 
 		if len(updater.Response.Reason) > 0 {
 
-			err = fmt.Errorf("Update Server: %s", updater.Response.Reason)
+			err = fmt.Errorf("update server: %s", updater.Response.Reason)
 			ShowError(err, 6002)
 
 			return nil

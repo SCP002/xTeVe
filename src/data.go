@@ -223,7 +223,9 @@ func updateServerSettings(request RequestStruct) (settings SettingsStruct, err e
 						System.ImageCachingInProgress = 1
 						showInfo("Image Caching:Images are cached")
 
-						Data.Cache.Images.Image.Caching()
+						if err := Data.Cache.Images.Image.Caching(); err != nil {
+							ShowError(err, 0)
+						}
 						showInfo("Image Caching:Done")
 
 						System.ImageCachingInProgress = 0
@@ -354,7 +356,11 @@ func saveFiles(request RequestStruct, fileType string) (err error) {
 
 		}
 
-		Settings, _ = loadSettings()
+		if settings, err := loadSettings(); err != nil {
+			ShowError(err, 0)
+		} else {
+			Settings = settings
+		}
 
 	}
 
@@ -414,7 +420,7 @@ func deleteLocalProviderFiles(dataID, fileType string) {
 
 	if _, ok := removeData[dataID]; ok {
 		delete(removeData, dataID)
-		os.RemoveAll(System.Folder.Data + dataID + fileExtension)
+		removeAllOrLog(System.Folder.Data + dataID + fileExtension)
 	}
 }
 
@@ -841,7 +847,7 @@ func buildDatabaseDVR() (err error) {
 
 			if err != nil {
 				ShowError(err, 1005)
-				err = errors.New(playlistName + ": Local copy of the file no longer exists")
+				err = errors.New(playlistName + ": local copy of the file no longer exists")
 				ShowError(err, 0)
 				playlistFile = append(playlistFile[:n], playlistFile[n+1:]...)
 			}

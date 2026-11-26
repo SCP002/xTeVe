@@ -51,14 +51,12 @@ func SSDP() (err error) {
 				err = adv.Alive()
 				if err != nil {
 					ShowError(err, 0)
-					adv.Bye()
-					adv.Close()
+					stopAdvertising(adv)
 					break loop
 				}
 
 			case <-quit:
-				adv.Bye()
-				adv.Close()
+				stopAdvertising(adv)
 				os.Exit(0)
 				break loop
 
@@ -69,4 +67,14 @@ func SSDP() (err error) {
 	}(ad)
 
 	return
+}
+
+// stopAdvertising notifies the network that the device is going away and closes the advertiser.
+func stopAdvertising(adv *ssdp.Advertiser) {
+	if err := adv.Bye(); err != nil {
+		ShowError(err, 0)
+	}
+	if err := adv.Close(); err != nil {
+		ShowError(err, 0)
+	}
 }

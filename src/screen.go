@@ -100,7 +100,7 @@ func showHighlight(str string) {
 	notification.Type = "info"
 	notification.Message = msg[1]
 
-	_ = addNotification(notification) // always succeeds
+	addNotification(notification)
 }
 
 func showWarning(errCode int) {
@@ -123,7 +123,7 @@ func ShowError(err error, errCode int) {
 	var mutex = sync.RWMutex{}
 
 	var errMsg = getErrMsg(errCode)
-	var logMsg = fmt.Sprintf("[%s] [ERROR] %s (%s) - EC: %d", System.Name, err, errMsg, errCode)
+	var logMsg = fmt.Sprintf("[%s] [ERROR] %s (%s) - EC: %d", System.Name, userMessage(err), errMsg, errCode)
 
 	printLogOnScreen(logMsg, "error")
 
@@ -407,13 +407,13 @@ func sendAlert(text string) {
 	case webAlerts <- text:
 		//
 	default:
-		err := fmt.Errorf("Client alert buffer is full, dropping the message: %v", text)
+		err := fmt.Errorf("client alert buffer is full, dropping the message: %v", text)
 		ShowError(err, 0)
 	}
 
 }
 
-func addNotification(notification Notification) (err error) {
+func addNotification(notification Notification) {
 
 	var i int
 	var t = time.Now().UnixNano() / (int64(time.Millisecond) / int64(time.Nanosecond))
@@ -439,6 +439,4 @@ func addNotification(notification Notification) (err error) {
 		i++
 
 	}
-
-	return
 }

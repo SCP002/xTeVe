@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/avfs/avfs/vfs/memfs"
@@ -160,13 +161,13 @@ func bufferingStream(playlistID, streamingURL, channelName string, w http.Respon
 
 					var content = GetHTMLString(value.(string))
 
-					w.WriteHeader(200)
 					w.Header().Set("Content-type", "video/mpeg")
-					w.Header().Set("Content-Length:", "0")
+					w.WriteHeader(200)
 
 					for i := 1; i < 60; i++ {
-						_ = i
-						w.Write([]byte(content))
+						if !writeResponse(w, []byte(content)) {
+							break
+						}
 						time.Sleep(time.Duration(500) * time.Millisecond)
 					}
 
@@ -318,7 +319,7 @@ func bufferingStream(playlistID, streamingURL, channelName string, w http.Respon
 								buffer = make([]byte, int(l.Size()))
 								_, err = io.ReadFull(file, buffer)
 							}
-							file.Close()
+							closeOrLog(file)
 
 							if err == nil {
 
@@ -667,7 +668,7 @@ func connectToStreamingServer(streamID int, playlistID string) {
 
 				if resp == nil {
 
-					err = errors.New("No response from streaming server")
+					err = errors.New("no response from streaming server")
 					fmt.Println("Current URL:", currentURL)
 					ShowError(err, 0)
 
@@ -693,16 +694,16 @@ func connectToStreamingServer(streamID int, playlistID string) {
 
 						debug = fmt.Sprintf("HTTP Redirect:%s", stream.Location)
 						showDebug(debug, 2)
-						defer resp.Body.Close()
+						closeOrLog(resp.Body)
 						goto Redirect
 
 					} else {
 
-						err = errors.New("Streaming server")
+						err = errors.New("streaming server")
 						ShowError(err, 4002)
 						addErrorToStream(err)
 
-						defer resp.Body.Close()
+						closeOrLog(resp.Body)
 
 						return
 
@@ -713,15 +714,13 @@ func connectToStreamingServer(streamID int, playlistID string) {
 					ShowError(err, 0)
 					addErrorToStream(err)
 
-					defer resp.Body.Close()
+					closeOrLog(resp.Body)
 
 					return
 
 				}
 
 			}
-
-			defer resp.Body.Close()
 
 			// Check HTTP Status, in case of errors the stream is terminated
 			var contentType = resp.Header.Get("Content-Type")
@@ -745,7 +744,7 @@ func connectToStreamingServer(streamID int, playlistID string) {
 
 				killClientConnection(streamID, playlistID, true)
 				clientConnection(stream)
-				resp.Body.Close()
+				closeOrLog(resp.Body)
 
 				return
 			}
@@ -755,13 +754,13 @@ func connectToStreamingServer(streamID int, playlistID string) {
 
 				if len(stream.URLStreamingServer) == 0 {
 
-					u, _ := url.Parse(currentURL)
-					p, _ := url.Parse(currentURL)
+					// req was built from currentURL, so its parsed URL is already available
+					var u = req.URL
 
 					stream.URLScheme = u.Scheme
 					stream.URLHost = req.Host
-					stream.URLPath = p.Path
-					stream.URLFile = path.Base(p.Path)
+					stream.URLPath = u.Path
+					stream.URLFile = path.Base(u.Path)
 
 					stream.URLRedirect = fmt.Sprintf("%s://%s%s", stream.URLScheme, stream.URLHost, stream.URLPath)
 					stream.URLStreamingServer = fmt.Sprintf("%s://%s", stream.URLScheme, stream.URLHost)
@@ -828,16 +827,16 @@ func connectToStreamingServer(streamID int, playlistID string) {
 				var tmpFile = fmt.Sprintf("%s%d.ts", tmpFolder, tmpSegment)
 
 				if !clientConnection(stream) {
-					resp.Body.Close()
+					closeOrLog(resp.Body)
 					return
 				}
 
 				bufferFile, err := bufferVFS.Create(tmpFile)
 				if err != nil {
 
+					ShowError(err, 0)
 					addErrorToStream(err)
-					bufferFile.Close()
-					resp.Body.Close()
+					closeOrLog(resp.Body)
 					return
 
 				}
@@ -859,30 +858,28 @@ func connectToStreamingServer(streamID int, playlistID string) {
 
 						ShowError(err, 0)
 						addErrorToStream(err)
-						resp.Body.Close()
+						closeOrLog(bufferFile)
+						closeOrLog(resp.Body)
 						return
 
 					}
-
-					defer resp.Body.Close()
 
 					if _, err := bufferFile.Write(buffer[:n]); err != nil {
 
 						ShowError(err, 0)
 						addErrorToStream(err)
-						resp.Body.Close()
+						closeOrLog(bufferFile)
+						closeOrLog(resp.Body)
 						return
 
 					}
-
-					defer bufferFile.Close()
 
 					fileSize = fileSize + n
 
 					if !clientConnection(stream) {
 
-						resp.Body.Close()
-						bufferFile.Close()
+						closeOrLog(resp.Body)
+						closeOrLog(bufferFile)
 
 						if err = bufferVFS.RemoveAll(stream.Folder); err != nil {
 							ShowError(err, 4005)
@@ -909,7 +906,14 @@ func connectToStreamingServer(streamID int, playlistID string) {
 						debug = fmt.Sprintf("Buffer Status:Done (%s)", tmpFile)
 						showDebug(debug, 2)
 
-						bufferFile.Close()
+						// The segment is complete only if it was closed without errors
+						if err := bufferFile.Close(); err != nil {
+							Lock.Unlock()
+							ShowError(err, 0)
+							addErrorToStream(err)
+							closeOrLog(resp.Body)
+							return
+						}
 
 						stream.Status = true
 						playlist.Streams[streamID] = stream
@@ -922,8 +926,7 @@ func connectToStreamingServer(streamID int, playlistID string) {
 
 						if !clientConnection(stream) {
 
-							bufferFile.Close()
-							resp.Body.Close()
+							closeOrLog(resp.Body)
 
 							if err = bufferVFS.RemoveAll(stream.Folder); err != nil {
 								ShowError(err, 4005)
@@ -934,8 +937,9 @@ func connectToStreamingServer(streamID int, playlistID string) {
 
 						bufferFile, err = bufferVFS.Create(tmpFile)
 						if err != nil {
+							ShowError(err, 0)
 							addErrorToStream(err)
-							resp.Body.Close()
+							closeOrLog(resp.Body)
 							return
 						}
 
@@ -943,8 +947,7 @@ func connectToStreamingServer(streamID int, playlistID string) {
 						buffer = make([]byte, 1024*bufferSize*2)
 
 						if n == 0 {
-							bufferFile.Close()
-							resp.Body.Close()
+							closeOrLog(bufferFile)
 							break
 						}
 
@@ -957,11 +960,11 @@ func connectToStreamingServer(streamID int, playlistID string) {
 			// Unknown Format
 			default:
 				showInfo("Content Type:" + resp.Header.Get("Content-Type"))
-				err = errors.New("Streaming error")
+				err = errors.New("streaming error")
 				ShowError(err, 4003)
 
 				addErrorToStream(err)
-				resp.Body.Close()
+				closeOrLog(resp.Body)
 				return
 			}
 
@@ -1007,7 +1010,7 @@ func connectToStreamingServer(streamID int, playlistID string) {
 
 			stream.Segment = stream.Segment[1:len(stream.Segment)]
 
-			resp.Body.Close()
+			closeOrLog(resp.Body)
 
 		} // End for loop
 
@@ -1111,11 +1114,8 @@ func parseM3U8(stream *ThisStream) (err error) {
 	var parseURL = func(line string, segment *Segment) {
 
 		// Check if the address is a valid URL (http://... or /path/to/stream)
-		_, err := url.ParseRequestURI(line)
+		u, err := url.ParseRequestURI(line)
 		if err == nil {
-
-			// Prüfen ob die Domain in der Adresse enhalten ist
-			u, _ := url.Parse(line)
 
 			if len(u.Host) == 0 {
 				// Check whether the domain is included in the address
@@ -1400,10 +1400,15 @@ func thirdPartyBuffer(streamID int, playlistID string) {
 
 		f, err := bufferVFS.Create(tmpFile)
 		if err != nil {
+			ShowError(err, 0)
 			addErrorToStream(err)
 			return
 		}
-		f.Close()
+		if err = f.Close(); err != nil {
+			ShowError(err, 0)
+			addErrorToStream(err)
+			return
+		}
 
 		//args = strings.Replace(args, "[USER-AGENT]", Settings.UserAgent, -1)
 
@@ -1470,7 +1475,10 @@ func thirdPartyBuffer(streamID int, playlistID string) {
 			addErrorToStream(err)
 			return
 		}
-		defer cmd.Wait()
+
+		// Every exit path below must stop the process; stop() is safe to call more than once.
+		var stop = sync.OnceFunc(func() { stopProcess(cmd) })
+		defer stop()
 
 		go func() {
 
@@ -1497,9 +1505,10 @@ func thirdPartyBuffer(streamID int, playlistID string) {
 
 		f, err = bufferVFS.OpenFile(tmpFile, os.O_APPEND|os.O_WRONLY, 0600)
 		if err != nil {
-			panic(err)
+			ShowError(err, 0)
+			addErrorToStream(err)
+			return
 		}
-		defer f.Close()
 
 		buffer := make([]byte, 1024*4)
 
@@ -1530,12 +1539,11 @@ func thirdPartyBuffer(streamID int, playlistID string) {
 			select {
 			case timeout := <-t:
 				if timeout >= 20 && tmpSegment == 1 {
-					cmd.Process.Kill()
-					err = errors.New("Timout")
+					stop()
+					closeOrLog(f)
+					err = errors.New("timeout")
 					ShowError(err, 4006)
 					addErrorToStream(err)
-					cmd.Wait()
-					f.Close()
 					return
 				}
 
@@ -1548,25 +1556,26 @@ func thirdPartyBuffer(streamID int, playlistID string) {
 			}
 
 			if !clientConnection(stream) {
-				cmd.Process.Kill()
-				f.Close()
-				cmd.Wait()
+				stop()
+				closeOrLog(f)
 				return
 			}
 
 			n, err := reader.Read(buffer)
-			if err == io.EOF {
+			if err != nil {
+				if err != io.EOF {
+					ShowError(err, 0)
+				}
 				break
 			}
 
 			fileSize = fileSize + len(buffer[:n])
 
 			if _, err := f.Write(buffer[:n]); err != nil {
-				cmd.Process.Kill()
+				stop()
+				closeOrLog(f)
 				ShowError(err, 0)
 				addErrorToStream(err)
-				cmd.Wait()
-				f.Close()
 				return
 			}
 
@@ -1578,7 +1587,13 @@ func thirdPartyBuffer(streamID int, playlistID string) {
 					showInfo(fmt.Sprintf("Streaming Status:Buffering data from %s", bufferType))
 				}
 
-				f.Close()
+				// The segment is complete only if it was closed without errors
+				if err := f.Close(); err != nil {
+					stop()
+					ShowError(err, 0)
+					addErrorToStream(err)
+					return
+				}
 				tmpSegment++
 
 				if !stream.Status {
@@ -1595,10 +1610,9 @@ func thirdPartyBuffer(streamID int, playlistID string) {
 
 				f, err = bufferVFS.OpenFile(tmpFile, os.O_CREATE|os.O_TRUNC|os.O_APPEND|os.O_WRONLY, 0600)
 				if err != nil {
-					cmd.Process.Kill()
+					stop()
 					ShowError(err, 0)
 					addErrorToStream(err)
-					cmd.Wait()
 					return
 				}
 
@@ -1606,8 +1620,8 @@ func thirdPartyBuffer(streamID int, playlistID string) {
 
 		}
 
-		cmd.Process.Kill()
-		cmd.Wait()
+		stop()
+		closeOrLog(f)
 
 		err = errors.New(bufferType + " error")
 		addErrorToStream(err)

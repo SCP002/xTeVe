@@ -38,7 +38,7 @@ func DoUpdate(fileType, filenameBIN string) (err error) {
 		if err != nil {
 			return err
 		}
-		defer resp.Body.Close()
+		defer closeOrLog(resp.Body)
 		log.Println("["+strings.ToUpper(fileType)+"]", "Download new version...")
 
 		if resp.StatusCode != http.StatusOK {
@@ -71,11 +71,12 @@ func DoUpdate(fileType, filenameBIN string) (err error) {
 			restorOldBinary(oldBinary, newBinary)
 			return err
 		}
-		defer out.Close()
 
 		// Write the body to file
-
 		_, err = io.Copy(out, resp.Body)
+		if closeErr := out.Close(); err == nil {
+			err = closeErr
+		}
 		if err != nil {
 			restorOldBinary(oldBinary, newBinary)
 			return err
@@ -113,18 +114,13 @@ func DoUpdate(fileType, filenameBIN string) (err error) {
 					return err
 				}
 
-				os.RemoveAll(tmpFolder)
+				removeAllOrLog(tmpFolder)
 			}
 
 		}
 
 		// Set the permission
-		err = os.Chmod(binary, 0755)
-
-		// Close the new file !Windows
-		out.Close()
-
-		if err != nil {
+		if err = os.Chmod(binary, 0755); err != nil {
 			restorOldBinary(oldBinary, newBinary)
 			return err
 		}
@@ -141,25 +137,24 @@ func DoUpdate(fileType, filenameBIN string) (err error) {
 				return err
 			}
 
-			var pid = os.Getpid()
-			var process, _ = os.FindProcess(pid)
-
-			if proc, err := start(bin); err == nil {
-
-				os.RemoveAll(oldBinary)
-				process.Kill()
-				_, _ = proc.Wait()
-
-			} else {
+			proc, err := start(bin)
+			if err != nil {
 				restorOldBinary(oldBinary, newBinary)
+				return err
 			}
+
+			// The new process is running, so the current one has to exit to release the old binary
+			if err := proc.Release(); err != nil {
+				log.Println("[UPDATE]", err)
+			}
+			removeAllOrLog(oldBinary)
+			os.Exit(0)
 
 		} else {
 
 			// Restart binary (Linux and UNIX)
-			file, _ := executablePath()
-			os.RemoveAll(oldBinary)
-			err = syscall.Exec(file, os.Args, os.Environ())
+			removeAllOrLog(oldBinary)
+			err = syscall.Exec(binary, os.Args, os.Environ())
 			if err != nil {
 				restorOldBinary(oldBinary, newBinary)
 				log.Fatal(err)
@@ -191,7 +186,7 @@ func start(args ...string) (p *os.Process, err error) {
 }
 
 func restorOldBinary(oldBinary, newBinary string) {
-	os.RemoveAll(newBinary)
+	removeAllOrLog(newBinary)
 	if err := os.Rename(oldBinary, newBinary); err != nil {
 		log.Println("[UPDATE] Restore old binary:", err)
 	}
@@ -216,19 +211,16 @@ func copyFile(src, dst string) (err error) {
 	if err != nil {
 		return err
 	}
-	defer in.Close()
+	defer closeOrLog(in)
 
 	out, err := os.Create(dst)
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer closeKeepErr(out, &err)
 
 	_, err = io.Copy(out, in)
-	if err != nil {
-		return err
-	}
-	return out.Close()
+	return err
 }
 
 func extractZIP(archive, target string) (err error) {
@@ -237,40 +229,71 @@ func extractZIP(archive, target string) (err error) {
 	if err != nil {
 		return err
 	}
+	defer closeOrLog(reader)
 
 	if err := os.MkdirAll(target, 0755); err != nil {
 		return err
 	}
 
 	for _, file := range reader.File {
-
-		path := filepath.Join(target, file.Name)
-		if file.FileInfo().IsDir() {
-			if err = os.MkdirAll(path, file.Mode()); err != nil {
-				return
-			}
-			continue
-		}
-
-		fileReader, err := file.Open()
-		if err != nil {
+		if err = extractZIPFile(file, target); err != nil {
 			return err
 		}
-		defer fileReader.Close()
-
-		targetFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
-		if err != nil {
-			return err
-		}
-		defer targetFile.Close()
-
-		if _, err := io.Copy(targetFile, fileReader); err != nil {
-			return err
-		}
-
 	}
 
-	return
+	return nil
+}
+
+func extractZIPFile(file *zip.File, target string) (err error) {
+
+	path := filepath.Join(target, file.Name)
+
+	// Reject entries like "../../etc/passwd" that would be written outside of the target folder
+	if !strings.HasPrefix(path, filepath.Clean(target)+string(os.PathSeparator)) {
+		return fmt.Errorf("invalid file path in archive: %s", file.Name)
+	}
+
+	if file.FileInfo().IsDir() {
+		return os.MkdirAll(path, file.Mode())
+	}
+
+	fileReader, err := file.Open()
+	if err != nil {
+		return err
+	}
+	defer closeOrLog(fileReader)
+
+	targetFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
+	if err != nil {
+		return err
+	}
+	defer closeKeepErr(targetFile, &err)
+
+	_, err = io.Copy(targetFile, fileReader)
+
+	return err
+}
+
+// closeOrLog closes c and logs a failure. Use it for resources that were only read from.
+func closeOrLog(c io.Closer) {
+	if err := c.Close(); err != nil {
+		log.Println("[UPDATE]", err)
+	}
+}
+
+// closeKeepErr closes c and stores the Close error in *err, unless *err already
+// holds an earlier error. Use it with defer for files that were written to.
+func closeKeepErr(c io.Closer, err *error) {
+	if closeErr := c.Close(); closeErr != nil && *err == nil {
+		*err = closeErr
+	}
+}
+
+// removeAllOrLog removes path and everything it contains and logs a failure.
+func removeAllOrLog(path string) {
+	if err := os.RemoveAll(path); err != nil {
+		log.Println("[UPDATE]", err)
+	}
 }
 
 // executablePath returns the absolute path of the running binary with symlinks resolved.

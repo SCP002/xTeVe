@@ -52,7 +52,10 @@ func BuildGoFile() error {
 
 // GetHTMLString : base64 -> string
 func GetHTMLString(base string) string {
-	content, _ := base64.StdEncoding.DecodeString(base)
+	content, err := base64.StdEncoding.DecodeString(base)
+	if err != nil {
+		ShowError(err, 0)
+	}
 	return string(content)
 }
 

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -162,7 +161,7 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 
 		w.WriteHeader(200)
-		w.Write(response)
+		writeResponse(w, response)
 		return
 
 	}
@@ -323,7 +322,7 @@ func xTeVe(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", contentType)
 
 	if err == nil {
-		w.Write([]byte(content))
+		writeResponse(w, []byte(content))
 	}
 }
 
@@ -342,7 +341,7 @@ func Images(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", getContentType(filePath))
 	w.Header().Add("Content-Length", fmt.Sprintf("%d", len(content)))
 	w.WriteHeader(200)
-	w.Write(content)
+	writeResponse(w, content)
 }
 
 // DataImages : Image path for Logos / Images that have been uploaded / data_images /
@@ -360,7 +359,7 @@ func DataImages(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", getContentType(filePath))
 	w.Header().Add("Content-Length", fmt.Sprintf("%d", len(content)))
 	w.WriteHeader(200)
-	w.Write(content)
+	writeResponse(w, content)
 }
 
 // WS : Web Sockets /ws/
@@ -383,7 +382,7 @@ func WS(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Could not open websocket connection", http.StatusBadRequest)
 		return
 	}
-	defer conn.Close()
+	defer closeOrLog(conn)
 
 	setGlobalDomain(r.Host)
 
@@ -423,7 +422,7 @@ func WS(w http.ResponseWriter, r *http.Request) {
 
 					response.Status = false
 					response.Reload = true
-					response.Error = err.Error()
+					response.Error = userMessage(err)
 					request.Cmd = "-"
 
 					if err = conn.WriteJSON(response); err != nil {
@@ -434,7 +433,9 @@ func WS(w http.ResponseWriter, r *http.Request) {
 				}
 
 				response.Token = newToken
-				response.Users, _ = authentication.GetAllUserData()
+				if response.Users, err = authentication.GetAllUserData(); err != nil {
+					ShowError(err, 0)
+				}
 
 			}
 
@@ -580,7 +581,7 @@ func WS(w http.ResponseWriter, r *http.Request) {
 				newWebURL, err := xteveRestoreFromWeb(request.Base64)
 				if err != nil {
 					ShowError(err, 000)
-					response.Alert = err.Error()
+					response.Alert = userMessage(err)
 				}
 
 				if err == nil {
@@ -644,7 +645,7 @@ func WS(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			response.Status = false
-			response.Error = err.Error()
+			response.Error = userMessage(err)
 			response.Settings = Settings
 		}
 
@@ -731,7 +732,12 @@ func Web(w http.ResponseWriter, r *http.Request) {
 			var username, password, confirm string
 			switch r.Method {
 			case "POST":
-				var allUsers, _ = authentication.GetAllUserData()
+				allUsers, err := authentication.GetAllUserData()
+				if err != nil {
+					ShowError(err, 0)
+					httpStatusError(w, r, 500)
+					return
+				}
 
 				username = r.FormValue("username")
 				password = r.FormValue("password")
@@ -827,7 +833,11 @@ func Web(w http.ResponseWriter, r *http.Request) {
 
 	if System.Dev {
 		// Local web server Files are loaded, only for Development
-		content, _ = readStringFromFile(requestFile)
+		var err error
+		if content, err = readStringFromFile(requestFile); err != nil {
+			httpStatusError(w, r, 404)
+			return
+		}
 	}
 
 	w.Header().Add("Content-Type", contentType)
@@ -837,7 +847,7 @@ func Web(w http.ResponseWriter, r *http.Request) {
 		content = parseTemplate(content, lang)
 	}
 
-	w.Write([]byte(content))
+	writeResponse(w, []byte(content))
 }
 
 // API : API request /api/
@@ -899,8 +909,8 @@ func API(w http.ResponseWriter, r *http.Request) {
 		var response APIResponseStruct
 
 		response.Status = false
-		response.Error = err.Error()
-		w.Write([]byte(mapToJSON(response)))
+		response.Error = userMessage(err)
+		writeResponse(w, []byte(mapToJSON(response)))
 
 	}
 
@@ -916,8 +926,8 @@ func API(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The server closes the request body itself
 	b, err := io.ReadAll(r.Body)
-	defer r.Body.Close()
 	if err != nil {
 		httpStatusError(w, r, 400)
 		return
@@ -944,7 +954,7 @@ func API(w http.ResponseWriter, r *http.Request) {
 				}
 
 			} else {
-				err = errors.New("Login incorrect")
+				err = errors.New("login incorrect")
 				if err != nil {
 					responseAPIError(err)
 					return
@@ -1027,7 +1037,7 @@ func API(w http.ResponseWriter, r *http.Request) {
 		responseAPIError(err)
 	}
 
-	w.Write([]byte(mapToJSON(response)))
+	writeResponse(w, []byte(mapToJSON(response)))
 }
 
 // Download : File Download
@@ -1043,8 +1053,8 @@ func Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	os.RemoveAll(System.Folder.Temp + getFilenameFromPath(path))
-	w.Write([]byte(content))
+	removeAllOrLog(System.Folder.Temp + getFilenameFromPath(path))
+	writeResponse(w, []byte(content))
 }
 
 func setDefaultResponseData(response ResponseStruct, data bool) (defaults ResponseStruct) {
@@ -1080,7 +1090,10 @@ func setDefaultResponseData(response ResponseStruct, data bool) (defaults Respon
 
 	if data {
 
-		defaults.Users, _ = authentication.GetAllUserData()
+		var err error
+		if defaults.Users, err = authentication.GetAllUserData(); err != nil {
+			ShowError(err, 0)
+		}
 		//defaults.DVR = System.DVRAddress
 
 		if Settings.EpgSource == "XEPG" {

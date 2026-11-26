@@ -4,6 +4,7 @@ import (
 	b64 "encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -54,7 +55,7 @@ func xTeVeAutoBackup() (err error) {
 
 		for i := 0; i < len(oldBackupFiles)-end; i++ {
 
-			os.RemoveAll(System.Folder.Backup + oldBackupFiles[i])
+			removeAllOrLog(System.Folder.Backup + oldBackupFiles[i])
 			debug = fmt.Sprintf("Delete backup file:%s", oldBackupFiles[i])
 			showDebug(debug, 1)
 
@@ -136,8 +137,8 @@ func xteveRestore(archive string) (newWebURL string, err error) {
 
 	tmpRestore = System.Folder.Temp + "restore" + string(os.PathSeparator)
 
-	defer os.RemoveAll(tmpRestore)
-	defer os.Remove(archive)
+	defer removeAllOrLog(tmpRestore)
+	defer removeAllOrLog(archive)
 
 	err = checkFolder(tmpRestore)
 	if err != nil {
@@ -251,7 +252,10 @@ func XteveRestoreFromCLI(archive string) (err error) {
 
 	fmt.Print("All data will be replaced with those from the backup. Should the files be restored? [yes|no]:")
 
-	fmt.Scanln(&confirm)
+	// An empty line is also reported as an error; it is handled as invalid input below
+	if _, err := fmt.Scanln(&confirm); errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+		return errors.New("no confirmation received: standard input is closed")
+	}
 
 	switch strings.ToLower(confirm) {
 

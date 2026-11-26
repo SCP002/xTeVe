@@ -74,7 +74,7 @@ func tokenAuthentication(token string) (newToken string, err error) {
 
 func basicAuth(r *http.Request, level string) (username string, err error) {
 
-	err = errors.New("User authentication failed")
+	err = errors.New("user authentication failed")
 
 	auth := strings.SplitN(r.Header.Get("Authorization"), " ", 2)
 
@@ -82,8 +82,15 @@ func basicAuth(r *http.Request, level string) (username string, err error) {
 		return
 	}
 
-	payload, _ := base64.StdEncoding.DecodeString(auth[1])
+	payload, err := base64.StdEncoding.DecodeString(auth[1])
+	if err != nil {
+		return "", err
+	}
+
 	pair := strings.SplitN(string(payload), ":", 2)
+	if len(pair) != 2 {
+		return "", errors.New("invalid basic authentication header")
+	}
 
 	username = pair[0]
 	var password = pair[1]
@@ -151,7 +158,7 @@ func checkAuthorizationLevel(token, level string) (err error) {
 		if v, ok := userData[level].(bool); ok {
 
 			if !v {
-				err = errors.New("No authorization")
+				err = errors.New("no authorization")
 			}
 
 		} else {
@@ -159,14 +166,14 @@ func checkAuthorizationLevel(token, level string) (err error) {
 			if err = authentication.WriteUserData(userID, userData); err != nil {
 				return
 			}
-			err = errors.New("No authorization")
+			err = errors.New("no authorization")
 		}
 
 	} else {
 		if err = authentication.WriteUserData(userID, userData); err != nil {
 			return
 		}
-		err = errors.New("No authorization")
+		err = errors.New("no authorization")
 	}
 
 	return

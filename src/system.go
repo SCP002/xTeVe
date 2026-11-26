@@ -349,7 +349,7 @@ func getStreamInfo(urlID string) (streamInfo StreamInfo, err error) {
 		streamInfo = s
 		streamInfo.URL = strings.Trim(streamInfo.URL, "\r\n")
 	} else {
-		err = errors.New("Streaming error")
+		err = errors.New("streaming error")
 	}
 
 	return

@@ -2,25 +2,11 @@ version: "2"
 
 linters:
   settings:
-    errcheck:
-      exclude-functions:
-        # Best-effort cleanup of external buffer processes (ffmpeg / VLC).
-        - (*os.Process).Kill
-        - (*os/exec.Cmd).Wait
-        # Nothing useful can be done when the HTTP client is gone.
-        - (net/http.ResponseWriter).Write
-        - (*github.com/koron/go-ssdp.Advertiser).Bye
-        - fmt.Scanln
     staticcheck:
       checks:
         - all
-        # Error strings are shown as-is in the web UI and logs.
-        - -ST1005
         # Package comments and exported identifier comments are not required.
         - -ST1000
         - -ST1020
         - -ST1021
         - -ST1022
-  exclusions:
-    presets:
-      - std-error-handling

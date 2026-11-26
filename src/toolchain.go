@@ -267,7 +267,9 @@ func mapToJSON(tmpMap interface{}) string {
 func jsonToMap(content string) map[string]interface{} {
 
 	var tmpMap = make(map[string]interface{})
-	_ = json.Unmarshal([]byte(content), &tmpMap) // invalid JSON yields an empty map
+	if err := json.Unmarshal([]byte(content), &tmpMap); err != nil {
+		ShowError(err, 0)
+	}
 
 	return (tmpMap)
 }

@@ -87,8 +87,12 @@ func buildXEPG(background bool) {
 						System.ImageCachingInProgress = 1
 						showInfo(fmt.Sprintf("Image Caching:Images are cached (%d)", len(Data.Cache.Images.Queue)))
 
-						Data.Cache.Images.Image.Caching()
-						Data.Cache.Images.Image.Remove()
+						if err := Data.Cache.Images.Image.Caching(); err != nil {
+							ShowError(err, 0)
+						}
+						if err := Data.Cache.Images.Image.Remove(); err != nil {
+							ShowError(err, 0)
+						}
 						showInfo("Image Caching:Done")
 
 						if err := createXMLTVFile(); err != nil {
@@ -135,8 +139,12 @@ func buildXEPG(background bool) {
 						System.ImageCachingInProgress = 1
 						showInfo(fmt.Sprintf("Image Caching:Images are cached (%d)", len(Data.Cache.Images.Queue)))
 
-						Data.Cache.Images.Image.Caching()
-						Data.Cache.Images.Image.Remove()
+						if err := Data.Cache.Images.Image.Caching(); err != nil {
+							ShowError(err, 0)
+						}
+						if err := Data.Cache.Images.Image.Remove(); err != nil {
+							ShowError(err, 0)
+						}
 						showInfo("Image Caching:Done")
 
 						if err := createXMLTVFile(); err != nil {
@@ -287,8 +295,8 @@ func createXEPGDatabase() (err error) {
 
 		var firstFreeNumber = Settings.MappingFirstChannel
 		if startingChannel != nil {
-			var startingChannel, _ = strconv.ParseFloat(startingChannel[0], 64)
-			if startingChannel > 0 {
+			// An invalid starting channel falls back to the default first channel
+			if startingChannel, err := strconv.ParseFloat(startingChannel[0], 64); err == nil && startingChannel > 0 {
 				firstFreeNumber = startingChannel
 			}
 		}
@@ -651,7 +659,7 @@ func mapping() (err error) {
 
 					} else {
 
-						ShowError(fmt.Errorf("Missing EPG data: %s", xepgChannel.Name), 0)
+						ShowError(fmt.Errorf("missing EPG data: %s", xepgChannel.Name), 0)
 						showWarning(2302)
 						xepgChannel.XActive = false
 
@@ -661,7 +669,7 @@ func mapping() (err error) {
 
 					var fileID = strings.TrimSuffix(getFilenameFromPath(file), path.Ext(getFilenameFromPath(file)))
 
-					ShowError(fmt.Errorf("Missing XMLTV file: %s", getProviderParameter(fileID, "xmltv", "name")), 0)
+					ShowError(fmt.Errorf("missing XMLTV file: %s", getProviderParameter(fileID, "xmltv", "name")), 0)
 					showWarning(2301)
 					xepgChannel.XActive = false
 
@@ -766,7 +774,10 @@ func createXMLTVFile() (err error) {
 
 	}
 
-	var content, _ = xml.MarshalIndent(xepgXML, "  ", "    ")
+	content, err := xml.MarshalIndent(xepgXML, "  ", "    ")
+	if err != nil {
+		return
+	}
 	var xmlOutput = []byte(xml.Header + string(content))
 	if err = writeByteToFile(System.File.XML, xmlOutput); err != nil {
 		return
@@ -799,6 +810,17 @@ func getProgramData(xepgChannel XEPGChannelStruct) (xepgXML XMLTV, err error) {
 
 	}
 
+	// Timeshift in hours, from the channel settings or the "tvg-shift" M3U attribute
+	var timeshift int
+	if len(xepgChannel.XTimeshift) > 0 {
+		var parseErr error
+		if timeshift, parseErr = strconv.Atoi(xepgChannel.XTimeshift); parseErr != nil {
+			ShowError(fmt.Errorf("channel %s: timeshift %q is not a whole number of hours and is ignored", xepgChannel.XName, xepgChannel.XTimeshift), 0)
+			timeshift = 0
+		}
+	}
+	var timeshiftReported bool
+
 	for _, xmltvProgram := range xmltv.Program {
 
 		if xmltvProgram.Channel == channelID {
@@ -806,15 +828,22 @@ func getProgramData(xepgChannel XEPGChannelStruct) (xepgXML XMLTV, err error) {
 
 			// Channel ID
 			program.Channel = xepgChannel.XChannelID
-			timeshift, _ := strconv.Atoi(xepgChannel.XTimeshift)
-			progStart := strings.Split(xmltvProgram.Start, " ")
-			progStop := strings.Split(xmltvProgram.Stop, " ")
-			tzStart, _ := strconv.Atoi(progStart[1])
-			tzStop, _ := strconv.Atoi(progStop[1])
-			progStart[1] = fmt.Sprintf("%+05d", tzStart+timeshift*100)
-			progStop[1] = fmt.Sprintf("%+05d", tzStop+timeshift*100)
-			program.Start = strings.Join(progStart, " ")
-			program.Stop = strings.Join(progStop, " ")
+			program.Start = xmltvProgram.Start
+			program.Stop = xmltvProgram.Stop
+
+			if timeshift != 0 {
+				start, startErr := shiftXMLTVTime(xmltvProgram.Start, timeshift)
+				stop, stopErr := shiftXMLTVTime(xmltvProgram.Stop, timeshift)
+				if shiftErr := errors.Join(startErr, stopErr); shiftErr != nil {
+					// The program keeps its original time; report the problem once per channel
+					if !timeshiftReported {
+						ShowError(fmt.Errorf("channel %s: timeshift is not applied: %w", xepgChannel.XName, shiftErr), 0)
+						timeshiftReported = true
+					}
+				} else {
+					program.Start, program.Stop = start, stop
+				}
+			}
 
 			// Title
 			program.Title = xmltvProgram.Title
@@ -883,8 +912,7 @@ func createDummyProgram(xepgChannel XEPGChannelStruct) (dummyXMLTV XMLTV) {
 	var currentTime = time.Now()
 	var dateArray = strings.Fields(currentTime.String())
 	var offset = " " + dateArray[2]
-	var currentDay = currentTime.Format("20060102")
-	var startTime, _ = time.Parse("20060102150405", currentDay+"000000")
+	var startTime = time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(), 0, 0, 0, 0, time.UTC)
 
 	showInfo("Create Dummy Guide:" + "Time offset" + offset + " - " + xepgChannel.XName)
 
@@ -1045,7 +1073,7 @@ func getLocalXMLTV(file string, xmltv *XMLTV) (err error) {
 		// Local XML File does not exist in the folder: Data
 		if err != nil {
 			ShowError(err, 1004)
-			err = errors.New("Local copy of the file no longer exists")
+			err = errors.New("local copy of the file no longer exists")
 			return err
 		}
 
@@ -1130,4 +1158,17 @@ func cleanupXEPG() {
 func clearXMLTVCache() {
 	Data.Cache.XMLTV = make(map[string]XMLTV)
 	runtime.GC()
+}
+
+// shiftXMLTVTime shifts the time zone offset of an XMLTV time ("20060102150405 +0100") by hours.
+func shiftXMLTVTime(t string, hours int) (string, error) {
+	parts := strings.Split(t, " ")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("XMLTV time without time zone: %q", t)
+	}
+	tz, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return "", fmt.Errorf("invalid XMLTV time zone: %q", t)
+	}
+	return fmt.Sprintf("%s %+05d", parts[0], tz+hours*100), nil
 }

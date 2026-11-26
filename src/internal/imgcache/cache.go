@@ -1,6 +1,7 @@
 package imgcache
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -25,8 +26,8 @@ type Cache struct {
 
 type imageFunc struct {
 	GetURL  func(string) string
-	Caching func()
-	Remove  func()
+	Caching func() error
+	Remove  func() error
 }
 
 // New : New cache
@@ -89,36 +90,24 @@ func New(path, chacheURL string, caching bool) (c *Cache, err error) {
 		return src
 	}
 
-	c.Image.Caching = func() {
+	c.Image.Caching = func() error {
 
 		c.Lock()
 		defer c.Unlock()
 
-		var filename string
+		var failed int
+		var firstErr error
 
 		for _, src := range c.Queue {
 
-			resp, err := http.Get(src)
-			if err != nil {
-				continue
-			}
-			defer resp.Body.Close()
+			var filename = fmt.Sprintf("%s%s%s%s", c.path, string(os.PathSeparator), strToMD5(src), filepath.Ext(src))
 
-			if resp.StatusCode != http.StatusOK {
-				continue
-			}
-
-			filename = fmt.Sprintf("%s%s%s%s", c.path, string(os.PathSeparator), strToMD5(src), filepath.Ext(src))
-
-			file, err := os.Create(filename)
-			if err != nil {
-				continue
-			}
-
-			defer file.Close()
-
-			_, err = io.Copy(file, resp.Body)
-			if err != nil {
+			if err := download(src, filename); err != nil {
+				// The image stays in the queue and is retried on the next run
+				failed++
+				if firstErr == nil {
+					firstErr = err
+				}
 				continue
 			}
 
@@ -131,37 +120,44 @@ func New(path, chacheURL string, caching bool) (c *Cache, err error) {
 
 		}
 
+		var total = len(c.Queue)
+
 		for _, q := range queue {
 			c.Queue = removeStringFromSlice(q, c.Queue)
 		}
 
+		if failed > 0 {
+			return fmt.Errorf("image caching: %d of %d images could not be cached, first error: %w", failed, total, firstErr)
+		}
+
+		return nil
 	}
 
-	c.Image.Remove = func() {
+	c.Image.Remove = func() error {
 
 		c.Lock()
 		defer c.Unlock()
 
 		files, err := os.ReadDir(c.path)
 		if err != nil {
-			return
+			return err
 		}
+
+		var errs []error
 
 		for _, file := range files {
 
-			switch c.caching {
+			if _, ok := c.images[file.Name()]; c.caching && ok {
+				continue
+			}
 
-			case true:
-				if _, ok := c.images[file.Name()]; !ok {
-					os.RemoveAll(c.path + file.Name())
-				}
-
-			case false:
-				os.RemoveAll(c.path + file.Name())
+			if err := os.RemoveAll(c.path + file.Name()); err != nil {
+				errs = append(errs, err)
 			}
 
 		}
 
+		return errors.Join(errs...)
 	}
 
 	files, err := os.ReadDir(c.path)
@@ -174,4 +170,35 @@ func New(path, chacheURL string, caching bool) (c *Cache, err error) {
 	}
 
 	return
+}
+
+// download saves the image at src to filename. A partially written file is removed.
+func download(src, filename string) (err error) {
+
+	resp, err := http.Get(src)
+	if err != nil {
+		return err
+	}
+	defer func() { err = errors.Join(err, resp.Body.Close()) }()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("%s: %s", src, resp.Status)
+	}
+
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(file, resp.Body)
+	if closeErr := file.Close(); err == nil {
+		err = closeErr
+	}
+
+	if err != nil {
+		// Do not leave a broken image in the cache
+		return errors.Join(err, os.Remove(filename))
+	}
+
+	return nil
 }
