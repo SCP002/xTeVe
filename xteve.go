@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"xteve/src"
+	"xteve/version"
 )
 
 // GitHubStruct : GitHub Account. The Updates are published via this Account
@@ -25,7 +26,8 @@ type GitHubStruct struct {
 }
 
 // GitHub : GitHub Account
-// If you want to fork this project, enter your Github account here. This prevents a newer version of xTeVe from updating your version.
+// If you want to fork this project, enter your Github account here. This prevents a newer version of xTeVe from
+// updating your version.
 var GitHub = GitHubStruct{Branch: "master", User: "SCP002", Repo: "xTeVe", Update: false}
 
 // Branch:	GitHub Branch
@@ -36,18 +38,35 @@ var GitHub = GitHubStruct{Branch: "master", User: "SCP002", Repo: "xTeVe", Updat
 // Name : Program Name
 const Name = "xTeVe"
 
-// Version : Version, the Build Number is parsed in the main func
-const Version = "2.5.0.0000"
-
 // DBVersion : Database Version
 const DBVersion = "2.3.0"
 
 // APIVersion : API Version
 const APIVersion = "1.1.0"
 
-var homeDirectory = fmt.Sprintf("%s%s.%s%s", src.GetUserHomeDirectory(), string(os.PathSeparator), strings.ToLower(Name), string(os.PathSeparator))
-var samplePath = fmt.Sprintf("%spath%sto%sxteve%s", string(os.PathSeparator), string(os.PathSeparator), string(os.PathSeparator), string(os.PathSeparator))
-var sampleRestore = fmt.Sprintf("%spath%sto%sfile%s", string(os.PathSeparator), string(os.PathSeparator), string(os.PathSeparator), string(os.PathSeparator))
+var homeDirectory = fmt.Sprintf(
+	"%s%s.%s%s",
+	src.GetUserHomeDirectory(),
+	string(os.PathSeparator),
+	strings.ToLower(Name),
+	string(os.PathSeparator),
+)
+
+var samplePath = fmt.Sprintf(
+	"%spath%sto%sxteve%s",
+	string(os.PathSeparator),
+	string(os.PathSeparator),
+	string(os.PathSeparator),
+	string(os.PathSeparator),
+)
+
+var sampleRestore = fmt.Sprintf(
+	"%spath%sto%sfile%s",
+	string(os.PathSeparator),
+	string(os.PathSeparator),
+	string(os.PathSeparator),
+	string(os.PathSeparator),
+)
 
 var configFolder = flag.String("config", "", ": Config Folder        ["+samplePath+"] (default: "+homeDirectory+")")
 var port = flag.String("port", "", ": Server port          [34400] (default: 34400)")
@@ -59,21 +78,22 @@ var info = flag.Bool("info", false, ": Show system info")
 var h = flag.Bool("h", false, ": Show help")
 
 // Activates Development Mode. The local Files are then used for the Webserver.
-var dev = flag.Bool("dev", false, ": Activates the developer mode, the source code must be available. The local files for the web interface are used.")
+var dev = flag.Bool(
+	"dev",
+	false,
+	": Activates the developer mode, the source code must be available. "+
+		"The local files for the web interface are used.",
+)
 
 func main() {
-
-	// Separate Build Number from Version Number
-	var build = strings.Split(Version, ".")
 
 	var system = &src.System
 	system.APIVersion = APIVersion
 	system.Branch = GitHub.Branch
-	system.Build = build[len(build)-1:][0]
 	system.DBVersion = DBVersion
 	system.GitHub = GitHub
 	system.Name = Name
-	system.Version = strings.Join(build[0:len(build)-1], ".")
+	system.Version = strings.TrimPrefix(version.Version, "v")
 
 	// Panic
 	defer func() {

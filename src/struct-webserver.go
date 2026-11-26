@@ -17,29 +17,30 @@ type RequestStruct struct {
 
 	// New Values for the Settings (settings.json)
 	Settings struct {
-		API                      *bool     `json:"api,omitempty"`
-		AuthenticationAPI        *bool     `json:"authentication.api,omitempty"`
-		AuthenticationM3U        *bool     `json:"authentication.m3u,omitempty"`
-		AuthenticationPMS        *bool     `json:"authentication.pms,omitempty"`
-		AuthenticationWEP        *bool     `json:"authentication.web,omitempty"`
-		AuthenticationXML        *bool     `json:"authentication.xml,omitempty"`
-		BackupKeep               *int      `json:"backup.keep,omitempty"`
-		BackupPath               *string   `json:"backup.path,omitempty"`
-		Buffer                   *string   `json:"buffer,omitempty"`
-		BufferSize               *int      `json:"buffer.size.kb,omitempty"`
-		BufferTimeout            *float64  `json:"buffer.timeout,omitempty"`
-		CacheImages              *bool     `json:"cache.images,omitempty"`
-		ClearXMLTVCache          *bool     `json:"clearXMLTVCache,omitempty"`
-		DefaultMissingEPG        *string   `json:"defaultMissingEPG,omitempty"`
-		DisallowURLDuplicates    *bool     `json:"disallowURLDuplicates,omitempty"`
-		EnableMappedChannels     *bool     `json:"enableMappedChannels,omitempty"`
-		EpgSource                *string   `json:"epgSource,omitempty"`
-		FFmpegOptions            *string   `json:"ffmpeg.options,omitempty"`
-		FFmpegPath               *string   `json:"ffmpeg.path,omitempty"`
-		VLCOptions               *string   `json:"vlc.options,omitempty"`
-		VLCPath                  *string   `json:"vlc.path,omitempty"`
-		FilesUpdate              *bool     `json:"files.update,omitempty"`
-		HostIP                   *string   `json:"hostIP,omitempty"` // IP chosen in web client. Used to form m3u and xml files.
+		API                   *bool    `json:"api,omitempty"`
+		AuthenticationAPI     *bool    `json:"authentication.api,omitempty"`
+		AuthenticationM3U     *bool    `json:"authentication.m3u,omitempty"`
+		AuthenticationPMS     *bool    `json:"authentication.pms,omitempty"`
+		AuthenticationWEP     *bool    `json:"authentication.web,omitempty"`
+		AuthenticationXML     *bool    `json:"authentication.xml,omitempty"`
+		BackupKeep            *int     `json:"backup.keep,omitempty"`
+		BackupPath            *string  `json:"backup.path,omitempty"`
+		Buffer                *string  `json:"buffer,omitempty"`
+		BufferSize            *int     `json:"buffer.size.kb,omitempty"`
+		BufferTimeout         *float64 `json:"buffer.timeout,omitempty"`
+		CacheImages           *bool    `json:"cache.images,omitempty"`
+		ClearXMLTVCache       *bool    `json:"clearXMLTVCache,omitempty"`
+		DefaultMissingEPG     *string  `json:"defaultMissingEPG,omitempty"`
+		DisallowURLDuplicates *bool    `json:"disallowURLDuplicates,omitempty"`
+		EnableMappedChannels  *bool    `json:"enableMappedChannels,omitempty"`
+		EpgSource             *string  `json:"epgSource,omitempty"`
+		FFmpegOptions         *string  `json:"ffmpeg.options,omitempty"`
+		FFmpegPath            *string  `json:"ffmpeg.path,omitempty"`
+		VLCOptions            *string  `json:"vlc.options,omitempty"`
+		VLCPath               *string  `json:"vlc.path,omitempty"`
+		FilesUpdate           *bool    `json:"files.update,omitempty"`
+		// IP chosen in web client. Used to form m3u and xml files.
+		HostIP                   *string   `json:"hostIP,omitempty"`
 		TempPath                 *string   `json:"temp.path,omitempty"`
 		TLSMode                  *bool     `json:"tlsMode,omitempty"`
 		Tuner                    *int      `json:"tuner,omitempty"`

@@ -34,7 +34,9 @@ func BinaryUpdate() (err error) {
 	case "master", "beta":
 
 		var gitInfo = fmt.Sprintf("%s/%s/info.json?raw=true", System.Update.Git, System.Branch)
-		var zipFile = fmt.Sprintf("%s/%s/%s_%s_%s.zip?raw=true", System.Update.Git, System.Branch, System.AppName, System.OS, System.ARCH)
+		var zipFile = fmt.Sprintf(
+			"%s/%s/%s_%s_%s.zip?raw=true", System.Update.Git, System.Branch, System.AppName, System.OS, System.ARCH,
+		)
 		var body []byte
 
 		var git GitStruct
@@ -77,7 +79,12 @@ func BinaryUpdate() (err error) {
 		updater.URL = Settings.UpdateURL
 
 		if len(updater.URL) == 0 {
-			showInfo(fmt.Sprintf("Update URL:No server URL specified, update will not be performed. Branch: %s", System.Branch))
+			showInfo(
+				fmt.Sprintf(
+					"Update URL:No server URL specified, update will not be performed. Branch: %s",
+					System.Branch,
+				),
+			)
 			return
 		}
 
@@ -101,7 +108,7 @@ func BinaryUpdate() (err error) {
 
 	}
 
-	var currentVersion = System.Version + "." + System.Build
+	var currentVersion = System.Version
 
 	// Check Version Number
 	if updater.Response.Version > currentVersion && updater.Response.Status {

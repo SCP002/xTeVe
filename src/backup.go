@@ -234,7 +234,7 @@ func XteveRestoreFromCLI(archive string) (err error) {
 	var confirm string
 
 	println()
-	showInfo(fmt.Sprintf("Version:%s Build: %s", System.Version, System.Build))
+	showInfo("Version:" + System.Version)
 	showInfo(fmt.Sprintf("Backup File:%s", archive))
 	showInfo(fmt.Sprintf("System Folder:%s", getPlatformPath(System.Folder.Config)))
 	println()
@@ -272,7 +272,9 @@ func XteveRestoreFromCLI(archive string) (err error) {
 			return
 		}
 
-		showHighlight(fmt.Sprintf("Restor:Backup was successfully restored. %s can now be started normally", System.Name))
+		showHighlight(
+			fmt.Sprintf("Restor:Backup was successfully restored. %s can now be started normally", System.Name),
+		)
 
 	}
 	return

@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/koron/go-ssdp"
@@ -20,7 +21,7 @@ func SSDP() (err error) {
 	showInfo(fmt.Sprintf("SSDP / DLNA:%t", Settings.SSDP))
 
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
 	// Debug SSDP
 	if System.Flag.Debug == 3 {

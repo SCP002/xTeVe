@@ -17,7 +17,6 @@ func showDevInfo() {
 		fmt.Print("\033[31m")
 		fmt.Println("* * * * * D E V   M O D E * * * * *")
 		fmt.Println("Version: ", System.Version)
-		fmt.Println("Build:   ", System.Build)
 		fmt.Println("* * * * * * * * * * * * * * * * * *")
 		fmt.Print("\033[0m")
 		fmt.Println()
@@ -248,14 +247,17 @@ func setGlobalDomain(domain string) {
 
 	switch Settings.AuthenticationM3U {
 	case true:
-		System.Addresses.M3U = System.ServerProtocol.M3U + "://" + System.Domain + "/m3u/xteve.m3u?username=xxx&password=yyy<br>(Specific groups: [http://...&group-title=foo,bar])"
+		System.Addresses.M3U = System.ServerProtocol.M3U + "://" + System.Domain +
+			"/m3u/xteve.m3u?username=xxx&password=yyy<br>(Specific groups: [http://...&group-title=foo,bar])"
 	case false:
-		System.Addresses.M3U = System.ServerProtocol.M3U + "://" + System.Domain + "/m3u/xteve.m3u     (Specific groups: [http://...?group-title=foo,bar])"
+		System.Addresses.M3U = System.ServerProtocol.M3U + "://" + System.Domain +
+			"/m3u/xteve.m3u     (Specific groups: [http://...?group-title=foo,bar])"
 	}
 
 	switch Settings.AuthenticationXML {
 	case true:
-		System.Addresses.XML = System.ServerProtocol.XML + "://" + System.Domain + "/xmltv/xteve.xml?username=xxx&password=yyy"
+		System.Addresses.XML = System.ServerProtocol.XML + "://" + System.Domain +
+			"/xmltv/xteve.xml?username=xxx&password=yyy"
 	case false:
 		System.Addresses.XML = System.ServerProtocol.XML + "://" + System.Domain + "/xmltv/xteve.xml"
 	}
@@ -287,7 +289,9 @@ func setDeviceID() {
 }
 
 // Convert Provider Streaming URL to xTeVe Streaming URL
-func createStreamingURL(streamingType, playlistID, channelNumber, channelName, url string) (streamingURL string, err error) {
+func createStreamingURL(
+	streamingType, playlistID, channelNumber, channelName, url string,
+) (streamingURL string, err error) {
 
 	var streamInfo StreamInfo
 	var serverProtocol string

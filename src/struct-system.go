@@ -18,7 +18,6 @@ type SystemStruct struct {
 	ARCH                string
 	BackgroundProcess   bool
 	Branch              string
-	Build               string
 	Compatibility       string
 	ConfigurationWizard bool
 	DBVersion           string
@@ -293,8 +292,9 @@ type SettingsStruct struct {
 	FFmpegPath            string   `json:"ffmpeg.path"`
 	VLCOptions            string   `json:"vlc.options"`
 	VLCPath               string   `json:"vlc.path"`
-	FileM3U               []string `json:"file,omitempty"`  // In the Wizard, the M3U is saved in a Slice
-	FileXMLTV             []string `json:"xmltv,omitempty"` // Old Storage System of the provider XML File Slice (Required for the conversion to the new one)
+	FileM3U               []string `json:"file,omitempty"` // In the Wizard, the M3U is saved in a Slice
+	// Old Storage System of the provider XML File Slice (Required for the conversion to the new one)
+	FileXMLTV []string `json:"xmltv,omitempty"`
 
 	Files struct {
 		HDHR  map[string]interface{} `json:"hdhr"`
@@ -302,28 +302,29 @@ type SettingsStruct struct {
 		XMLTV map[string]interface{} `json:"xmltv"`
 	} `json:"files"`
 
-	FilesUpdate               bool                  `json:"files.update"`
-	Filter                    map[int64]interface{} `json:"filter"`
-	HostIP                    string                `json:"hostIP"` // IP chosen in web client. Used to form m3u and xml files.
-	Key                       string                `json:"key,omitempty"`
-	Language                  string                `json:"language"`
-	LogEntriesRAM             int                   `json:"log.entries.ram"`
-	M3U8AdaptiveBandwidthMBPS int                   `json:"m3u8.adaptive.bandwidth.mbps"`
-	MappingFirstChannel       float64               `json:"mapping.first.channel"`
-	Port                      string                `json:"port"`
-	SSDP                      bool                  `json:"ssdp"`
-	StoreBufferInRAM          bool                  `json:"storeBufferInRAM"`
-	TempPath                  string                `json:"temp.path"`
-	TLSMode                   bool                  `json:"tlsMode"`
-	Tuner                     int                   `json:"tuner"`
-	Update                    []string              `json:"update"`
-	UpdateURL                 string                `json:"update.url,omitempty"`
-	UserAgent                 string                `json:"user.agent"`
-	UUID                      string                `json:"uuid"`
-	UDPxy                     string                `json:"udpxy"`
-	Version                   string                `json:"version"`
-	XepgReplaceMissingImages  bool                  `json:"xepg.replace.missing.images"`
-	XteveAutoUpdate           bool                  `json:"xteveAutoUpdate"`
+	FilesUpdate bool                  `json:"files.update"`
+	Filter      map[int64]interface{} `json:"filter"`
+	// IP chosen in web client. Used to form m3u and xml files.
+	HostIP                    string   `json:"hostIP"`
+	Key                       string   `json:"key,omitempty"`
+	Language                  string   `json:"language"`
+	LogEntriesRAM             int      `json:"log.entries.ram"`
+	M3U8AdaptiveBandwidthMBPS int      `json:"m3u8.adaptive.bandwidth.mbps"`
+	MappingFirstChannel       float64  `json:"mapping.first.channel"`
+	Port                      string   `json:"port"`
+	SSDP                      bool     `json:"ssdp"`
+	StoreBufferInRAM          bool     `json:"storeBufferInRAM"`
+	TempPath                  string   `json:"temp.path"`
+	TLSMode                   bool     `json:"tlsMode"`
+	Tuner                     int      `json:"tuner"`
+	Update                    []string `json:"update"`
+	UpdateURL                 string   `json:"update.url,omitempty"`
+	UserAgent                 string   `json:"user.agent"`
+	UUID                      string   `json:"uuid"`
+	UDPxy                     string   `json:"udpxy"`
+	Version                   string   `json:"version"`
+	XepgReplaceMissingImages  bool     `json:"xepg.replace.missing.images"`
+	XteveAutoUpdate           bool     `json:"xteveAutoUpdate"`
 }
 
 // LanguageUI : Language for the WebUI

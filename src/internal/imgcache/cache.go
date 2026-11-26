@@ -127,7 +127,12 @@ func New(path, chacheURL string, caching bool) (c *Cache, err error) {
 		}
 
 		if failed > 0 {
-			return fmt.Errorf("image caching: %d of %d images could not be cached, first error: %w", failed, total, firstErr)
+			return fmt.Errorf(
+				"image caching: %d of %d images could not be cached, first error: %w",
+				failed,
+				total,
+				firstErr,
+			)
 		}
 
 		return nil

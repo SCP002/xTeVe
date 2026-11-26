@@ -238,7 +238,10 @@ func getErrMsg(errCode int) (errMsg string) {
 	case 1012:
 		errMsg = "Invalid formatting of the time"
 	case 1013:
-		errMsg = fmt.Sprintf("Invalid settings file (settings.json), file must be at least version %s", System.Compatibility)
+		errMsg = fmt.Sprintf(
+			"Invalid settings file (settings.json), file must be at least version %s",
+			System.Compatibility,
+		)
 	case 1014:
 		errMsg = "Invalid filter rule"
 	case 1015:
@@ -331,7 +334,8 @@ func getErrMsg(errCode int) (errMsg string) {
 
 	// Tuner
 	case 2105:
-		errMsg = "The number of tuners has changed, you have to delete " + System.Name + " in Plex / Emby HDHR and set it up again."
+		errMsg = "The number of tuners has changed, you have to delete " + System.Name +
+			" in Plex / Emby HDHR and set it up again."
 	case 2106:
 		errMsg = "This function is only available with XEPG as EPG source"
 

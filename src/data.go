@@ -197,7 +197,11 @@ func updateServerSettings(request RequestStruct) (settings SettingsStruct, err e
 
 			if Settings.EpgSource == "XEPG" && System.ImageCachingInProgress == 0 {
 
-				Data.Cache.Images, err = imgcache.New(System.Folder.ImagesCache, fmt.Sprintf("%s://%s/images/", System.ServerProtocol.WEB, System.Domain), Settings.CacheImages)
+				Data.Cache.Images, err = imgcache.New(
+					System.Folder.ImagesCache,
+					fmt.Sprintf("%s://%s/images/", System.ServerProtocol.WEB, System.Domain),
+					Settings.CacheImages,
+				)
 				if err != nil {
 					ShowError(err, 0)
 				}
@@ -516,7 +520,11 @@ func saveXEpgMapping(request RequestStruct) (err error) {
 
 	var tmp = Data.XEPG
 
-	Data.Cache.Images, err = imgcache.New(System.Folder.ImagesCache, fmt.Sprintf("%s://%s/images/", System.ServerProtocol.WEB, System.Domain), Settings.CacheImages)
+	Data.Cache.Images, err = imgcache.New(
+		System.Folder.ImagesCache,
+		fmt.Sprintf("%s://%s/images/", System.ServerProtocol.WEB, System.Domain),
+		Settings.CacheImages,
+	)
 	if err != nil {
 		ShowError(err, 0)
 	}
@@ -542,7 +550,8 @@ func saveXEpgMapping(request RequestStruct) (err error) {
 
 	} else {
 
-		// If the Mapping is saved again while the Database is being created, the Database will not be updated again until later.
+		// If the Mapping is saved again while the Database is being created, the Database will not be updated again
+		// until later.
 		go func() {
 
 			if System.BackgroundProcess {
@@ -849,7 +858,13 @@ func buildDatabaseDVR() (err error) {
 
 				if Settings.DisallowURLDuplicates {
 					if _, haveURL := urlValuesMap[s["url"]]; haveURL {
-						showInfo("Streams:" + fmt.Sprintf("Found duplicated URL %v, ignoring the channel %v", s["url"], s["name"]))
+						showInfo(
+							"Streams:" + fmt.Sprintf(
+								"Found duplicated URL %v, ignoring the channel %v",
+								s["url"],
+								s["name"],
+							),
+						)
 						continue
 					} else {
 						urlValuesMap[s["url"]] = s["_values"]

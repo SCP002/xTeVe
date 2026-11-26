@@ -58,7 +58,8 @@ func Init() (err error) {
 	System.FFmpeg.DefaultOptions = "-hide_banner -loglevel error -i [URL] -c copy -f mpegts pipe:1"
 	System.VLC.DefaultOptions = "-I dummy [URL] --sout #std{mux=ts,access=file,dst=-}"
 
-	// Default Log Entries, which will later be overwritten by those from settings.json. Needed so that the first entries are also displayed in the Log (webUI are displayed)
+	// Default Log Entries, which will later be overwritten by those from settings.json. Needed so that the first
+	// entries are also displayed in the Log (webUI are displayed)
 	Settings.LogEntriesRAM = 500
 
 	// Variables for the Update Process
@@ -68,9 +69,18 @@ func Init() (err error) {
 
 	// Define folder paths
 	if len(System.Folder.Config) == 0 {
-		System.Folder.Config = GetUserHomeDirectory() + string(os.PathSeparator) + "." + System.AppName + string(os.PathSeparator)
+		System.Folder.Config = GetUserHomeDirectory() + string(
+			os.PathSeparator,
+		) + "." + System.AppName + string(
+			os.PathSeparator,
+		)
 	} else {
-		System.Folder.Config = strings.TrimRight(System.Folder.Config, string(os.PathSeparator)) + string(os.PathSeparator)
+		System.Folder.Config = strings.TrimRight(
+			System.Folder.Config,
+			string(os.PathSeparator),
+		) + string(
+			os.PathSeparator,
+		)
 	}
 
 	System.Folder.Config = getPlatformPath(System.Folder.Config)
@@ -125,7 +135,7 @@ func Init() (err error) {
 		showDebug(debug, 1)
 	}
 
-	showInfo(fmt.Sprintf("Version:%s Build: %s", System.Version, System.Build))
+	showInfo("Version:" + System.Version)
 	showInfo(fmt.Sprintf("Database Version:%s", System.DBVersion))
 	showInfo(fmt.Sprintf("System Folder:%s", getPlatformPath(System.Folder.Config)))
 
@@ -154,7 +164,9 @@ func Init() (err error) {
 		ShowError(err, 1002)
 	}
 
-	showInfo(fmt.Sprintf("System IP Addresses:IPv4: %d | IPv6: %d", len(System.IPAddressesV4), len(System.IPAddressesV6)))
+	showInfo(
+		fmt.Sprintf("System IP Addresses:IPv4: %d | IPv6: %d", len(System.IPAddressesV4), len(System.IPAddressesV6)),
+	)
 	showInfo("Hostname:" + System.Hostname)
 
 	// Check the permissions on all Folders

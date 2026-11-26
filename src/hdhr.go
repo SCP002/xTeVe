@@ -141,7 +141,13 @@ func getLineup() (jsonContent []byte, err error) {
 			}
 
 			// A channel without a streaming URL is left out of the lineup
-			if streamURL, err := createStreamingURL("DVR", m3uChannel.FileM3UID, stream.GuideNumber, m3uChannel.Name, m3uChannel.URL); err != nil {
+			if streamURL, err := createStreamingURL(
+				"DVR",
+				m3uChannel.FileM3UID,
+				stream.GuideNumber,
+				m3uChannel.Name,
+				m3uChannel.URL,
+			); err != nil {
 				ShowError(err, 1202)
 			} else {
 				stream.URL = streamURL
@@ -163,9 +169,14 @@ func getLineup() (jsonContent []byte, err error) {
 				var stream LineupStream
 				stream.GuideName = xepgChannel.XName
 				stream.GuideNumber = xepgChannel.XChannelID
-				//stream.URL = fmt.Sprintf("%s://%s/stream/%s-%s", System.ServerProtocol.DVR, System.Domain, xepgChannel.FileM3UID, base64.StdEncoding.EncodeToString([]byte(xepgChannel.URL)))
 				// A channel without a streaming URL is left out of the lineup
-				if streamURL, err := createStreamingURL("DVR", xepgChannel.FileM3UID, xepgChannel.XChannelID, xepgChannel.XName, xepgChannel.URL); err != nil {
+				if streamURL, err := createStreamingURL(
+					"DVR",
+					xepgChannel.FileM3UID,
+					xepgChannel.XChannelID,
+					xepgChannel.XName,
+					xepgChannel.URL,
+				); err != nil {
 					ShowError(err, 1202)
 				} else {
 					stream.URL = streamURL
@@ -178,7 +189,8 @@ func getLineup() (jsonContent []byte, err error) {
 	}
 
 	// Sort the lineup
-	// Have to use type assertions (https://golang.org/ref/spec#Type_assertions) to cast generic interface{} into LineupStream
+	// Have to use type assertions (https://golang.org/ref/spec#Type_assertions) to cast generic interface{} into
+	// LineupStream
 	sort.SliceStable(lineup, func(i, j int) bool {
 		return guideNumberLess(lineup[i].(LineupStream).GuideNumber, lineup[j].(LineupStream).GuideNumber)
 	})

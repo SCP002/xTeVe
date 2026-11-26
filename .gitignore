@@ -1,7 +1,14 @@
-.DS_Store
-xteve
-xteve.exe
-/.idea/*
+# Build output
+/build/
+/xteve
+/xteve.exe
 
 # Claude Code (personal settings)
 /.claude/settings.local.json
+
+# IDE
+/.idea/
+
+# OS
+.DS_Store
+Thumbs.db

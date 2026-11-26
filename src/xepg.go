@@ -52,7 +52,11 @@ func buildXEPG(background bool) {
 
 	var err error
 
-	Data.Cache.Images, err = imgcache.New(System.Folder.ImagesCache, fmt.Sprintf("%s://%s/images/", System.ServerProtocol.WEB, System.Domain), Settings.CacheImages)
+	Data.Cache.Images, err = imgcache.New(
+		System.Folder.ImagesCache,
+		fmt.Sprintf("%s://%s/images/", System.ServerProtocol.WEB, System.Domain),
+		Settings.CacheImages,
+	)
 	if err != nil {
 		ShowError(err, 0)
 	}
@@ -313,7 +317,9 @@ func createXEPGDatabase() (err error) {
 
 	}
 
-	var generateHashForChannel = func(m3uID string, name string, groupTitle string, tvgID string, tvgName string, uuidKey string, uuidValue string) string {
+	var generateHashForChannel = func(
+		m3uID, name, groupTitle, tvgID, tvgName, uuidKey, uuidValue string,
+	) string {
 		hash := md5.Sum([]byte(m3uID + name + groupTitle + tvgID + tvgName + uuidKey + uuidValue))
 		return hex.EncodeToString(hash[:])
 	}
@@ -347,7 +353,15 @@ func createXEPGDatabase() (err error) {
 		if err != nil {
 			return
 		}
-		channelHash := generateHashForChannel(channel.FileM3UID, channel.Name, channel.GroupTitle, channel.TvgID, channel.TvgName, channel.UUIDKey, channel.UUIDValue)
+		channelHash := generateHashForChannel(
+			channel.FileM3UID,
+			channel.Name,
+			channel.GroupTitle,
+			channel.TvgID,
+			channel.TvgName,
+			channel.UUIDKey,
+			channel.UUIDValue,
+		)
 		xepgChannelsValuesMap[channelHash] = channel
 	}
 
@@ -355,7 +369,8 @@ func createXEPGDatabase() (err error) {
 
 		var channelExists = false  // Decides whether a Channel should be added to the Database
 		var channelHasUUID = false // Checks whether the Channel (Stream) has Unique IDs
-		var currentXEPGID string   // Current Database ID (XEPG) Used to update the Channel in the Database with the Stream of the M3U
+		// Current Database ID (XEPG) Used to update the Channel in the Database with the Stream of the M3U
+		var currentXEPGID string
 
 		var m3uChannel M3UChannelStructXEPG
 
@@ -367,7 +382,15 @@ func createXEPGDatabase() (err error) {
 		Data.Cache.Streams.Active = append(Data.Cache.Streams.Active, m3uChannel.Name+m3uChannel.FileM3UID)
 
 		// Try to find the channel based on matching all known values. If that fails, then move to full channel scan
-		m3uChannelHash := generateHashForChannel(m3uChannel.FileM3UID, m3uChannel.Name, m3uChannel.GroupTitle, m3uChannel.TvgID, m3uChannel.TvgName, m3uChannel.UUIDKey, m3uChannel.UUIDValue)
+		m3uChannelHash := generateHashForChannel(
+			m3uChannel.FileM3UID,
+			m3uChannel.Name,
+			m3uChannel.GroupTitle,
+			m3uChannel.TvgID,
+			m3uChannel.TvgName,
+			m3uChannel.UUIDKey,
+			m3uChannel.UUIDValue,
+		)
 		if val, ok := xepgChannelsValuesMap[m3uChannelHash]; ok {
 			channelExists = true
 			currentXEPGID = val.XEPG
@@ -411,7 +434,8 @@ func createXEPGDatabase() (err error) {
 					if len(dxc.UpdateChannelNameRegex) == 0 {
 						continue
 					}
-					// Guard against the situation when both channels have UUIDValue, they are different, but names are the same
+					// Guard against the situation when both channels have UUIDValue, they are different, but names are
+					// the same
 					if dxc.Name == m3uChannel.Name {
 						continue
 					}
@@ -460,7 +484,8 @@ func createXEPGDatabase() (err error) {
 			// Update Streaming URL
 			xepgChannel.URL = m3uChannel.URL
 
-			// Update Name, the Name is used to check whether the Channel is still available in a Playlist. Function: cleanupXEPG
+			// Update Name, the Name is used to check whether the Channel is still available in a Playlist. Function:
+			// cleanupXEPG
 			xepgChannel.Name = m3uChannel.Name
 
 			// Update Channel Name, only possible with Channel ID's
@@ -550,11 +575,13 @@ func mapping() (err error) {
 			return
 		}
 
-		// Automatic mapping for new Channels. Is only executed if the Channel is deactivated and no XMLTV file and no XMLTV Channel is assigned.
+		// Automatic mapping for new Channels. Is only executed if the Channel is deactivated and no XMLTV file and no
+		// XMLTV Channel is assigned.
 		if !xepgChannel.XActive {
 
 			// Values can be "-", therefore len <= 1
-			// If either XmltvFile (XMLTV file / EPG source) or XMapping (XMLTV Channel / EPG program) is "-" or null, then look for a matching EPG program.
+			// If either XmltvFile (XMLTV file / EPG source) or XMapping (XMLTV Channel / EPG program) is "-" or null,
+			// then look for a matching EPG program.
 			if len(xepgChannel.XmltvFile) <= 1 || len(xepgChannel.XMapping) <= 1 {
 
 				var tvgID = xepgChannel.TvgID
@@ -580,7 +607,8 @@ func mapping() (err error) {
 							xepgChannel.XmltvFile = file
 							xepgChannel.XMapping = channelID
 
-							// If there is a Logo in the XMLTV file, this will be used. If not, then the Logo from the M3U file
+							// If there is a Logo in the XMLTV file, this will be used. If not, then the Logo from the
+							// M3U file
 							if icon, ok := channel.(map[string]interface{})["icon"].(string); ok {
 								if len(icon) > 0 {
 									xepgChannel.TvgLogo = icon
@@ -733,11 +761,7 @@ func createXMLTVFile() (err error) {
 
 	xepgXML.Generator = System.Name
 
-	if System.Branch == "master" {
-		xepgXML.Source = fmt.Sprintf("%s - %s", System.Name, System.Version)
-	} else {
-		xepgXML.Source = fmt.Sprintf("%s - %s.%s", System.Name, System.Version, System.Build)
-	}
+	xepgXML.Source = fmt.Sprintf("%s - %s", System.Name, System.Version)
 
 	var tmpProgram = &XMLTV{}
 
@@ -787,7 +811,10 @@ func createXMLTVFile() (err error) {
 	}
 
 	if failedChannels > 0 {
-		ShowError(fmt.Errorf("XMLTV: no program data for %d channels, first error: %w", failedChannels, firstChannelErr), 0)
+		ShowError(
+			fmt.Errorf("XMLTV: no program data for %d channels, first error: %w", failedChannels, firstChannelErr),
+			0,
+		)
 	}
 
 	content, err := xml.MarshalIndent(xepgXML, "  ", "    ")
@@ -831,7 +858,14 @@ func getProgramData(xepgChannel XEPGChannelStruct) (xepgXML XMLTV, err error) {
 	if len(xepgChannel.XTimeshift) > 0 {
 		var parseErr error
 		if timeshift, parseErr = strconv.Atoi(xepgChannel.XTimeshift); parseErr != nil {
-			ShowError(fmt.Errorf("channel %s: timeshift %q is not a whole number of hours and is ignored", xepgChannel.XName, xepgChannel.XTimeshift), 0)
+			ShowError(
+				fmt.Errorf(
+					"channel %s: timeshift %q is not a whole number of hours and is ignored",
+					xepgChannel.XName,
+					xepgChannel.XTimeshift,
+				),
+				0,
+			)
 			timeshift = 0
 		}
 	}
@@ -853,7 +887,10 @@ func getProgramData(xepgChannel XEPGChannelStruct) (xepgXML XMLTV, err error) {
 				if shiftErr := errors.Join(startErr, stopErr); shiftErr != nil {
 					// The program keeps its original time; report the problem once per channel
 					if !timeshiftReported {
-						ShowError(fmt.Errorf("channel %s: timeshift is not applied: %w", xepgChannel.XName, shiftErr), 0)
+						ShowError(
+							fmt.Errorf("channel %s: timeshift is not applied: %w", xepgChannel.XName, shiftErr),
+							0,
+						)
 						timeshiftReported = true
 					}
 				} else {
@@ -953,10 +990,34 @@ func createDummyProgram(xepgChannel XEPGChannelStruct) (dummyXMLTV XMLTV) {
 			epg.Channel = xepgChannel.XMapping
 			epg.Start = epgStartTime.Format("20060102150405") + offset
 			epg.Stop = epgStopTime.Format("20060102150405") + offset
-			epg.Title = append(epg.Title, &Title{Value: xepgChannel.XName + " (" + epgStartTime.Weekday().String()[0:2] + ". " + epgStartTime.Format("15:04") + " - " + epgStopTime.Format("15:04") + ")", Lang: "en"})
+			epg.Title = append(
+				epg.Title,
+				&Title{
+					Value: xepgChannel.XName + " (" + epgStartTime.Weekday().String()[0:2] + ". " + epgStartTime.Format(
+						"15:04",
+					) + " - " + epgStopTime.Format(
+						"15:04",
+					) + ")",
+					Lang: "en",
+				},
+			)
 
 			if len(xepgChannel.XDescription) == 0 {
-				epg.Desc = append(epg.Desc, &Desc{Value: "xTeVe: (" + strconv.Itoa(dummyLength) + " Minutes) " + epgStartTime.Weekday().String() + " " + epgStartTime.Format("15:04") + " - " + epgStopTime.Format("15:04"), Lang: "en"})
+				epg.Desc = append(
+					epg.Desc,
+					&Desc{
+						Value: "xTeVe: (" + strconv.Itoa(
+							dummyLength,
+						) + " Minutes) " + epgStartTime.Weekday().
+							String() +
+							" " + epgStartTime.Format(
+							"15:04",
+						) + " - " + epgStopTime.Format(
+							"15:04",
+						),
+						Lang: "en",
+					},
+				)
 			} else {
 				epg.Desc = append(epg.Desc, &Desc{Value: xepgChannel.XDescription, Lang: "en"})
 			}
@@ -967,7 +1028,10 @@ func createDummyProgram(xepgChannel XEPGChannelStruct) (dummyXMLTV XMLTV) {
 			}
 
 			if xepgChannel.XCategory != "Movie" {
-				epg.EpisodeNum = append(epg.EpisodeNum, &EpisodeNum{Value: epgStartTime.Format("2006-01-02 15:04:05"), System: "original-air-date"})
+				epg.EpisodeNum = append(
+					epg.EpisodeNum,
+					&EpisodeNum{Value: epgStartTime.Format("2006-01-02 15:04:05"), System: "original-air-date"},
+				)
 			}
 
 			epg.New = &New{Value: ""}
@@ -1039,7 +1103,10 @@ func getEpisodeNum(program *Program, xmltvProgram *Program, xepgChannel XEPGChan
 
 			t, err := time.Parse(timeLayout, strings.Split(xmltvProgram.Start, " ")[0])
 			if err == nil {
-				program.EpisodeNum = append(program.EpisodeNum, &EpisodeNum{Value: t.Format("2006-01-02 15:04:05"), System: "original-air-date"})
+				program.EpisodeNum = append(
+					program.EpisodeNum,
+					&EpisodeNum{Value: t.Format("2006-01-02 15:04:05"), System: "original-air-date"},
+				)
 			} else {
 				ShowError(err, 0)
 			}
@@ -1060,11 +1127,13 @@ func getVideo(program *Program, xmltvProgram *Program, xepgChannel XEPGChannelSt
 
 	if len(xmltvProgram.Video.Quality) == 0 {
 
-		if strings.Contains(strings.ToUpper(xepgChannel.XName), " HD") || strings.Contains(strings.ToUpper(xepgChannel.XName), " FHD") {
+		if strings.Contains(strings.ToUpper(xepgChannel.XName), " HD") ||
+			strings.Contains(strings.ToUpper(xepgChannel.XName), " FHD") {
 			video.Quality = "HDTV"
 		}
 
-		if strings.Contains(strings.ToUpper(xepgChannel.XName), " UHD") || strings.Contains(strings.ToUpper(xepgChannel.XName), " 4K") {
+		if strings.Contains(strings.ToUpper(xepgChannel.XName), " UHD") ||
+			strings.Contains(strings.ToUpper(xepgChannel.XName), " 4K") {
 			video.Quality = "UHDTV"
 		}
 

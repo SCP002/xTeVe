@@ -57,13 +57,31 @@ func StartWebserver() (err error) {
 		switch ips {
 
 		case 0:
-			showHighlight(fmt.Sprintf("Web Interface:%s://%s:%s/web/", System.ServerProtocol.WEB, Settings.HostIP, Settings.Port))
+			showHighlight(
+				fmt.Sprintf("Web Interface:%s://%s:%s/web/", System.ServerProtocol.WEB, Settings.HostIP, Settings.Port),
+			)
 
 		case 1:
-			showHighlight(fmt.Sprintf("Web Interface:%s://%s:%s/web/ | xTeVe is also available via the other %d IP.", System.ServerProtocol.WEB, Settings.HostIP, Settings.Port, ips))
+			showHighlight(
+				fmt.Sprintf(
+					"Web Interface:%s://%s:%s/web/ | xTeVe is also available via the other %d IP.",
+					System.ServerProtocol.WEB,
+					Settings.HostIP,
+					Settings.Port,
+					ips,
+				),
+			)
 
 		default:
-			showHighlight(fmt.Sprintf("Web Interface:%s://%s:%s/web/ | xTeVe is also available via the other %d IP's.", System.ServerProtocol.WEB, Settings.HostIP, Settings.Port, len(System.IPAddressesV4)+len(System.IPAddressesV6)-1))
+			showHighlight(
+				fmt.Sprintf(
+					"Web Interface:%s://%s:%s/web/ | xTeVe is also available via the other %d IP's.",
+					System.ServerProtocol.WEB,
+					Settings.HostIP,
+					Settings.Port,
+					len(System.IPAddressesV4)+len(System.IPAddressesV6)-1,
+				),
+			)
 
 		}
 
@@ -596,7 +614,9 @@ func WS(w http.ResponseWriter, r *http.Request) {
 				if err == nil {
 
 					if len(newWebURL) > 0 {
-						response.Alert = "Backup was successfully restored.\nThe port of the sTeVe URL has changed, you have to restart xTeVe.\nAfter a restart, xTeVe can be reached again at the following URL:\n" + newWebURL
+						response.Alert = "Backup was successfully restored.\n" +
+							"The port of the xTeVe URL has changed, you have to restart xTeVe.\n" +
+							"After a restart, xTeVe can be reached again at the following URL:\n" + newWebURL
 					} else {
 						response.Alert = "Backup was successfully restored."
 						response.Reload = true
@@ -777,11 +797,21 @@ func Web(w http.ResponseWriter, r *http.Request) {
 					}
 
 					authentication.SetCookieToken(w, token)
-					http.Redirect(w, r, "/web", http.StatusMovedPermanently) // Redirect so that the Data is deleted from the Browser.
+					http.Redirect(
+						w,
+						r,
+						"/web",
+						http.StatusMovedPermanently,
+					) // Redirect so that the Data is deleted from the Browser.
 
 				} else {
 					authentication.SetCookieToken(w, "-")
-					http.Redirect(w, r, "/web", http.StatusMovedPermanently) // Redirect so that the Data is deleted from the Browser.
+					http.Redirect(
+						w,
+						r,
+						"/web",
+						http.StatusMovedPermanently,
+					) // Redirect so that the Data is deleted from the Browser.
 				}
 
 				return
@@ -878,7 +908,8 @@ func API(w http.ResponseWriter, r *http.Request) {
 
 			Example API Request with curl
 			Login request:
-			curl -X POST -H "Content-Type: application/json" -d '{"cmd":"login","username":"plex","password":"123"}' http://localhost:34400/api/
+			curl -X POST -H "Content-Type: application/json" \
+				-d '{"cmd":"login","username":"plex","password":"123"}' http://localhost:34400/api/
 
 			Response:
 			{
@@ -887,7 +918,8 @@ func API(w http.ResponseWriter, r *http.Request) {
 			}
 
 			Status Request using a Token:
-			curl -X POST -H "Content-Type: application/json" -d '{"cmd":"status","token":"U0T-NTSaigh-RlbkqERsHvUpgvaaY2dyRGuwIIvv"}' http://localhost:4400/api/
+			curl -X POST -H "Content-Type: application/json" \
+				-d '{"cmd":"status","token":"U0T-NTSaigh-RlbkqERsHvUpgvaaY2dyRGuwIIvv"}' http://localhost:34400/api/
 
 			Response:
 			{
@@ -1087,15 +1119,10 @@ func setDefaultResponseData(response ResponseStruct, data bool) (defaults Respon
 	defaults.Notification = System.Notification
 	defaults.Log = WebScreenLog
 
-	switch System.Branch {
+	defaults.ClientInfo.Version = System.Version
 
-	case "master":
-		defaults.ClientInfo.Version = System.Version
-
-	default:
-		defaults.ClientInfo.Version = fmt.Sprintf("%s (%s)", System.Version, System.Build)
+	if System.Branch != "master" {
 		defaults.ClientInfo.Branch = System.Branch
-
 	}
 
 	if data {

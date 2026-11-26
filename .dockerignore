@@ -1,0 +1,13 @@
+.gitignore
+.gitattributes
+compose.dev.yaml
+/.devcontainer/
+/.git/
+/.github/
+/.vscode/
+/.claude/
+/CLAUDE.md
+/build/
+# Web UI sources; the built web UI is embedded in src/webUI.go
+/html/
+/ts/

@@ -20,9 +20,14 @@ func ShowSystemInfo() {
 	fmt.Println("OK")
 	fmt.Println()
 
-	fmt.Printf("Version:             %s %s.%s\n", System.Name, System.Version, System.Build)
+	fmt.Printf("Version:             %s %s\n", System.Name, System.Version)
 	fmt.Printf("Branch:              %s\n", System.Branch)
-	fmt.Printf("GitHub:              %s/%s | Git update = %t\n", System.GitHub.User, System.GitHub.Repo, System.GitHub.Update)
+	fmt.Printf(
+		"GitHub:              %s/%s | Git update = %t\n",
+		System.GitHub.User,
+		System.GitHub.Repo,
+		System.GitHub.Update,
+	)
 	fmt.Printf("Folder (config):     %s\n", System.Folder.Config)
 
 	fmt.Printf("Streams:             %d / %d\n", len(Data.Streams.Active), len(Data.Streams.All))

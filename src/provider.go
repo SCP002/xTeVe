@@ -39,7 +39,10 @@ func getProviderData(fileType, fileID string) (err error) {
 		}
 
 		// Default keys for the Provider Data
-		var keys = []string{"name", "description", "type", "file." + System.AppName, "file.source", "tuner", "last.update", "compatibility", "counter.error", "counter.download", "provider.availability"}
+		var keys = []string{
+			"name", "description", "type", "file." + System.AppName, "file.source", "tuner", "last.update",
+			"compatibility", "counter.error", "counter.download", "provider.availability",
+		}
 
 		for _, key := range keys {
 
@@ -246,7 +249,9 @@ func getProviderData(fileType, fileID string) (err error) {
 				if data["counter.error"].(float64) == 0 {
 					data["provider.availability"] = 100
 				} else {
-					data["provider.availability"] = int(data["counter.error"].(float64)*100/data["counter.download"].(float64)*-1 + 100)
+					data["provider.availability"] = int(
+						data["counter.error"].(float64)*100/data["counter.download"].(float64)*-1 + 100,
+					)
 				}
 
 			}
