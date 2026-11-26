@@ -2,7 +2,6 @@ package m3u
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"net/url"
 	"regexp"
@@ -26,7 +25,7 @@ func MakeInterfaceFromM3U(byteStream []byte) (allChannels []interface{}, err err
 
 		stream = make(map[string]string)
 
-		var lines = strings.Split(strings.Replace(channel, "\r\n", "\n", -1), "\n")
+		var lines = strings.Split(strings.ReplaceAll(channel, "\r\n", "\n"), "\n")
 
 		// Remove lines with # and blank lines
 		for i := len(lines) - 1; i >= 0; i-- {
@@ -58,7 +57,7 @@ func MakeInterfaceFromM3U(byteStream []byte) (allChannels []interface{}, err err
 
 						line = strings.Replace(line, p, "", 1)
 
-						p = strings.Replace(p, `"`, "", -1)
+						p = strings.ReplaceAll(p, `"`, "")
 						var parameter = strings.SplitN(p, "=", 2)
 
 						if len(parameter) == 2 {
@@ -126,7 +125,7 @@ func MakeInterfaceFromM3U(byteStream []byte) (allChannels []interface{}, err err
 				if strings.Contains(strings.ToLower(key), "id") {
 
 					if lo.IndexOf(uuids, value) != -1 {
-						log.Println(fmt.Sprintf("Channel: %s - %s = %s ", stream["name"], key, value))
+						log.Printf("Channel: %s - %s = %s ", stream["name"], key, value)
 						break
 					}
 

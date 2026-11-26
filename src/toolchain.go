@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -101,11 +100,8 @@ func checkFile(filename string) (err error) {
 		return err
 	}
 
-	switch mode := fi.Mode(); {
-	case mode.IsDir():
+	if fi.IsDir() {
 		err = fmt.Errorf("%s: %s", file, getErrMsg(1072))
-	case mode.IsRegular():
-		break
 	}
 
 	return
@@ -148,7 +144,7 @@ func checkFilePermission(dir string) (err error) {
 
 	var filename = dir + "permission.test"
 
-	err = ioutil.WriteFile(filename, []byte(""), 0644)
+	err = os.WriteFile(filename, []byte(""), 0644)
 	if err == nil {
 		err = os.RemoveAll(filename)
 	}
@@ -222,7 +218,7 @@ func searchFileInOS(file string) (path string) {
 		out, err := cmd.CombinedOutput()
 		if err == nil {
 
-			var slice = strings.Split(strings.Replace(string(out), "\r\n", "\n", -1), "\n")
+			var slice = strings.Split(strings.ReplaceAll(string(out), "\r\n", "\n"), "\n")
 
 			if len(slice) > 0 {
 				path = strings.Trim(slice[0], "\r\n")
@@ -238,7 +234,6 @@ func searchFileInOS(file string) (path string) {
 	return
 }
 
-//
 func removeChildItems(dir string) error {
 
 	files, err := filepath.Glob(filepath.Join(dir, "*"))
@@ -272,7 +267,7 @@ func mapToJSON(tmpMap interface{}) string {
 func jsonToMap(content string) map[string]interface{} {
 
 	var tmpMap = make(map[string]interface{})
-	json.Unmarshal([]byte(content), &tmpMap)
+	_ = json.Unmarshal([]byte(content), &tmpMap) // invalid JSON yields an empty map
 
 	return (tmpMap)
 }
@@ -293,7 +288,7 @@ func saveMapToJSONFile(file string, tmpMap interface{}) error {
 		return err
 	}
 
-	err = ioutil.WriteFile(filename, []byte(jsonString), 0644)
+	err = os.WriteFile(filename, []byte(jsonString), 0644)
 	if err != nil {
 		return err
 	}
@@ -303,16 +298,10 @@ func saveMapToJSONFile(file string, tmpMap interface{}) error {
 
 func loadJSONFileToMap(file string) (tmpMap map[string]interface{}, err error) {
 
-	f, err := os.Open(getPlatformFile(file))
-	defer f.Close()
-
-	content, err := ioutil.ReadAll(f)
-
+	content, err := os.ReadFile(getPlatformFile(file))
 	if err == nil {
-		err = json.Unmarshal([]byte(content), &tmpMap)
+		err = json.Unmarshal(content, &tmpMap)
 	}
-
-	f.Close()
 
 	return
 }
@@ -320,19 +309,13 @@ func loadJSONFileToMap(file string) (tmpMap map[string]interface{}, err error) {
 // Binary
 func readByteFromFile(file string) (content []byte, err error) {
 
-	f, err := os.Open(getPlatformFile(file))
-	defer f.Close()
-
-	content, err = ioutil.ReadAll(f)
-	f.Close()
-
-	return
+	return os.ReadFile(getPlatformFile(file))
 }
 
 func writeByteToFile(file string, data []byte) (err error) {
 
 	var filename = getPlatformFile(file)
-	err = ioutil.WriteFile(filename, data, 0644)
+	err = os.WriteFile(filename, data, 0644)
 
 	return
 }
@@ -347,7 +330,7 @@ func readStringFromFile(file string) (str string, err error) {
 		return
 	}
 
-	content, err = ioutil.ReadFile(filename)
+	content, err = os.ReadFile(filename)
 	if err != nil {
 		ShowError(err, 0)
 		return
@@ -393,7 +376,7 @@ func resolveHostIP() (err error) {
 	}
 
 	// If IP previously set in settings (including the default, empty) is not available anymore
-	if lo.Contains(System.IPAddressesV4Host, Settings.HostIP) == false {
+	if !lo.Contains(System.IPAddressesV4Host, Settings.HostIP) {
 		Settings.HostIP = System.IPAddressesV4Host[0]
 	}
 

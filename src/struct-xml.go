@@ -66,7 +66,7 @@ type SubTitle struct {
 	Value string `xml:",chardata"`
 }
 
-//Desc : Program Description
+// Desc : Program Description
 type Desc struct {
 	Lang  string `xml:"lang,attr"`
 	Value string `xml:",chardata"`

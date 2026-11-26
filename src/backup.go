@@ -4,7 +4,6 @@ import (
 	b64 "encoding/base64"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,7 +31,7 @@ func xTeVeAutoBackup() (err error) {
 	}
 
 	// Delete Old Backups
-	files, err := ioutil.ReadDir(System.Folder.Backup)
+	files, err := os.ReadDir(System.Folder.Backup)
 
 	if err == nil {
 
@@ -190,7 +189,9 @@ func xteveRestore(archive string) (newWebURL string, err error) {
 			ShowError(err, 0)
 		}
 
-		loadSettings()
+		if _, err = loadSettings(); err != nil {
+			return
+		}
 
 		err := Init()
 		if err != nil {

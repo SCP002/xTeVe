@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -15,17 +15,17 @@ import (
 
 // ClientInfo : Information about the key (NAME OS, ARCH, UUID, KEY)
 type ClientInfo struct {
-	Arch   string `json:"arch,required"`
-	Branch string `json:"branch,required"`
+	Arch   string `json:"arch"`
+	Branch string `json:"branch"`
 	CMD    string `json:"cmd,omitempty"`
-	Name   string `json:"name,required"`
-	OS     string `json:"os,required"`
-	URL    string `json:"url,required"`
+	Name   string `json:"name"`
+	OS     string `json:"os"`
+	URL    string `json:"url"`
 
 	Response ServerResponse `json:"response,omitempty"`
 }
 
-//ServerResponse : Response from server after client request
+// ServerResponse : Response from server after client request
 type ServerResponse struct {
 	Status    bool   `json:"status,omitempty"`
 	Reason    string `json:"reason,omitempty"`
@@ -76,6 +76,9 @@ func serverRequest() (err error) {
 
 		// Check redirect 301 <---> 308
 		redirect, err := http.NewRequest("POST", Updater.URL, nil)
+		if err != nil {
+			return err
+		}
 
 		client := &http.Client{}
 		client.CheckRedirect = func(redirect *http.Request, via []*http.Request) error {
@@ -86,7 +89,7 @@ func serverRequest() (err error) {
 
 		if err != nil {
 			// Redirect
-			if resp.StatusCode >= 301 && resp.StatusCode <= 308 { //status code 301 <---> 308
+			if resp != nil && resp.StatusCode >= 301 && resp.StatusCode <= 308 { //status code 301 <---> 308
 				Updater.URL = resp.Header.Get("Location")
 			} else {
 				return err
@@ -95,6 +98,9 @@ func serverRequest() (err error) {
 		// ---
 
 		req, err := http.NewRequest("POST", Updater.URL, bytes.NewBuffer(jsonByte))
+		if err != nil {
+			return err
+		}
 		req.Header.Set("Content-Type", "application/json")
 
 		client = &http.Client{}
@@ -113,7 +119,7 @@ func serverRequest() (err error) {
 		Updater.CMD = ""
 		defer resp.Body.Close()
 
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 
 		err = json.Unmarshal(body, &serverResponse)
 

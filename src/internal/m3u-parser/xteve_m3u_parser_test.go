@@ -2,20 +2,20 @@ package m3u
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 type M3UStream struct {
-	GroupTitle string `json:"group-title,required"`
-	Name       string `json:"name,required"`
-	TvgID      string `json:"tvg-id,required"`
-	TvgLogo    string `json:"tvg-logo,required"`
-	TvgName    string `json:"tvg-name,required"`
+	GroupTitle string `json:"group-title"`
+	Name       string `json:"name"`
+	TvgID      string `json:"tvg-id"`
+	TvgLogo    string `json:"tvg-logo"`
+	TvgName    string `json:"tvg-name"`
 	TvgShift   string `json:"tvg-shift,omitempty"`
-	URL        string `json:"url,required"`
+	URL        string `json:"url"`
 	UUIDKey    string `json:"_uuid.key,omitempty"`
 	UUIDValue  string `json:"_uuid.value,omitempty"`
 }
@@ -24,7 +24,7 @@ func TestMakeInterfaceFromM3U(t *testing.T) {
 
 	// Read playlist
 	file := "test_playlist_1.m3u"
-	content, err := ioutil.ReadFile(file)
+	content, err := os.ReadFile(file)
 	assert.NoError(t, err, "Should read playlist")
 
 	// Parse playlist into []interface{}

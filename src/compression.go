@@ -33,7 +33,7 @@ func zipFiles(sourceFiles []string, target string) error {
 			baseDir = filepath.Base(System.Folder.Data)
 		}
 
-		filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
+		err = filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
 
 			if err != nil {
 				return err
@@ -74,6 +74,9 @@ func zipFiles(sourceFiles []string, target string) error {
 			return err
 
 		})
+		if err != nil {
+			return err
+		}
 
 	}
 
@@ -96,7 +99,9 @@ func extractZIP(archive, target string) (err error) {
 
 		path := filepath.Join(target, file.Name)
 		if file.FileInfo().IsDir() {
-			os.MkdirAll(path, file.Mode())
+			if err = os.MkdirAll(path, file.Mode()); err != nil {
+				return
+			}
 			continue
 		}
 
@@ -158,8 +163,13 @@ func compressGZIP(data *[]byte, file string) (err error) {
 		}
 
 		w := gzip.NewWriter(f)
-		w.Write(*data)
-		w.Close()
+		if _, err = w.Write(*data); err == nil {
+			err = w.Close()
+		}
+		if closeErr := f.Close(); err == nil {
+			err = closeErr
+		}
+		return err
 	}
 
 	return

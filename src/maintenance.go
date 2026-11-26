@@ -9,7 +9,6 @@ import (
 // InitMaintenance : Initialize maintenance process
 func InitMaintenance() (err error) {
 
-	rand.Seed(time.Now().Unix())
 	System.TimeForAutoUpdate = fmt.Sprintf("0%d%d", randomTime(0, 2), randomTime(10, 59))
 
 	go maintenance()
@@ -39,11 +38,11 @@ func maintenance() {
 					}
 
 					// Update Playlist and XMLTV Files
-					getProviderData("m3u", "")
-					getProviderData("hdhr", "")
+					_ = getProviderData("m3u", "") // errors are reported inside
+					_ = getProviderData("hdhr", "")
 
 					if Settings.EpgSource == "XEPG" {
-						getProviderData("xmltv", "")
+						_ = getProviderData("xmltv", "") // errors are reported inside
 					}
 
 					// Create database for DVR
@@ -52,8 +51,10 @@ func maintenance() {
 						ShowError(err, 000)
 					}
 
-					if Settings.CacheImages == false && System.ImageCachingInProgress == 0 {
-						removeChildItems(System.Folder.ImagesCache)
+					if !Settings.CacheImages && System.ImageCachingInProgress == 0 {
+						if err := removeChildItems(System.Folder.ImagesCache); err != nil {
+							ShowError(err, 0)
+						}
 					}
 
 					// Create XEPG Files
@@ -66,7 +67,9 @@ func maintenance() {
 
 			// Update xTeVe (Binary)
 			if System.TimeForAutoUpdate == t.Format("1504") {
-				BinaryUpdate()
+				if err := BinaryUpdate(); err != nil {
+					ShowError(err, 0)
+				}
 			}
 
 		}
@@ -77,6 +80,5 @@ func maintenance() {
 }
 
 func randomTime(min, max int) int {
-	rand.Seed(time.Now().Unix())
 	return rand.Intn(max-min) + min
 }

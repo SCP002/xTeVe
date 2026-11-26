@@ -2,7 +2,7 @@ package src
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -16,7 +16,7 @@ func getProviderData(fileType, fileID string) (err error) {
 
 	var fileExtension, serverFileName string
 	var body = make([]byte, 0)
-	var newProvider = false
+	var newProvider bool
 	var dataMap = make(map[string]interface{})
 
 	var saveDateFromProvider = func(fileSource, serverFileName, id string, body []byte) (err error) {
@@ -152,7 +152,7 @@ func getProviderData(fileType, fileID string) (err error) {
 		}
 
 		// If an ID is available and does not match the one from the Database, the Update is skipped (goto)
-		if len(fileID) > 0 && newProvider == false {
+		if len(fileID) > 0 && !newProvider {
 			if dataID != fileID {
 				goto Done
 			}
@@ -204,7 +204,7 @@ func getProviderData(fileType, fileID string) (err error) {
 			ShowError(err, 000)
 			var downloadErr = err
 
-			if newProvider == false {
+			if !newProvider {
 
 				// Check whether there is an older File
 				var file = System.Folder.Data + dataID + fileExtension
@@ -220,10 +220,9 @@ func getProviderData(fileType, fileID string) (err error) {
 				}
 
 				// Increase Error Counter by 1
-				var data = make(map[string]interface{})
 				if value, ok := dataMap[dataID].(map[string]interface{}); ok {
 
-					data = value
+					var data = value
 					data["counter.error"] = data["counter.error"].(float64) + 1
 					data["counter.download"] = data["counter.download"].(float64) + 1
 
@@ -236,12 +235,11 @@ func getProviderData(fileType, fileID string) (err error) {
 		}
 
 		// Calculate the Margin of Error
-		if newProvider == false {
+		if !newProvider {
 
 			if value, ok := dataMap[dataID].(map[string]interface{}); ok {
 
-				var data = make(map[string]interface{})
-				data = value
+				var data = value
 
 				if data["counter.error"].(float64) == 0 {
 					data["provider.availability"] = 100
@@ -267,7 +265,9 @@ func getProviderData(fileType, fileID string) (err error) {
 
 		}
 
-		saveSettings(Settings)
+		if err := saveSettings(Settings); err != nil {
+			ShowError(err, 0)
+		}
 
 	Done:
 	}
@@ -301,9 +301,9 @@ func downloadFileFromServer(providerURL string) (filename string, body []byte, e
 
 		var headerFilename = resp.Header.Get("Content-Disposition")[index:len(resp.Header.Get("Content-Disposition"))]
 		var value = strings.Split(headerFilename, `=`)
-		var f = strings.Replace(value[1], `"`, "", -1)
+		var f = strings.ReplaceAll(value[1], `"`, "")
 
-		f = strings.Replace(f, `;`, "", -1)
+		f = strings.ReplaceAll(f, `;`, "")
 		filename = f
 		showInfo("Header filename:" + filename)
 
@@ -314,7 +314,7 @@ func downloadFileFromServer(providerURL string) (filename string, body []byte, e
 
 	}
 
-	body, err = ioutil.ReadAll(resp.Body)
+	body, err = io.ReadAll(resp.Body)
 	if err != nil {
 		return
 	}

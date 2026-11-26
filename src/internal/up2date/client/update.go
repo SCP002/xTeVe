@@ -12,8 +12,6 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
-
-	"github.com/kardianos/osext"
 )
 
 // DoUpdate : Update binary
@@ -49,7 +47,10 @@ func DoUpdate(fileType, filenameBIN string) (err error) {
 		}
 
 		// Change binary filename to .filename
-		binary, err := osext.Executable()
+		binary, err := executablePath()
+		if err != nil {
+			return err
+		}
 		var filename = getFilenameFromPath(binary)
 		var path = getPlatformPath(binary)
 		var oldBinary = path + "_old_" + filename
@@ -60,7 +61,9 @@ func DoUpdate(fileType, filenameBIN string) (err error) {
 		var tmpFile = tmpFolder + string(os.PathSeparator) + filenameBIN
 
 		//fmt.Println(binary, path+"."+filename)
-		os.Rename(newBinary, oldBinary)
+		if err = os.Rename(newBinary, oldBinary); err != nil {
+			return err
+		}
 
 		// Save the new binary with the old file name
 		out, err := os.Create(binary)
@@ -121,6 +124,11 @@ func DoUpdate(fileType, filenameBIN string) (err error) {
 		// Close the new file !Windows
 		out.Close()
 
+		if err != nil {
+			restorOldBinary(oldBinary, newBinary)
+			return err
+		}
+
 		log.Println("["+strings.ToUpper(fileType)+"]", "Update Successful")
 
 		// Restart binary (Windows)
@@ -140,7 +148,7 @@ func DoUpdate(fileType, filenameBIN string) (err error) {
 
 				os.RemoveAll(oldBinary)
 				process.Kill()
-				proc.Wait()
+				_, _ = proc.Wait()
 
 			} else {
 				restorOldBinary(oldBinary, newBinary)
@@ -149,7 +157,7 @@ func DoUpdate(fileType, filenameBIN string) (err error) {
 		} else {
 
 			// Restart binary (Linux and UNIX)
-			file, _ := osext.Executable()
+			file, _ := executablePath()
 			os.RemoveAll(oldBinary)
 			err = syscall.Exec(file, os.Args, os.Environ())
 			if err != nil {
@@ -184,7 +192,9 @@ func start(args ...string) (p *os.Process, err error) {
 
 func restorOldBinary(oldBinary, newBinary string) {
 	os.RemoveAll(newBinary)
-	os.Rename(oldBinary, newBinary)
+	if err := os.Rename(oldBinary, newBinary); err != nil {
+		log.Println("[UPDATE] Restore old binary:", err)
+	}
 }
 
 func getFilenameFromPath(path string) string {
@@ -236,7 +246,9 @@ func extractZIP(archive, target string) (err error) {
 
 		path := filepath.Join(target, file.Name)
 		if file.FileInfo().IsDir() {
-			os.MkdirAll(path, file.Mode())
+			if err = os.MkdirAll(path, file.Mode()); err != nil {
+				return
+			}
 			continue
 		}
 
@@ -259,4 +271,13 @@ func extractZIP(archive, target string) (err error) {
 	}
 
 	return
+}
+
+// executablePath returns the absolute path of the running binary with symlinks resolved.
+func executablePath() (string, error) {
+	path, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	return filepath.EvalSymlinks(path)
 }

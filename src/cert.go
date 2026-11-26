@@ -14,7 +14,7 @@ import (
 
 // genCertFiles creates a self-signed certificate and it's private key in config/certificates directory.
 //
-//  Inspired by https://gist.github.com/shaneutt/5e1995295cff6721c89a71d13a71c251
+//	Inspired by https://gist.github.com/shaneutt/5e1995295cff6721c89a71d13a71c251
 func genCertFiles() (err error) {
 	showInfo("Web server:" + "Generating certificate")
 

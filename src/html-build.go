@@ -1,10 +1,8 @@
 package src
 
 import (
-	"bufio"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -49,9 +47,7 @@ func BuildGoFile() error {
 	content += createMapFromFiles(htmlFolder) + "\n"
 
 	content += "}" + "\n\n"
-	writeStringToFile(goFile, content)
-
-	return nil
+	return writeStringToFile(goFile, content)
 }
 
 // GetHTMLString : base64 -> string
@@ -73,10 +69,10 @@ func createMapFromFiles(folder string) string {
 
 	// Sort map keys before writing to file to prevent git mark webUI.go as modified when no real changes has been made
 	keys := make([]string, 0, len(blankMap))
-    for k := range blankMap {
-        keys = append(keys, k)
-    }
-    sort.Strings(keys)
+	for k := range blankMap {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
 
 	for _, key := range keys {
 		var newKey = key
@@ -88,7 +84,7 @@ func createMapFromFiles(folder string) string {
 
 func readFilesToMap(path string, info os.FileInfo, err error) error {
 
-	if info.IsDir() == false {
+	if !info.IsDir() {
 		var base64Str = fileToBase64(getLocalPath(path))
 		blankMap[filepath.ToSlash(path)] = base64Str
 	}
@@ -98,17 +94,10 @@ func readFilesToMap(path string, info os.FileInfo, err error) error {
 
 func fileToBase64(file string) string {
 
-	imgFile, _ := os.Open(file)
-	defer imgFile.Close()
-
-	// create a new buffer base on file size
-	fInfo, _ := imgFile.Stat()
-	var size = fInfo.Size()
-	buf := make([]byte, int64(size))
-
-	// read file content into buffer
-	fReader := bufio.NewReader(imgFile)
-	fReader.Read(buf)
+	buf, err := os.ReadFile(file)
+	if err != nil {
+		ShowError(err, 0)
+	}
 
 	imgBase64Str := base64.StdEncoding.EncodeToString(buf)
 
@@ -127,7 +116,7 @@ func getLocalPath(filename string) string {
 
 func writeStringToFile(filename, content string) error {
 
-	err := ioutil.WriteFile(getPlatformFile(filename), []byte(content), 0644)
+	err := os.WriteFile(getPlatformFile(filename), []byte(content), 0644)
 	if err != nil {
 		checkErr(err)
 		return err

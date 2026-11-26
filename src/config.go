@@ -151,7 +151,7 @@ func Init() (err error) {
 		ShowError(err, 0)
 		return
 	}
-	
+
 	err = resolveHostIP()
 	if err != nil {
 		ShowError(err, 1002)
@@ -161,9 +161,11 @@ func Init() (err error) {
 	showInfo("Hostname:" + System.Hostname)
 
 	// Check the permissions on all Folders
-	err = checkFilePermission(System.Folder.Config)
-	if err == nil {
-		err = checkFilePermission(System.Folder.Temp)
+	if err = checkFilePermission(System.Folder.Config); err != nil {
+		return
+	}
+	if err = checkFilePermission(System.Folder.Temp); err != nil {
+		return
 	}
 
 	// Separate tmp Folder for each Instance
@@ -183,7 +185,7 @@ func Init() (err error) {
 	// Set Branch
 	System.Branch = Settings.Branch
 
-	if System.Dev == true {
+	if System.Dev {
 		System.Branch = "Development"
 	}
 
@@ -200,7 +202,7 @@ func Init() (err error) {
 	System.URLBase = fmt.Sprintf("%s://%s:%s", System.ServerProtocol.WEB, Settings.HostIP, Settings.Port)
 
 	// Create HTML Files, with dev == true the local HTML Files are used
-	if System.Dev == true {
+	if System.Dev {
 
 		HTMLInit("webUI", "src", "html"+string(os.PathSeparator), "src"+string(os.PathSeparator)+"webUI.go")
 		err = BuildGoFile()
@@ -238,18 +240,18 @@ func StartSystem(updateProviderFiles bool) (err error) {
 	showInfo(fmt.Sprintf("Plex Channel Limit:%d", System.PlexChannelLimit))
 
 	// Update Provider Data
-	if len(Settings.Files.M3U) > 0 && Settings.FilesUpdate == true || updateProviderFiles == true {
+	if len(Settings.Files.M3U) > 0 && Settings.FilesUpdate || updateProviderFiles {
 
 		err = xTeVeAutoBackup()
 		if err != nil {
 			ShowError(err, 1090)
 		}
 
-		getProviderData("m3u", "")
-		getProviderData("hdhr", "")
+		_ = getProviderData("m3u", "") // errors are reported inside
+		_ = getProviderData("hdhr", "")
 
 		if Settings.EpgSource == "XEPG" {
-			getProviderData("xmltv", "")
+			_ = getProviderData("xmltv", "") // errors are reported inside
 		}
 
 	}

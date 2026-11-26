@@ -9,8 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/samber/lo"
 	m3u "xteve/src/internal/m3u-parser"
+
+	"github.com/samber/lo"
 )
 
 // Parse Playlists
@@ -37,7 +38,6 @@ func parsePlaylist(filename, fileType string) (channels []interface{}, err error
 // Filter Streams
 func filterThisStream(s interface{}) (status bool) {
 
-	status = false
 	var stream = s.(map[string]string)
 	var regexpYES = `[{]+[^.]+[}]`
 	var regexpNO = `!+[{]+[^.]+[}]`
@@ -52,7 +52,7 @@ func filterThisStream(s interface{}) (status bool) {
 		var exclude, include string
 		var match = false
 
-		var streamValues = strings.Replace(stream["_values"], "\r", "", -1)
+		var streamValues = strings.ReplaceAll(stream["_values"], "\r", "")
 
 		if v, ok := stream["group-title"]; ok {
 			group = v
@@ -69,8 +69,8 @@ func filterThisStream(s interface{}) (status bool) {
 		if len(val) == 1 {
 
 			exclude = val[0][2 : len(val[0])-1]
-			filter.Rule = strings.Replace(filter.Rule, " "+val[0], "", -1)
-			filter.Rule = strings.Replace(filter.Rule, val[0], "", -1)
+			filter.Rule = strings.ReplaceAll(filter.Rule, " "+val[0], "")
+			filter.Rule = strings.ReplaceAll(filter.Rule, val[0], "")
 
 		}
 
@@ -81,8 +81,8 @@ func filterThisStream(s interface{}) (status bool) {
 		if len(val) == 1 {
 
 			include = val[0][1 : len(val[0])-1]
-			filter.Rule = strings.Replace(filter.Rule, " "+val[0], "", -1)
-			filter.Rule = strings.Replace(filter.Rule, val[0], "", -1)
+			filter.Rule = strings.ReplaceAll(filter.Rule, " "+val[0], "")
+			filter.Rule = strings.ReplaceAll(filter.Rule, val[0], "")
 
 		}
 
@@ -117,18 +117,18 @@ func filterThisStream(s interface{}) (status bool) {
 			}
 		}
 
-		if match == true {
+		if match {
 
 			if len(exclude) > 0 {
 				var status = checkConditions(search, exclude, "exclude")
-				if status == false {
+				if !status {
 					return false
 				}
 			}
 
 			if len(include) > 0 {
 				var status = checkConditions(search, include, "include")
-				if status == false {
+				if !status {
 					return false
 				}
 			}
@@ -155,8 +155,8 @@ func checkConditions(streamValues, conditions, coType string) (status bool) {
 
 	}
 
-	conditions = strings.Replace(conditions, ", ", ",", -1)
-	conditions = strings.Replace(conditions, " ,", ",", -1)
+	conditions = strings.ReplaceAll(conditions, ", ", ",")
+	conditions = strings.ReplaceAll(conditions, " ,", ",")
 
 	var keys = strings.Split(conditions, ",")
 
@@ -194,7 +194,7 @@ func buildM3U(groups []string) (m3u string, err error) {
 		err := json.Unmarshal([]byte(mapToJSON(dxc)), &xepgChannel)
 		if err == nil {
 
-			if xepgChannel.XActive == true {
+			if xepgChannel.XActive {
 
 				if len(groups) > 0 {
 

@@ -158,7 +158,7 @@ func getLineup() (jsonContent []byte, err error) {
 				return
 			}
 
-			if xepgChannel.XActive == true {
+			if xepgChannel.XActive {
 				var stream LineupStream
 				stream.GuideName = xepgChannel.XName
 				stream.GuideNumber = xepgChannel.XChannelID
@@ -188,7 +188,9 @@ func getLineup() (jsonContent []byte, err error) {
 
 	Data.Cache.PMS = nil
 
-	saveMapToJSONFile(System.File.URLS, Data.Cache.StreamingURLS)
+	if saveErr := saveMapToJSONFile(System.File.URLS, Data.Cache.StreamingURLS); saveErr != nil && err == nil {
+		err = saveErr
+	}
 
 	return
 }
@@ -240,7 +242,9 @@ func getGuideNumberPMS(channelName string) (pmsID string, err error) {
 
 		pmsID = getNewID(channelName)
 		Data.Cache.PMS[channelName] = pmsID
-		saveMapToJSONFile(System.File.PMS, Data.Cache.PMS)
+		if err := saveMapToJSONFile(System.File.PMS, Data.Cache.PMS); err != nil {
+			ShowError(err, 0)
+		}
 
 	}
 
