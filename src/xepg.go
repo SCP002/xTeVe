@@ -635,7 +635,7 @@ func mapping() (err error) {
 
 					} else {
 
-						ShowError(fmt.Errorf(fmt.Sprintf("Missing EPG data: %s", xepgChannel.Name)), 0)
+						ShowError(fmt.Errorf("Missing EPG data: %s", xepgChannel.Name), 0)
 						showWarning(2302)
 						xepgChannel.XActive = false
 

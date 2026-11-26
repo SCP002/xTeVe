@@ -176,7 +176,7 @@ When the branch is changed, an update is only performed if there is a new versio
 
 ### Requirements
 
-* [Go](https://golang.org) (go1.18 or newer)
+* [Go](https://golang.org) (go1.27.3 or newer)
 
 ### Dependencies
 

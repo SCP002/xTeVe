@@ -3,8 +3,8 @@
 # First stage. Building a binary
 # -----------------------------------------------------------------------------
 
-# Base image for builder is debian 11 with golang 1.18+ pre-installed
-FROM golang:1.18.1-bullseye AS builder
+# Base image for builder is debian 12 with golang 1.27.3 pre-installed
+FROM golang:1.27.3-bookworm AS builder
 
 # Download the source code
 RUN git clone https://github.com/SCP002/xTeVe.git /src

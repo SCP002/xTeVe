@@ -339,7 +339,7 @@ func getErrMsg(errCode int) (errMsg string) {
 
 	// Tuner
 	case 2105:
-		errMsg = fmt.Sprintf("The number of tuners has changed, you have to delete " + System.Name + " in Plex / Emby HDHR and set it up again.")
+		errMsg = "The number of tuners has changed, you have to delete " + System.Name + " in Plex / Emby HDHR and set it up again."
 	case 2106:
 		errMsg = fmt.Sprintf("This function is only available with XEPG as EPG source")
 
