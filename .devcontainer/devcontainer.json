@@ -1,0 +1,52 @@
+{
+  "name": "xTeVe",
+  "dockerComposeFile": "../compose.dev.yaml",
+  "service": "dev",
+  "workspaceFolder": "/workspace",
+  "overrideCommand": false,
+  "shutdownAction": "stopCompose",
+  "remoteUser": "root",
+  "forwardPorts": [
+    34400
+  ],
+  "portsAttributes": {
+    "34400": {
+      "label": "xTeVe Web UI"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "go.gopath": "/go",
+        "go.useLanguageServer": true,
+        "go.lintTool": "golangci-lint",
+        "go.formatTool": "custom",
+        "go.alternateTools": {
+          "customFormatter": "golines"
+        },
+        "go.formatFlags": [
+          "-m",
+          "120"
+        ],
+        "[go]": {
+          "editor.defaultFormatter": "golang.go",
+          "editor.formatOnSave": true
+        },
+        "go.testFlags": [
+          "-v"
+        ],
+        "go.testTimeout": "60s",
+        "go.toolsEnvVars": {
+          "GO111MODULE": "on"
+        },
+        "go.toolsManagement.autoUpdate": true,
+        "terminal.integrated.defaultProfile.linux": "bash"
+      },
+      "extensions": [
+        "golang.go",
+        "anthropic.claude-code"
+      ]
+    }
+  },
+  "postCreateCommand": "go mod download"
+}

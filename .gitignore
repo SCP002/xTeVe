@@ -2,3 +2,6 @@
 xteve
 xteve.exe
 /.idea/*
+
+# Claude Code (personal settings)
+/.claude/settings.local.json
