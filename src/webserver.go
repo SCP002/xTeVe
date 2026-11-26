@@ -635,12 +635,6 @@ func WS(w http.ResponseWriter, r *http.Request) {
 		default:
 			fmt.Println("+ + + + + + + + + + +", request.Cmd)
 
-			var requestMap = make(map[string]interface{}) // Debug
-			_ = requestMap
-			if System.Dev {
-				fmt.Println(mapToJSON(requestMap))
-			}
-
 		}
 
 		if err != nil {
@@ -755,7 +749,7 @@ func Web(w http.ResponseWriter, r *http.Request) {
 						return
 					}
 					// Redirect so that the Data is deleted from the Browser.
-					w = authentication.SetCookieToken(w, token)
+					authentication.SetCookieToken(w, token)
 					http.Redirect(w, r, "/web", http.StatusMovedPermanently)
 					return
 
@@ -771,11 +765,11 @@ func Web(w http.ResponseWriter, r *http.Request) {
 						break
 					}
 
-					w = authentication.SetCookieToken(w, token)
+					authentication.SetCookieToken(w, token)
 					http.Redirect(w, r, "/web", http.StatusMovedPermanently) // Redirect so that the Data is deleted from the Browser.
 
 				} else {
-					w = authentication.SetCookieToken(w, "-")
+					authentication.SetCookieToken(w, "-")
 					http.Redirect(w, r, "/web", http.StatusMovedPermanently) // Redirect so that the Data is deleted from the Browser.
 				}
 
@@ -783,7 +777,7 @@ func Web(w http.ResponseWriter, r *http.Request) {
 
 			case "GET":
 				lang["authenticationErr"] = ""
-				_, token, err := authentication.CheckTheValidityOfTheTokenFromHTTPHeader(w, r)
+				token, err := authentication.CheckTheValidityOfTheTokenFromHTTPHeader(w, r)
 
 				if err != nil {
 					file = requestFile + "login.html"
@@ -999,6 +993,7 @@ func API(w http.ResponseWriter, r *http.Request) {
 	case "update.m3u":
 		err = getProviderData("m3u", "")
 		if err != nil {
+			ShowError(err, 0)
 			break
 		}
 
@@ -1011,6 +1006,7 @@ func API(w http.ResponseWriter, r *http.Request) {
 
 		err = getProviderData("hdhr", "")
 		if err != nil {
+			ShowError(err, 0)
 			break
 		}
 
@@ -1022,6 +1018,7 @@ func API(w http.ResponseWriter, r *http.Request) {
 	case "update.xmltv":
 		err = getProviderData("xmltv", "")
 		if err != nil {
+			ShowError(err, 0)
 			break
 		}
 
@@ -1035,6 +1032,7 @@ func API(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responseAPIError(err)
+		return
 	}
 
 	writeResponse(w, []byte(mapToJSON(response)))

@@ -2,11 +2,8 @@ package src
 
 import (
 	"encoding/base64"
-	"fmt"
-	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 )
 
@@ -44,7 +41,12 @@ func BuildGoFile() error {
 	content += `var ` + mapName + ` = make(map[string]interface{})` + "\n\n"
 	content += "func loadHTMLMap() {" + "\n\n"
 
-	content += createMapFromFiles(htmlFolder) + "\n"
+	files, err := createMapFromFiles(htmlFolder)
+	if err != nil {
+		return err
+	}
+
+	content += files + "\n"
 
 	content += "}" + "\n\n"
 	return writeStringToFile(goFile, content)
@@ -59,13 +61,12 @@ func GetHTMLString(base string) string {
 	return string(content)
 }
 
-func createMapFromFiles(folder string) string {
+func createMapFromFiles(folder string) (string, error) {
 
 	var path = getLocalPath(folder)
 
-	err := filepath.Walk(path, readFilesToMap)
-	if err != nil {
-		checkErr(err)
+	if err := filepath.Walk(path, readFilesToMap); err != nil {
+		return "", err
 	}
 
 	var content string
@@ -82,29 +83,34 @@ func createMapFromFiles(folder string) string {
 		content += `  ` + mapName + `["` + newKey + `"` + `] = "` + blankMap[key].(string) + `"` + "\n"
 	}
 
-	return content
+	return content, nil
 }
 
 func readFilesToMap(path string, info os.FileInfo, err error) error {
 
+	if err != nil {
+		return err
+	}
+
 	if !info.IsDir() {
-		var base64Str = fileToBase64(getLocalPath(path))
+		base64Str, err := fileToBase64(getLocalPath(path))
+		if err != nil {
+			return err
+		}
 		blankMap[filepath.ToSlash(path)] = base64Str
 	}
 
 	return nil
 }
 
-func fileToBase64(file string) string {
+func fileToBase64(file string) (string, error) {
 
 	buf, err := os.ReadFile(file)
 	if err != nil {
-		ShowError(err, 0)
+		return "", err
 	}
 
-	imgBase64Str := base64.StdEncoding.EncodeToString(buf)
-
-	return imgBase64Str
+	return base64.StdEncoding.EncodeToString(buf), nil
 }
 
 func getLocalPath(filename string) string {
@@ -118,30 +124,10 @@ func getLocalPath(filename string) string {
 }
 
 func writeStringToFile(filename, content string) error {
-
-	err := os.WriteFile(getPlatformFile(filename), []byte(content), 0644)
-	if err != nil {
-		checkErr(err)
-		return err
-	}
-
-	return nil
+	return os.WriteFile(getPlatformFile(filename), []byte(content), 0644)
 }
 
 func checkHTMLFile(filename string) error {
-
-	if _, err := os.Stat(getLocalPath(filename)); os.IsNotExist(err) {
-		fmt.Println(filename)
-		checkErr(err)
-		return err
-	}
-
-	return nil
-}
-
-func checkErr(err error) {
-	if err != nil {
-		_, file, line, _ := runtime.Caller(1)
-		log.Println("ERROR: [", err, "] in ", file, line)
-	}
+	_, err := os.Stat(getLocalPath(filename))
+	return err
 }

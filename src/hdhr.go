@@ -177,11 +177,8 @@ func getLineup() (jsonContent []byte, err error) {
 
 	// Sort the lineup
 	// Have to use type assertions (https://golang.org/ref/spec#Type_assertions) to cast generic interface{} into LineupStream
-	sort.Slice(lineup, func(i, j int) bool {
-		var chanA, chanB float64
-		chanA, _ = strconv.ParseFloat(lineup[i].(LineupStream).GuideNumber, 64)
-		chanB, _ = strconv.ParseFloat(lineup[j].(LineupStream).GuideNumber, 64)
-		return chanA < chanB
+	sort.SliceStable(lineup, func(i, j int) bool {
+		return guideNumberLess(lineup[i].(LineupStream).GuideNumber, lineup[j].(LineupStream).GuideNumber)
 	})
 
 	jsonContent, err = json.MarshalIndent(lineup, "", "  ")
@@ -249,4 +246,24 @@ func getGuideNumberPMS(channelName string) (pmsID string, err error) {
 	}
 
 	return
+}
+
+// guideNumberLess orders guide numbers numerically.
+//
+// A guide number can come from the "tvg-chno" M3U attribute and does not have to be a number;
+// such guide numbers go after the numeric ones, in alphabetical order.
+func guideNumberLess(a, b string) bool {
+	numA, errA := strconv.ParseFloat(a, 64)
+	numB, errB := strconv.ParseFloat(b, 64)
+
+	switch {
+	case errA == nil && errB == nil:
+		return numA < numB
+	case errA == nil:
+		return true
+	case errB == nil:
+		return false
+	default:
+		return a < b
+	}
 }

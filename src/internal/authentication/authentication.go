@@ -437,14 +437,14 @@ func GetAllUserData() (allUserData map[string]interface{}, err error) {
 }
 
 // CheckTheValidityOfTheTokenFromHTTPHeader : get token from HTTP header
-func CheckTheValidityOfTheTokenFromHTTPHeader(w http.ResponseWriter, r *http.Request) (writer http.ResponseWriter, newToken string, err error) {
+func CheckTheValidityOfTheTokenFromHTTPHeader(w http.ResponseWriter, r *http.Request) (newToken string, err error) {
 	err = createError(011)
 	for _, cookie := range r.Cookies() {
 		if cookie.Name == "Token" {
 			var token string
 			token, err = CheckTheValidityOfTheToken(cookie.Value)
 			//fmt.Println("T", token, err)
-			writer = SetCookieToken(w, token)
+			SetCookieToken(w, token)
 			newToken = token
 		}
 	}
@@ -581,9 +581,8 @@ loopToken:
 }
 
 // SetCookieToken : set cookie
-func SetCookieToken(w http.ResponseWriter, token string) http.ResponseWriter {
+func SetCookieToken(w http.ResponseWriter, token string) {
 	expiration := time.Now().Add(time.Minute * time.Duration(tokenValidity))
 	cookie := http.Cookie{Name: "Token", Value: token, Expires: expiration}
 	http.SetCookie(w, &cookie)
-	return w
 }

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -991,9 +992,9 @@ func connectToStreamingServer(streamID int, playlistID string) {
 
 					if sleep > 0 {
 
-						for i := 0.0; i < sleep*1000; i = i + 100 {
+						// Sleep in 100 ms steps to notice a stopped stream early
+						for range int(math.Ceil(sleep * 10)) {
 
-							_ = i
 							time.Sleep(time.Duration(100) * time.Millisecond)
 
 							if _, err := bufferVFS.Stat(stream.Folder); fsIsNotExistErr(err) {
@@ -1143,9 +1144,7 @@ func parseM3U8(stream *ThisStream) (err error) {
 		}
 
 		// Parse Parameters
-		for i, line := range lines {
-
-			_ = i
+		for _, line := range lines {
 
 			if len(line) > 0 {
 
@@ -1259,9 +1258,9 @@ func parseM3U8(stream *ThisStream) (err error) {
 
 		var sleep = lastSegmentDuration * 0.5
 
-		for i := 0.0; i < sleep*1000; i = i + 100 {
+		// Sleep in 100 ms steps to notice a stopped stream early
+		for range int(math.Ceil(sleep * 10)) {
 
-			_ = i
 			time.Sleep(time.Duration(100) * time.Millisecond)
 
 			if _, err := bufferVFS.Stat(stream.Folder); fsIsNotExistErr(err) {

@@ -38,11 +38,17 @@ func maintenance() {
 					}
 
 					// Update Playlist and XMLTV Files
-					_ = getProviderData("m3u", "") // errors are reported inside
-					_ = getProviderData("hdhr", "")
+					if err := getProviderData("m3u", ""); err != nil {
+						ShowError(err, 0)
+					}
+					if err := getProviderData("hdhr", ""); err != nil {
+						ShowError(err, 0)
+					}
 
 					if Settings.EpgSource == "XEPG" {
-						_ = getProviderData("xmltv", "") // errors are reported inside
+						if err := getProviderData("xmltv", ""); err != nil {
+							ShowError(err, 0)
+						}
 					}
 
 					// Create database for DVR

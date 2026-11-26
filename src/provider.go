@@ -1,6 +1,7 @@
 package src
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,8 +12,15 @@ import (
 	m3u "xteve/src/internal/m3u-parser"
 )
 
-// fileType: Which File Type should be updated (m3u, hdhr, xml) | fileID: Update a specific File (Provider ID)
+// getProviderData downloads and saves the provider files.
+//
+// fileType: Which File Type should be updated (m3u, hdhr, xmltv) | fileID: Update a specific File (Provider ID)
+//
+// Errors of all providers are returned together, each prefixed with the provider name;
+// a provider that fails keeps its previous file if there is one.
 func getProviderData(fileType, fileID string) (err error) {
+
+	var errs []error
 
 	var fileExtension, serverFileName string
 	var body = make([]byte, 0)
@@ -88,7 +96,6 @@ func getProviderData(fileType, fileID string) (err error) {
 		// Extract File
 		body, err = extractGZIP(body, fileSource)
 		if err != nil {
-			ShowError(err, 000)
 			return
 		}
 
@@ -201,22 +208,17 @@ func getProviderData(fileType, fileID string) (err error) {
 
 		if err != nil {
 
-			ShowError(err, 000)
-			var downloadErr = err
+			var downloadErr = fmt.Errorf("%s: %w", getProviderName(data, dataID), err)
 
 			if !newProvider {
+
+				errs = append(errs, downloadErr)
 
 				// Check whether there is an older File
 				var file = System.Folder.Data + dataID + fileExtension
 
-				err = checkFile(file)
-				if err == nil {
-
-					if len(fileID) == 0 {
-						showWarning(1011)
-					}
-
-					err = downloadErr
+				if checkFile(file) == nil && len(fileID) == 0 {
+					showWarning(1011)
 				}
 
 				// Increase Error Counter by 1
@@ -266,13 +268,21 @@ func getProviderData(fileType, fileID string) (err error) {
 		}
 
 		if err := saveSettings(Settings); err != nil {
-			ShowError(err, 0)
+			errs = append(errs, err)
 		}
 
 	Done:
 	}
 
-	return
+	return errors.Join(errs...)
+}
+
+// getProviderName returns the provider name for error messages, or its ID if it has no name yet.
+func getProviderName(data map[string]interface{}, dataID string) string {
+	if name, ok := data["name"].(string); ok && len(name) > 0 {
+		return name
+	}
+	return dataID
 }
 
 func downloadFileFromServer(providerURL string) (filename string, body []byte, err error) {

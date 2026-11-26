@@ -327,6 +327,7 @@ func saveFiles(request RequestStruct, fileType string) (err error) {
 			delete(data.(map[string]interface{}), "new")
 
 			if err != nil {
+				ShowError(err, 0)
 				delete(filesMap, dataID)
 				return
 			}
@@ -386,11 +387,15 @@ func updateFile(request RequestStruct, fileType string) (err error) {
 
 	for dataID := range updateData {
 
-		err = getProviderData(fileType, dataID)
-		if err == nil {
-			err = buildDatabaseDVR()
-			buildXEPG(false)
+		if err = getProviderData(fileType, dataID); err != nil {
+			ShowError(err, 0)
+			return
 		}
+
+		if err = buildDatabaseDVR(); err != nil {
+			return
+		}
+		buildXEPG(false)
 
 	}
 
