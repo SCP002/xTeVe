@@ -40,11 +40,11 @@ func xepgTest(t *testing.T, db []XEPGChannelStruct, streams ...map[string]string
 
 	var oldFile, oldStreams, oldCache = System.File.XEPG, Data.Streams.Active, Data.Cache.Streams.Active
 	var oldChannels, oldMapping = Data.XEPG.Channels, Data.XMLTV.Mapping
-	var oldFirst, oldMissing, oldEnable = Settings.MappingFirstChannel, Settings.DefaultMissingEPG, Settings.EnableMappedChannels
+	var oldSettings = Settings
 	t.Cleanup(func() {
 		System.File.XEPG, Data.Streams.Active, Data.Cache.Streams.Active = oldFile, oldStreams, oldCache
 		Data.XEPG.Channels, Data.XMLTV.Mapping = oldChannels, oldMapping
-		Settings.MappingFirstChannel, Settings.DefaultMissingEPG, Settings.EnableMappedChannels = oldFirst, oldMissing, oldEnable
+		Settings = oldSettings
 	})
 
 	Settings.MappingFirstChannel = 1000
@@ -171,7 +171,8 @@ func TestCreateXEPGDatabaseExistingChannel(t *testing.T) {
 	}
 
 	var bbc = channels["BBC/News"]
-	if bbc.XEPG != "x-ID.1" || bbc.XChannelID != "1001" || bbc.XName != "My BBC" || bbc.URL != "http://example.com/BBC/News" {
+	if bbc.XEPG != "x-ID.1" || bbc.XChannelID != "1001" || bbc.XName != "My BBC" ||
+		bbc.URL != "http://example.com/BBC/News" {
 		t.Errorf("BBC = %+v, want the same channel with the new URL and the user's name", bbc)
 	}
 	var cnn = channels["CNN International/News"]
@@ -206,7 +207,8 @@ func TestCreateXEPGDatabaseRenameRegex(t *testing.T) {
 	}
 
 	var channels = xepgChannels(t)
-	if bbc := channels["BBC One FHD/News"]; bbc.XEPG != "x-ID.0" || bbc.XName != "BBC One FHD" || bbc.XChannelID != "1001" {
+	if bbc := channels["BBC One FHD/News"]; bbc.XEPG != "x-ID.0" || bbc.XName != "BBC One FHD" ||
+		bbc.XChannelID != "1001" {
 		t.Errorf("BBC = %+v, want the old channel renamed", bbc)
 	}
 	if cnn := channels["CNN FHD/News"]; cnn.XEPG == "x-ID.1" {
@@ -247,7 +249,13 @@ func TestCreateXEPGDatabaseIdenticalStreams(t *testing.T) {
 
 	// The first run creates two channels, the next ones must update both
 	for run := 1; run <= 3; run++ {
-		a["url"], b["url"] = fmt.Sprintf("http://example.com/main/%d", run), fmt.Sprintf("http://example.com/backup/%d", run)
+		a["url"], b["url"] = fmt.Sprintf(
+			"http://example.com/main/%d",
+			run,
+		), fmt.Sprintf(
+			"http://example.com/backup/%d",
+			run,
+		)
 		if err := createXEPGDatabase(); err != nil {
 			t.Fatal(err)
 		}
@@ -280,7 +288,8 @@ func TestMapping(t *testing.T) {
 	var mappedFileGone = dbChannel("x-ID.4", "5", "Mapped too", "News")
 	mappedFileGone.XActive, mappedFileGone.XmltvFile, mappedFileGone.XMapping = true, "gone.xml", "x"
 	var updateIcon = dbChannel("x-ID.5", "6", "Icon", "News")
-	updateIcon.XActive, updateIcon.XmltvFile, updateIcon.XMapping, updateIcon.XUpdateChannelIcon = true, "b.xml", "icon", true
+	updateIcon.XActive, updateIcon.XmltvFile, updateIcon.XMapping = true, "b.xml", "icon"
+	updateIcon.XUpdateChannelIcon = true
 
 	xepgTest(t, []XEPGChannelStruct{byID, byName, noMatch, mapped, mappedFileGone, updateIcon})
 	if err := createXEPGDatabase(); err != nil {
@@ -326,7 +335,10 @@ func TestMapping(t *testing.T) {
 }
 
 func TestMappingDefaults(t *testing.T) {
-	xepgTest(t, []XEPGChannelStruct{dbChannel("x-ID.0", "1", "Unknown", "News"), dbChannel("x-ID.1", "2", "BBC", "News")})
+	xepgTest(
+		t,
+		[]XEPGChannelStruct{dbChannel("x-ID.0", "1", "Unknown", "News"), dbChannel("x-ID.1", "2", "BBC", "News")},
+	)
 	if err := createXEPGDatabase(); err != nil {
 		t.Fatal(err)
 	}
