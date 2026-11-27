@@ -29,7 +29,9 @@ func getProviderData(fileType, fileID string) (err error) {
 	var newProvider bool
 
 	// saveDateFromProvider checks and saves a downloaded file and completes data, the copy of the provider entry
-	var saveDateFromProvider = func(data map[string]any, fileSource, serverFileName, id string, body []byte) (err error) {
+	var saveDateFromProvider = func(
+		data map[string]any, fileSource, serverFileName, id string, body []byte,
+	) (err error) {
 		// Default keys for the Provider Data
 		var keys = []string{
 			"name", "description", "type", "file." + System.AppName, "file.source", "tuner", "last.update",
