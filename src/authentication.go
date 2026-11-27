@@ -10,7 +10,6 @@ import (
 )
 
 func activatedSystemAuthentication() (err error) {
-
 	err = authentication.Init(System.Folder.Config, 60)
 	if err != nil {
 		return
@@ -27,7 +26,6 @@ func activatedSystemAuthentication() (err error) {
 }
 
 func createFirstUserForAuthentication(username, password string) (token string, err error) {
-
 	var authenticationErr = func(err error) {
 		if err != nil {
 			return
@@ -62,7 +60,6 @@ func createFirstUserForAuthentication(username, password string) (token string, 
 }
 
 func tokenAuthentication(token string) (newToken string, err error) {
-
 	if System.ConfigurationWizard {
 		return
 	}
@@ -73,7 +70,6 @@ func tokenAuthentication(token string) (newToken string, err error) {
 }
 
 func basicAuth(r *http.Request, level string) (username string, err error) {
-
 	err = errors.New("user authentication failed")
 
 	auth := strings.SplitN(r.Header.Get("Authorization"), " ", 2)
@@ -113,7 +109,6 @@ func urlAuth(r *http.Request, requestType string) (err error) {
 	var password = r.URL.Query().Get("password")
 
 	switch requestType {
-
 	case "m3u":
 		level = "authentication.m3u"
 		if Settings.AuthenticationM3U {
@@ -133,14 +128,12 @@ func urlAuth(r *http.Request, requestType string) (err error) {
 			}
 			err = checkAuthorizationLevel(token, level)
 		}
-
 	}
 
 	return
 }
 
 func checkAuthorizationLevel(token, level string) (err error) {
-
 	var authenticationErr = func(err error) {
 		if err != nil {
 			return
@@ -154,13 +147,10 @@ func checkAuthorizationLevel(token, level string) (err error) {
 	authenticationErr(err)
 
 	if len(userData) > 0 {
-
 		if v, ok := userData[level].(bool); ok {
-
 			if !v {
 				err = errors.New("no authorization")
 			}
-
 		} else {
 			userData[level] = false
 			if err = authentication.WriteUserData(userID, userData); err != nil {
@@ -168,7 +158,6 @@ func checkAuthorizationLevel(token, level string) (err error) {
 			}
 			err = errors.New("no authorization")
 		}
-
 	} else {
 		if err = authentication.WriteUserData(userID, userData); err != nil {
 			return

@@ -7,7 +7,6 @@ import (
 
 // ShowSystemInfo : View System Information
 func ShowSystemInfo() {
-
 	fmt.Print("Creating the information takes a moment...")
 	err := buildDatabaseDVR()
 	if err != nil {
@@ -79,5 +78,4 @@ func ShowSystemInfo() {
 	fmt.Println("Settings [Backup]")
 	fmt.Printf("Folder (backup):     %s\n", Settings.BackupPath)
 	fmt.Printf("Backup Keep:         %d\n", Settings.BackupKeep)
-
 }

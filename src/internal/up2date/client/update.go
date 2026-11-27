@@ -16,7 +16,6 @@ import (
 
 // DoUpdate : Update binary
 func DoUpdate(fileType, filenameBIN string) (err error) {
-
 	var url string
 	switch fileType {
 	case "bin":
@@ -84,7 +83,6 @@ func DoUpdate(fileType, filenameBIN string) (err error) {
 
 		// Update as a ZIP file
 		if fileType == "zip" {
-
 			log.Println("["+strings.ToUpper(fileType)+"]", "Update file:", filenameBIN)
 			log.Println("["+strings.ToUpper(fileType)+"]", "Unzip ZIP file...")
 			err = extractZIP(binary, tmpFolder)
@@ -92,14 +90,12 @@ func DoUpdate(fileType, filenameBIN string) (err error) {
 			binary = newBinary
 
 			if err != nil {
-
 				log.Println("["+strings.ToUpper(fileType)+"]", "Unzip ZIP file...ERROR")
 
 				restorOldBinary(oldBinary, newBinary)
 
 				return err
 			} else {
-
 				log.Println("["+strings.ToUpper(fileType)+"]", "Unzip ZIP file...OK")
 				log.Println("["+strings.ToUpper(fileType)+"]", "Copy binary file...")
 
@@ -107,7 +103,6 @@ func DoUpdate(fileType, filenameBIN string) (err error) {
 				if err == nil {
 					log.Println("["+strings.ToUpper(fileType)+"]", "Copy binary file...OK")
 				} else {
-
 					log.Println("["+strings.ToUpper(fileType)+"]", "Copy binary file...ERROR")
 					restorOldBinary(oldBinary, newBinary)
 
@@ -116,7 +111,6 @@ func DoUpdate(fileType, filenameBIN string) (err error) {
 
 				removeAllOrLog(tmpFolder)
 			}
-
 		}
 
 		// Set the permission
@@ -129,7 +123,6 @@ func DoUpdate(fileType, filenameBIN string) (err error) {
 
 		// Restart binary (Windows)
 		if runtime.GOOS == "windows" {
-
 			bin, err := os.Executable()
 
 			if err != nil {
@@ -149,9 +142,7 @@ func DoUpdate(fileType, filenameBIN string) (err error) {
 			}
 			removeAllOrLog(oldBinary)
 			os.Exit(0)
-
 		} else {
-
 			// Restart binary (Linux and UNIX)
 			removeAllOrLog(oldBinary)
 			err = syscall.Exec(binary, os.Args, os.Environ())
@@ -160,16 +151,13 @@ func DoUpdate(fileType, filenameBIN string) (err error) {
 				log.Fatal(err)
 				return err
 			}
-
 		}
-
 	}
 
 	return
 }
 
 func start(args ...string) (p *os.Process, err error) {
-
 	if args[0], err = exec.LookPath(args[0]); err == nil {
 		//fmt.Println(args[0])
 		var procAttr os.ProcAttr
@@ -179,7 +167,6 @@ func start(args ...string) (p *os.Process, err error) {
 		if err == nil {
 			return p, nil
 		}
-
 	}
 
 	return nil, err
@@ -193,14 +180,12 @@ func restorOldBinary(oldBinary, newBinary string) {
 }
 
 func getFilenameFromPath(path string) string {
-
 	file := filepath.Base(path)
 
 	return file
 }
 
 func getPlatformPath(path string) string {
-
 	var newPath = filepath.Dir(path) + string(os.PathSeparator)
 
 	return newPath
@@ -224,7 +209,6 @@ func copyFile(src, dst string) (err error) {
 }
 
 func extractZIP(archive, target string) (err error) {
-
 	reader, err := zip.OpenReader(archive)
 	if err != nil {
 		return err
@@ -245,7 +229,6 @@ func extractZIP(archive, target string) (err error) {
 }
 
 func extractZIPFile(file *zip.File, target string) (err error) {
-
 	path := filepath.Join(target, file.Name)
 
 	// Reject entries like "../../etc/passwd" that would be written outside of the target folder

@@ -8,7 +8,6 @@ import (
 
 // InitMaintenance : Initialize maintenance process
 func InitMaintenance() (err error) {
-
 	System.TimeForAutoUpdate = fmt.Sprintf("0%d%d", randomTime(0, 2), randomTime(10, 59))
 
 	go maintenance()
@@ -17,18 +16,13 @@ func InitMaintenance() (err error) {
 }
 
 func maintenance() {
-
 	for {
-
 		var t = time.Now()
 
 		// Update the playlist and XMLTV files
 		if System.ScanInProgress == 0 {
-
 			for _, schedule := range Settings.Update {
-
 				if schedule == t.Format("1504") {
-
 					showInfo("Update:" + schedule)
 
 					// Create a backup
@@ -66,9 +60,7 @@ func maintenance() {
 					// Create XEPG Files
 					Data.Cache.XMLTV = make(map[string]XMLTV)
 					buildXEPG(false)
-
 				}
-
 			}
 
 			// Update xTeVe (Binary)
@@ -77,11 +69,9 @@ func maintenance() {
 					ShowError(err, 0)
 				}
 			}
-
 		}
 
 		time.Sleep(60 * time.Second)
-
 	}
 }
 

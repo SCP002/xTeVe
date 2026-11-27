@@ -21,7 +21,6 @@ type M3UStream struct {
 }
 
 func TestMakeInterfaceFromM3U(t *testing.T) {
-
 	// Read playlist
 	file := "test_playlist_1.m3u"
 	content, err := os.ReadFile(file)

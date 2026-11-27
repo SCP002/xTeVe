@@ -153,7 +153,6 @@ func Init(databasePath string, validity int) (err error) {
 
 // CreateDefaultUser = created efault user
 func CreateDefaultUser(username, password string) (err error) {
-
 	err = checkInit()
 	if err != nil {
 		return
@@ -177,7 +176,6 @@ func CreateDefaultUser(username, password string) (err error) {
 
 // CreateNewUser : create new user
 func CreateNewUser(username, password string) (userID string, err error) {
-
 	err = checkInit()
 	if err != nil {
 		return
@@ -215,7 +213,6 @@ func CreateNewUser(username, password string) (userID string, err error) {
 
 // UserAuthentication : user authentication
 func UserAuthentication(username, password string) (token string, err error) {
-
 	err = checkInit()
 	if err != nil {
 		return
@@ -251,7 +248,6 @@ func UserAuthentication(username, password string) (token string, err error) {
 
 // CheckTheValidityOfTheToken : check token
 func CheckTheValidityOfTheToken(token string) (newToken string, err error) {
-
 	err = checkInit()
 	if err != nil {
 		return
@@ -270,7 +266,6 @@ func CheckTheValidityOfTheToken(token string) (newToken string, err error) {
 		newToken = setToken(userID, token)
 
 		err = nil
-
 	} else {
 		return
 	}
@@ -280,7 +275,6 @@ func CheckTheValidityOfTheToken(token string) (newToken string, err error) {
 
 // GetUserID : get user ID
 func GetUserID(token string) (userID string, err error) {
-
 	err = checkInit()
 	if err != nil {
 		return
@@ -304,7 +298,6 @@ func GetUserID(token string) (userID string, err error) {
 
 // WriteUserData : save user date
 func WriteUserData(userID string, userData map[string]interface{}) (err error) {
-
 	err = checkInit()
 	if err != nil {
 		return
@@ -313,10 +306,8 @@ func WriteUserData(userID string, userData map[string]interface{}) (err error) {
 	err = createError(030)
 
 	if v, ok := data["users"].(map[string]interface{})[userID].(map[string]interface{}); ok {
-
 		v["data"] = userData
 		err = saveDatabase(data)
-
 	} else {
 		return
 	}
@@ -326,7 +317,6 @@ func WriteUserData(userID string, userData map[string]interface{}) (err error) {
 
 // ReadUserData : load user date
 func ReadUserData(userID string) (userData map[string]interface{}, err error) {
-
 	err = checkInit()
 	if err != nil {
 		return
@@ -346,7 +336,6 @@ func ReadUserData(userID string) (userData map[string]interface{}, err error) {
 
 // RemoveUser : remove user
 func RemoveUser(userID string) (err error) {
-
 	err = checkInit()
 	if err != nil {
 		return
@@ -355,7 +344,6 @@ func RemoveUser(userID string) (err error) {
 	err = createError(032)
 
 	if _, ok := data["users"].(map[string]interface{})[userID]; ok {
-
 		delete(data["users"].(map[string]interface{}), userID)
 		err = saveDatabase(data)
 
@@ -367,7 +355,6 @@ func RemoveUser(userID string) (err error) {
 
 // SetDefaultUserData : set default user data
 func SetDefaultUserData(defaults map[string]interface{}) (err error) {
-
 	allUserData, err := GetAllUserData()
 
 	for _, d := range allUserData {
@@ -415,7 +402,6 @@ func ChangeCredentials(userID, username, password string) (err error) {
 
 // GetAllUserData : get all user data
 func GetAllUserData() (allUserData map[string]interface{}, err error) {
-
 	err = checkInit()
 	if err != nil {
 		return
@@ -463,7 +449,6 @@ func checkInit() (err error) {
 }
 
 func saveDatabase(tmpMap interface{}) (err error) {
-
 	jsonString, err := json.MarshalIndent(tmpMap, "", "  ")
 
 	if err != nil {

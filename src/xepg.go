@@ -24,7 +24,6 @@ import (
 
 // Check provider XMLTV File
 func checkXMLCompatibility(id string, body []byte) (err error) {
-
 	var xmltv XMLTV
 	var compatibility = make(map[string]int)
 
@@ -43,7 +42,6 @@ func checkXMLCompatibility(id string, body []byte) (err error) {
 
 // Create XEPG Data
 func buildXEPG(background bool) {
-
 	if System.ScanInProgress == 1 {
 		return
 	}
@@ -62,13 +60,9 @@ func buildXEPG(background bool) {
 	}
 
 	if Settings.EpgSource == "XEPG" {
-
 		switch background {
-
 		case true:
-
 			go func() {
-
 				createXEPGMapping()
 				if err := createXEPGDatabase(); err != nil {
 					ShowError(err, 0)
@@ -85,9 +79,7 @@ func buildXEPG(background bool) {
 				showInfo("XEPG:" + "Ready to use")
 
 				if Settings.CacheImages && System.ImageCachingInProgress == 0 {
-
 					go func() {
-
 						System.ImageCachingInProgress = 1
 						showInfo(fmt.Sprintf("Image Caching:Images are cached (%d)", len(Data.Cache.Images.Queue)))
 
@@ -105,9 +97,7 @@ func buildXEPG(background bool) {
 						createM3UFile()
 
 						System.ImageCachingInProgress = 0
-
 					}()
-
 				}
 
 				System.ScanInProgress = 0
@@ -115,11 +105,9 @@ func buildXEPG(background bool) {
 				if Settings.ClearXMLTVCache {
 					clearXMLTVCache()
 				}
-
 			}()
 
 		case false:
-
 			createXEPGMapping()
 			if err := createXEPGDatabase(); err != nil {
 				ShowError(err, 0)
@@ -130,16 +118,13 @@ func buildXEPG(background bool) {
 			cleanupXEPG()
 
 			go func() {
-
 				if err := createXMLTVFile(); err != nil {
 					ShowError(err, 0)
 				}
 				createM3UFile()
 
 				if Settings.CacheImages && System.ImageCachingInProgress == 0 {
-
 					go func() {
-
 						System.ImageCachingInProgress = 1
 						showInfo(fmt.Sprintf("Image Caching:Images are cached (%d)", len(Data.Cache.Images.Queue)))
 
@@ -157,9 +142,7 @@ func buildXEPG(background bool) {
 						createM3UFile()
 
 						System.ImageCachingInProgress = 0
-
 					}()
-
 				}
 
 				showInfo("XEPG:" + "Ready to use")
@@ -169,34 +152,25 @@ func buildXEPG(background bool) {
 				if Settings.ClearXMLTVCache {
 					clearXMLTVCache()
 				}
-
 			}()
-
 		}
-
 	} else {
-
 		if _, err := getLineup(); err != nil {
 			ShowError(err, 0)
 		}
 		System.ScanInProgress = 0
-
 	}
-
 }
 
 // Create Mapping Menu for the XMLTV Files
 func createXEPGMapping() {
-
 	Data.XMLTV.Files = getLocalProviderFiles("xmltv")
 	Data.XMLTV.Mapping = make(map[string]interface{})
 
 	var tmpMap = make(map[string]interface{})
 
 	if len(Data.XMLTV.Files) > 0 {
-
 		for i := len(Data.XMLTV.Files) - 1; i >= 0; i-- {
-
 			var file = Data.XMLTV.Files[i]
 
 			var err error
@@ -214,7 +188,6 @@ func createXEPGMapping() {
 
 			// XML Parsing (Provider File)
 			if err == nil {
-
 				// Write Data from the XML File to a temporary Map
 				var xmltvMap = make(map[string]interface{})
 
@@ -226,24 +199,18 @@ func createXEPGMapping() {
 					channel["icon"] = c.Icon.Src
 
 					xmltvMap[c.ID] = channel
-
 				}
 
 				tmpMap[getFilenameFromPath(file)] = xmltvMap
 				Data.XMLTV.Mapping[getFilenameFromPath(file)] = xmltvMap
-
 			}
-
 		}
 
 		Data.XMLTV.Mapping = tmpMap
-
 	} else {
-
 		if !System.ConfigurationWizard {
 			showWarning(1007)
 		}
-
 	}
 
 	// Create selection for the Dummy
@@ -251,14 +218,12 @@ func createXEPGMapping() {
 	var times = []string{"30", "60", "90", "120", "180", "240", "360"}
 
 	for _, i := range times {
-
 		var dummyChannel = make(map[string]interface{})
 		dummyChannel["display-names"] = []DisplayName{{Value: i + " Minutes"}}
 		dummyChannel["id"] = i + "_Minutes"
 		dummyChannel["icon"] = ""
 
 		dummy[dummyChannel["id"].(string)] = dummyChannel
-
 	}
 
 	Data.XMLTV.Mapping["xTeVe Dummy"] = dummy
@@ -266,7 +231,6 @@ func createXEPGMapping() {
 
 // Create / update XEPG Database
 func createXEPGDatabase() (err error) {
-
 	var allChannelNumbers = make([]float64, 0)
 	Data.Cache.Streams.Active = make([]string, 0)
 	Data.XEPG.Channels = make(map[string]interface{})
@@ -277,7 +241,6 @@ func createXEPGDatabase() (err error) {
 	}
 
 	var createNewID = func() (xepg string) {
-
 		var firstID = 0
 
 	newXEPGID:
@@ -294,7 +257,6 @@ func createXEPGDatabase() (err error) {
 	// getFreeChannelNumber returns the first free number starting from the
 	// first valid one of startingChannels, or from the default first channel
 	var getFreeChannelNumber = func(startingChannels ...string) (xChannelID string) {
-
 		var firstFreeNumber = Settings.MappingFirstChannel
 		for _, s := range startingChannels {
 			if n, err := strconv.ParseFloat(s, 64); err == nil && n > 0 {
@@ -304,7 +266,6 @@ func createXEPGDatabase() (err error) {
 		}
 
 		for {
-
 			if lo.IndexOf(allChannelNumbers, firstFreeNumber) == -1 {
 				xChannelID = fmt.Sprintf("%g", firstFreeNumber)
 				allChannelNumbers = append(allChannelNumbers, firstFreeNumber)
@@ -312,9 +273,7 @@ func createXEPGDatabase() (err error) {
 			}
 
 			firstFreeNumber++
-
 		}
-
 	}
 
 	var generateHashForChannel = func(
@@ -328,7 +287,6 @@ func createXEPGDatabase() (err error) {
 
 	// Delete Channel with missing Channel Numbers.
 	for id, dxc := range Data.XEPG.Channels {
-
 		var xepgChannel XEPGChannelStruct
 		err = json.Unmarshal([]byte(mapToJSON(dxc)), &xepgChannel)
 		if err != nil {
@@ -342,7 +300,6 @@ func createXEPGDatabase() (err error) {
 		if xChannelID, err := strconv.ParseFloat(xepgChannel.XChannelID, 64); err == nil {
 			allChannelNumbers = append(allChannelNumbers, xChannelID)
 		}
-
 	}
 
 	// Database channels in a fixed order, so that matching does not depend on
@@ -406,7 +363,6 @@ func createXEPGDatabase() (err error) {
 	}
 
 	for i, m3uChannel := range m3uChannels {
-
 		var channelExists = false  // Decides whether a Channel should be added to the Database
 		var channelHasUUID = false // Checks whether the Channel (Stream) has Unique IDs
 		// Current Database ID (XEPG) Used to update the Channel in the Database with the Stream of the M3U
@@ -422,40 +378,31 @@ func createXEPGDatabase() (err error) {
 				channelHasUUID = true
 			}
 		} else {
-
 			// Run through the XEPG Database to search for the Channel (full scan)
 			for _, dxc := range dbChannels {
-
 				if claimed[dxc.XEPG] {
 					continue
 				}
 
 				if m3uChannel.FileM3UID == dxc.FileM3UID {
-
 					dxc.FileM3UID = m3uChannel.FileM3UID
 					dxc.FileM3UName = m3uChannel.FileM3UName
 
 					// Compare the Stream using a UUID in the M3U with the Channel in the Database
 					if len(dxc.UUIDValue) > 0 && len(m3uChannel.UUIDValue) > 0 {
-
 						if dxc.UUIDValue == m3uChannel.UUIDValue && dxc.UUIDKey == m3uChannel.UUIDKey {
-
 							channelExists = true
 							channelHasUUID = true
 							currentXEPGID = dxc.XEPG
 							break
-
 						}
-
 					} else {
-
 						// Compare the Stream to the Channel in the Database using the Channel Name
 						if dxc.Name == m3uChannel.Name {
 							channelExists = true
 							currentXEPGID = dxc.XEPG
 							break
 						}
-
 					}
 
 					// Rename the Channel if it's update regex matches new channel name
@@ -493,9 +440,7 @@ func createXEPGDatabase() (err error) {
 					currentXEPGID = dxc.XEPG
 					Data.XEPG.Channels[currentXEPGID] = dxc
 					break
-
 				}
-
 			}
 
 			if channelExists {
@@ -504,7 +449,6 @@ func createXEPGDatabase() (err error) {
 		}
 
 		switch channelExists {
-
 		case true:
 			// Existing Channel
 			var xepgChannel XEPGChannelStruct
@@ -581,9 +525,7 @@ func createXEPGDatabase() (err error) {
 			newChannel.XTimeshift = newChannel.TvgShift
 
 			Data.XEPG.Channels[xepg] = newChannel
-
 		}
-
 	}
 	showInfo("XEPG:" + "Save DB file")
 	err = saveMapToJSONFile(System.File.XEPG, Data.XEPG.Channels)
@@ -598,7 +540,6 @@ func createXEPGDatabase() (err error) {
 // then by comparing the stream name with every display name, ignoring case and spaces. Files are searched in name
 // order, the dummy last, so the result does not depend on the iteration order of the map.
 func findXMLTVChannel(tvgID, name string) (file string, channel map[string]any, ok bool) {
-
 	var files = make([]string, 0, len(Data.XMLTV.Mapping))
 	for f := range Data.XMLTV.Mapping {
 		files = append(files, f)
@@ -628,7 +569,6 @@ func findXMLTVChannel(tvgID, name string) (file string, channel map[string]any, 
 	var nameSolid = strings.ReplaceAll(name, " ", "")
 
 	for _, f := range files {
-
 		var channels = channelsOf(f)
 		var ids = make([]string, 0, len(channels))
 		for id := range channels {
@@ -651,7 +591,6 @@ func findXMLTVChannel(tvgID, name string) (file string, channel map[string]any, 
 				}
 			}
 		}
-
 	}
 
 	return "", nil, false
@@ -672,7 +611,6 @@ func mapping() (err error) {
 	showInfo("XEPG:" + "Map channels")
 
 	for xepg, dxc := range Data.XEPG.Channels {
-
 		var xepgChannel XEPGChannelStruct
 		err = json.Unmarshal([]byte(mapToJSON(dxc)), &xepgChannel)
 		if err != nil {
@@ -682,12 +620,10 @@ func mapping() (err error) {
 		// Automatic mapping for new Channels. Is only executed if the Channel is deactivated and no XMLTV file and no
 		// XMLTV Channel is assigned.
 		if !xepgChannel.XActive {
-
 			// Values can be "-", therefore len <= 1
 			// If either XmltvFile (XMLTV file / EPG source) or XMapping (XMLTV Channel / EPG program) is "-" or null,
 			// then look for a matching EPG program.
 			if len(xepgChannel.XmltvFile) <= 1 || len(xepgChannel.XMapping) <= 1 {
-
 				var tvgID = xepgChannel.TvgID
 
 				// Set default for new Channel
@@ -702,7 +638,6 @@ func mapping() (err error) {
 				Data.XEPG.Channels[xepg] = xepgChannel
 
 				if file, channel, ok := findXMLTVChannel(tvgID, xepgChannel.Name); ok {
-
 					xepgChannel.XmltvFile = file
 					xepgChannel.XMapping = channel["id"].(string)
 
@@ -713,11 +648,8 @@ func mapping() (err error) {
 					}
 
 					Data.XEPG.Channels[xepg] = xepgChannel
-
 				}
-
 			}
-
 		}
 
 		if Settings.EnableMappedChannels && (xepgChannel.XmltvFile != "-" || xepgChannel.XMapping != "-") {
@@ -726,43 +658,30 @@ func mapping() (err error) {
 
 		// Check whether the assigned XMLTV Files and Channels still exist.
 		if xepgChannel.XActive {
-
 			var mapping = xepgChannel.XMapping
 			var file = xepgChannel.XmltvFile
 
 			if file != "xTeVe Dummy" {
-
 				if value, ok := Data.XMLTV.Mapping[file].(map[string]interface{}); ok {
-
 					if channel, ok := value[mapping].(map[string]interface{}); ok {
-
 						// Update Channel Logo
 						if logo, ok := channel["icon"].(string); ok {
-
 							if xepgChannel.XUpdateChannelIcon && len(logo) > 0 {
 								xepgChannel.TvgLogo = logo
 							}
-
 						}
-
 					} else {
-
 						ShowError(fmt.Errorf("missing EPG data: %s", xepgChannel.Name), 0)
 						showWarning(2302)
 						xepgChannel.XActive = false
-
 					}
-
 				} else {
-
 					var fileID = strings.TrimSuffix(getFilenameFromPath(file), path.Ext(getFilenameFromPath(file)))
 
 					ShowError(fmt.Errorf("missing XMLTV file: %s", getProviderParameter(fileID, "xmltv", "name")), 0)
 					showWarning(2301)
 					xepgChannel.XActive = false
-
 				}
-
 			}
 
 			if len(xepgChannel.XmltvFile) == 0 {
@@ -776,9 +695,7 @@ func mapping() (err error) {
 			}
 
 			Data.XEPG.Channels[xepg] = xepgChannel
-
 		}
-
 	}
 
 	err = saveMapToJSONFile(System.File.XEPG, Data.XEPG.Channels)
@@ -791,7 +708,6 @@ func mapping() (err error) {
 
 // Create XMLTV File
 func createXMLTVFile() (err error) {
-
 	// Image Cache
 	var imgc = Data.Cache.Images
 
@@ -801,15 +717,11 @@ func createXMLTVFile() (err error) {
 
 	files, err := os.ReadDir(System.Folder.ImagesCache)
 	if err == nil {
-
 		for _, file := range files {
-
 			if lo.IndexOf(Data.Cache.ImagesCache, file.Name()) == -1 {
 				Data.Cache.ImagesCache = append(Data.Cache.ImagesCache, file.Name())
 			}
-
 		}
-
 	}
 
 	if len(Data.XMLTV.Files) == 0 && len(Data.Streams.Active) == 0 {
@@ -838,15 +750,12 @@ func createXMLTVFile() (err error) {
 	}
 
 	for _, dxc := range Data.XEPG.Channels {
-
 		var xepgChannel XEPGChannelStruct
 		err := json.Unmarshal([]byte(mapToJSON(dxc)), &xepgChannel)
 		if err != nil {
 			channelFailed(err)
 		} else {
-
 			if xepgChannel.XActive {
-
 				// Channels
 				var channel Channel
 				channel.ID = xepgChannel.XChannelID
@@ -861,15 +770,10 @@ func createXMLTVFile() (err error) {
 				if err != nil {
 					channelFailed(fmt.Errorf("%s: %w", xepgChannel.XName, err))
 				} else {
-
 					xepgXML.Program = append(xepgXML.Program, tmpProgram.Program...)
-
 				}
-
 			}
-
 		}
-
 	}
 
 	if failedChannels > 0 {
@@ -898,7 +802,6 @@ func createXMLTVFile() (err error) {
 
 // Create Program Data (createXMLTVFile)
 func getProgramData(xepgChannel XEPGChannelStruct) (xepgXML XMLTV, err error) {
-
 	var xmltvFile = System.Folder.Data + xepgChannel.XmltvFile
 	var channelID = xepgChannel.XMapping
 
@@ -907,12 +810,10 @@ func getProgramData(xepgChannel XEPGChannelStruct) (xepgXML XMLTV, err error) {
 	if xmltvFile == System.Folder.Data+"xTeVe Dummy" {
 		xmltv = createDummyProgram(xepgChannel)
 	} else {
-
 		err = getLocalXMLTV(xmltvFile, &xmltv)
 		if err != nil {
 			return
 		}
-
 	}
 
 	// Timeshift in hours, from the channel settings or the "tvg-shift" M3U attribute
@@ -934,7 +835,6 @@ func getProgramData(xepgChannel XEPGChannelStruct) (xepgXML XMLTV, err error) {
 	var timeshiftReported bool
 
 	for _, xmltvProgram := range xmltv.Program {
-
 		if xmltvProgram.Channel == channelID {
 			var program = &Program{}
 
@@ -1012,9 +912,7 @@ func getProgramData(xepgChannel XEPGChannelStruct) (xepgXML XMLTV, err error) {
 			program.Premiere = xmltvProgram.Premiere
 
 			xepgXML.Program = append(xepgXML.Program, program)
-
 		}
-
 	}
 
 	return
@@ -1022,7 +920,6 @@ func getProgramData(xepgChannel XEPGChannelStruct) (xepgXML XMLTV, err error) {
 
 // Create Dummy Data (createXMLTVFile)
 func createDummyProgram(xepgChannel XEPGChannelStruct) (dummyXMLTV XMLTV) {
-
 	var imgc = Data.Cache.Images
 	var currentTime = time.Now()
 	var dateArray = strings.Fields(currentTime.String())
@@ -1039,11 +936,9 @@ func createDummyProgram(xepgChannel XEPGChannelStruct) (dummyXMLTV XMLTV) {
 	}
 
 	for d := 0; d < 4; d++ {
-
 		var epgStartTime = startTime.Add(time.Hour * time.Duration(d*24))
 
 		for t := dummyLength; t <= 1440; t = t + dummyLength {
-
 			var epgStopTime = epgStartTime.Add(time.Minute * time.Duration(dummyLength))
 
 			var epg Program
@@ -1100,9 +995,7 @@ func createDummyProgram(xepgChannel XEPGChannelStruct) (dummyXMLTV XMLTV) {
 
 			dummyXMLTV.Program = append(dummyXMLTV.Program, &epg)
 			epgStartTime = epgStopTime
-
 		}
-
 	}
 
 	return
@@ -1110,29 +1003,23 @@ func createDummyProgram(xepgChannel XEPGChannelStruct) (dummyXMLTV XMLTV) {
 
 // Expand Categories (createXMLTVFile)
 func getCategory(program *Program, xmltvProgram *Program, xepgChannel XEPGChannelStruct) {
-
 	for _, i := range xmltvProgram.Category {
-
 		category := &Category{}
 		category.Value = i.Value
 		category.Lang = i.Lang
 		program.Category = append(program.Category, category)
-
 	}
 
 	if len(xepgChannel.XCategory) > 0 {
-
 		category := &Category{}
 		category.Value = xepgChannel.XCategory
 		category.Lang = "en"
 		program.Category = append(program.Category, category)
-
 	}
 }
 
 // Load the Poster Cover Program from the XMLTV File
 func getPoster(program *Program, xmltvProgram *Program, xepgChannel XEPGChannelStruct) {
-
 	var imgc = Data.Cache.Images
 
 	for _, poster := range xmltvProgram.Poster {
@@ -1141,26 +1028,20 @@ func getPoster(program *Program, xmltvProgram *Program, xepgChannel XEPGChannelS
 	}
 
 	if Settings.XepgReplaceMissingImages {
-
 		if len(xmltvProgram.Poster) == 0 {
 			var poster Poster
 			poster.Src = imgc.Image.GetURL(poster.Src)
 			program.Poster = append(program.Poster, poster)
 		}
-
 	}
-
 }
 
 // Apply Episode system, if none is available and a Category has been set in the mapping, an Episode is created
 func getEpisodeNum(program *Program, xmltvProgram *Program, xepgChannel XEPGChannelStruct) {
-
 	program.EpisodeNum = xmltvProgram.EpisodeNum
 
 	if len(xepgChannel.XCategory) > 0 && xepgChannel.XCategory != "Movie" {
-
 		if len(xmltvProgram.EpisodeNum) == 0 {
-
 			var timeLayout = "20060102150405"
 
 			t, err := time.Parse(timeLayout, strings.Split(xmltvProgram.Start, " ")[0])
@@ -1172,15 +1053,12 @@ func getEpisodeNum(program *Program, xmltvProgram *Program, xepgChannel XEPGChan
 			} else {
 				ShowError(err, 0)
 			}
-
 		}
-
 	}
 }
 
 // Create Video Parameters (createXMLTVFile)
 func getVideo(program *Program, xmltvProgram *Program, xepgChannel XEPGChannelStruct) {
-
 	var video Video
 	video.Present = xmltvProgram.Video.Present
 	video.Colour = xmltvProgram.Video.Colour
@@ -1188,7 +1066,6 @@ func getVideo(program *Program, xmltvProgram *Program, xepgChannel XEPGChannelSt
 	video.Quality = xmltvProgram.Video.Quality
 
 	if len(xmltvProgram.Video.Quality) == 0 {
-
 		if strings.Contains(strings.ToUpper(xepgChannel.XName), " HD") ||
 			strings.Contains(strings.ToUpper(xepgChannel.XName), " FHD") {
 			video.Quality = "HDTV"
@@ -1198,7 +1075,6 @@ func getVideo(program *Program, xmltvProgram *Program, xepgChannel XEPGChannelSt
 			strings.Contains(strings.ToUpper(xepgChannel.XName), " 4K") {
 			video.Quality = "UHDTV"
 		}
-
 	}
 
 	program.Video = video
@@ -1206,9 +1082,7 @@ func getVideo(program *Program, xmltvProgram *Program, xepgChannel XEPGChannelSt
 
 // Load Local Provider XMLTV file
 func getLocalXMLTV(file string, xmltv *XMLTV) (err error) {
-
 	if _, ok := Data.Cache.XMLTV[file]; !ok {
-
 		// Initialize Cache
 		if len(Data.Cache.XMLTV) == 0 {
 			Data.Cache.XMLTV = make(map[string]XMLTV)
@@ -1229,7 +1103,6 @@ func getLocalXMLTV(file string, xmltv *XMLTV) (err error) {
 		}
 
 		Data.Cache.XMLTV[file] = *xmltv
-
 	} else {
 		*xmltv = Data.Cache.XMLTV[file]
 	}
@@ -1239,7 +1112,6 @@ func getLocalXMLTV(file string, xmltv *XMLTV) (err error) {
 
 // Create M3U File
 func createM3UFile() {
-
 	showInfo("XEPG:" + fmt.Sprintf("Create M3U file (%s)", System.File.M3U))
 	_, err := buildM3U([]string{})
 	if err != nil {
@@ -1253,7 +1125,6 @@ func createM3UFile() {
 
 // Clean up the XEPG Database
 func cleanupXEPG() {
-
 	var sourceIDs []string
 
 	for source := range Settings.Files.M3U {

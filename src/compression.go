@@ -12,7 +12,6 @@ import (
 )
 
 func zipFiles(sourceFiles []string, target string) (err error) {
-
 	zipfile, err := os.Create(target)
 	if err != nil {
 		return err
@@ -25,7 +24,6 @@ func zipFiles(sourceFiles []string, target string) (err error) {
 	defer closeKeepErr(archive, &err)
 
 	for _, source := range sourceFiles {
-
 		info, err := os.Stat(source)
 		if os.IsNotExist(err) {
 			continue
@@ -40,7 +38,6 @@ func zipFiles(sourceFiles []string, target string) (err error) {
 		}
 
 		err = filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
-
 			if err != nil {
 				return err
 			}
@@ -79,19 +76,16 @@ func zipFiles(sourceFiles []string, target string) (err error) {
 			_, err = io.Copy(writer, file)
 
 			return err
-
 		})
 		if err != nil {
 			return err
 		}
-
 	}
 
 	return nil
 }
 
 func extractZIP(archive, target string) (err error) {
-
 	reader, err := zip.OpenReader(archive)
 	if err != nil {
 		return err
@@ -112,7 +106,6 @@ func extractZIP(archive, target string) (err error) {
 }
 
 func extractZIPFile(file *zip.File, target string) (err error) {
-
 	// Backups made on Windows by older versions use "\" in entry names
 	var name = strings.ReplaceAll(file.Name, `\`, "/")
 	path := filepath.Join(target, filepath.FromSlash(name))
@@ -149,7 +142,6 @@ func extractZIPFile(file *zip.File, target string) (err error) {
 }
 
 func extractGZIP(gzipBody []byte, fileSource string) (body []byte, err error) {
-
 	var b = bytes.NewBuffer(gzipBody)
 
 	var r io.Reader
@@ -176,9 +168,7 @@ func extractGZIP(gzipBody []byte, fileSource string) (body []byte, err error) {
 }
 
 func compressGZIP(data *[]byte, file string) (err error) {
-
 	if len(file) != 0 {
-
 		f, err := os.Create(file)
 		if err != nil {
 			return err

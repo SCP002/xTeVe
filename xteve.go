@@ -86,7 +86,6 @@ var dev = flag.Bool(
 )
 
 func main() {
-
 	var system = &src.System
 	system.APIVersion = APIVersion
 	system.Branch = GitHub.Branch
@@ -97,9 +96,7 @@ func main() {
 
 	// Panic
 	defer func() {
-
 		if r := recover(); r != nil {
-
 			fmt.Println()
 			fmt.Println("* * * * * FATAL ERROR * * * * *")
 			fmt.Println("OS:  ", runtime.GOOS)
@@ -111,25 +108,19 @@ func main() {
 			runtime.Callers(2, pc)
 
 			for i := range pc {
-
 				if runtime.FuncForPC(pc[i]) != nil {
-
 					f := runtime.FuncForPC(pc[i])
 					file, line := f.FileLine(pc[i])
 
 					if string(file)[0:1] != "?" {
 						fmt.Printf("%s:%d %s\n", filepath.Base(file), line, f.Name())
 					}
-
 				}
-
 			}
 
 			fmt.Println()
 			fmt.Println("* * * * * * * * * * * * * * * *")
-
 		}
-
 	}()
 
 	flag.Parse()
@@ -143,7 +134,6 @@ func main() {
 
 	// Display System Information
 	if *info {
-
 		system.Flag.Info = true
 
 		err := src.Init()
@@ -154,7 +144,6 @@ func main() {
 
 		src.ShowSystemInfo()
 		return
-
 	}
 
 	// Webserver Port
@@ -182,7 +171,6 @@ func main() {
 
 	// Restore Backup
 	if len(*restore) > 0 {
-
 		system.Flag.Restore = *restore
 
 		err := src.Init()
@@ -228,5 +216,4 @@ func main() {
 		src.ShowError(err, 0)
 		os.Exit(1)
 	}
-
 }

@@ -3,6 +3,8 @@ version: "2"
 linters:
   enable:
     - lll
+    # Empty lines at the start and end of blocks.
+    - whitespace
   settings:
     lll:
       line-length: 120

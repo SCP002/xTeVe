@@ -19,7 +19,6 @@ import (
 // Errors of all providers are returned together, each prefixed with the provider name;
 // a provider that fails keeps its previous file if there is one.
 func getProviderData(fileType, fileID string) (err error) {
-
 	var errs []error
 
 	var fileExtension, serverFileName string
@@ -28,7 +27,6 @@ func getProviderData(fileType, fileID string) (err error) {
 	var dataMap = make(map[string]interface{})
 
 	var saveDateFromProvider = func(fileSource, serverFileName, id string, body []byte) (err error) {
-
 		var data = make(map[string]interface{})
 
 		if value, ok := dataMap[id].(map[string]interface{}); ok {
@@ -45,11 +43,8 @@ func getProviderData(fileType, fileID string) (err error) {
 		}
 
 		for _, key := range keys {
-
 			if _, ok := data[key]; !ok {
-
 				switch key {
-
 				case "name":
 					data[key] = serverFileName
 
@@ -87,9 +82,7 @@ func getProviderData(fileType, fileID string) (err error) {
 				case "provider.availability":
 					data[key] = 100
 				}
-
 			}
-
 		}
 
 		if _, ok := data["id.provider"]; !ok {
@@ -105,7 +98,6 @@ func getProviderData(fileType, fileID string) (err error) {
 		// Check Data
 		showInfo("Check File:" + fileSource)
 		switch fileType {
-
 		case "m3u":
 			_, err = m3u.MakeInterfaceFromM3U(body)
 
@@ -114,7 +106,6 @@ func getProviderData(fileType, fileID string) (err error) {
 
 		case "xmltv":
 			err = checkXMLCompatibility(id, body)
-
 		}
 
 		if err != nil {
@@ -131,11 +122,9 @@ func getProviderData(fileType, fileID string) (err error) {
 		}
 
 		return
-
 	}
 
 	switch fileType {
-
 	case "m3u":
 		dataMap = Settings.Files.M3U
 		fileExtension = ".m3u"
@@ -147,11 +136,9 @@ func getProviderData(fileType, fileID string) (err error) {
 	case "xmltv":
 		dataMap = Settings.Files.XMLTV
 		fileExtension = ".xml"
-
 	}
 
 	for dataID, d := range dataMap {
-
 		var data = d.(map[string]interface{})
 		var fileSource = data["file.source"].(string)
 		newProvider = false
@@ -169,24 +156,18 @@ func getProviderData(fileType, fileID string) (err error) {
 		}
 
 		switch fileType {
-
 		case "hdhr":
-
 			// Load from the HDHomeRun Tuner
 			showInfo("Tuner:" + fileSource)
 			var tunerURL = "http://" + fileSource + "/lineup.json"
 			serverFileName, body, err = downloadFileFromServer(tunerURL)
 
 		default:
-
 			if strings.Contains(fileSource, "http://") || strings.Contains(fileSource, "https://") {
-
 				// Load from the Remote Server
 				showInfo("Download:" + fileSource)
 				serverFileName, body, err = downloadFileFromServer(fileSource)
-
 			} else {
-
 				// Load a local File
 				showInfo("Open:" + fileSource)
 
@@ -195,26 +176,20 @@ func getProviderData(fileType, fileID string) (err error) {
 					body, err = readByteFromFile(fileSource)
 					serverFileName = getFilenameFromPath(fileSource)
 				}
-
 			}
-
 		}
 
 		if err == nil {
-
 			err = saveDateFromProvider(fileSource, serverFileName, dataID, body)
 			if err == nil {
 				showInfo("Save File:" + fileSource + " [ID: " + dataID + "]")
 			}
-
 		}
 
 		if err != nil {
-
 			var downloadErr = fmt.Errorf("%s: %w", getProviderName(data, dataID), err)
 
 			if !newProvider {
-
 				errs = append(errs, downloadErr)
 
 				// Check whether there is an older File
@@ -226,24 +201,18 @@ func getProviderData(fileType, fileID string) (err error) {
 
 				// Increase Error Counter by 1
 				if value, ok := dataMap[dataID].(map[string]interface{}); ok {
-
 					var data = value
 					data["counter.error"] = data["counter.error"].(float64) + 1
 					data["counter.download"] = data["counter.download"].(float64) + 1
-
 				}
-
 			} else {
 				return downloadErr
 			}
-
 		}
 
 		// Calculate the Margin of Error
 		if !newProvider {
-
 			if value, ok := dataMap[dataID].(map[string]interface{}); ok {
-
 				var data = value
 
 				if data["counter.error"].(float64) == 0 {
@@ -253,13 +222,10 @@ func getProviderData(fileType, fileID string) (err error) {
 						data["counter.error"].(float64)*100/data["counter.download"].(float64)*-1 + 100,
 					)
 				}
-
 			}
-
 		}
 
 		switch fileType {
-
 		case "m3u":
 			Settings.Files.M3U = dataMap
 
@@ -269,7 +235,6 @@ func getProviderData(fileType, fileID string) (err error) {
 		case "xmltv":
 			Settings.Files.XMLTV = dataMap
 			delete(Data.Cache.XMLTV, System.Folder.Data+dataID+fileExtension)
-
 		}
 
 		if err := saveSettings(Settings); err != nil {
@@ -291,7 +256,6 @@ func getProviderName(data map[string]interface{}, dataID string) string {
 }
 
 func downloadFileFromServer(providerURL string) (filename string, body []byte, err error) {
-
 	_, err = url.ParseRequestURI(providerURL)
 	if err != nil {
 		return
@@ -313,7 +277,6 @@ func downloadFileFromServer(providerURL string) (filename string, body []byte, e
 	var index = strings.Index(resp.Header.Get("Content-Disposition"), "filename")
 
 	if index > -1 {
-
 		var headerFilename = resp.Header.Get("Content-Disposition")[index:len(resp.Header.Get("Content-Disposition"))]
 		var value = strings.Split(headerFilename, `=`)
 		var f = strings.ReplaceAll(value[1], `"`, "")
@@ -321,12 +284,9 @@ func downloadFileFromServer(providerURL string) (filename string, body []byte, e
 		f = strings.ReplaceAll(f, `;`, "")
 		filename = f
 		showInfo("Header filename:" + filename)
-
 	} else {
-
 		var cleanFilename = strings.SplitN(getFilenameFromPath(providerURL), "?", 2)
 		filename = cleanFilename[0]
-
 	}
 
 	body, err = io.ReadAll(resp.Body)

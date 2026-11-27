@@ -7,7 +7,6 @@ import (
 )
 
 func uploadLogo(input, filename string) (logoURL string, err error) {
-
 	b64data := input[strings.IndexByte(input, ',')+1:]
 
 	// Convert Base64 into bytes and save
@@ -26,5 +25,4 @@ func uploadLogo(input, filename string) (logoURL string, err error) {
 	logoURL = fmt.Sprintf("%s://%s/data_images/%s", System.ServerProtocol.XML, System.Domain, filename)
 
 	return
-
 }

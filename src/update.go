@@ -14,7 +14,6 @@ import (
 
 // BinaryUpdate : Binary update process. Git Branch master and beta is loaded from GitHub.
 func BinaryUpdate() (err error) {
-
 	if !System.GitHub.Update {
 		showWarning(2099)
 		return
@@ -29,10 +28,8 @@ func BinaryUpdate() (err error) {
 	up2date.Init()
 
 	switch System.Branch {
-
 	// Update from GitHub
 	case "master", "beta":
-
 		var gitInfo = fmt.Sprintf("%s/%s/info.json?raw=true", System.Update.Git, System.Branch)
 		var zipFile = fmt.Sprintf(
 			"%s/%s/%s_%s_%s.zip?raw=true", System.Update.Git, System.Branch, System.AppName, System.OS, System.ARCH,
@@ -48,7 +45,6 @@ func BinaryUpdate() (err error) {
 		defer closeOrLog(resp.Body)
 
 		if resp.StatusCode != http.StatusOK {
-
 			if resp.StatusCode == 404 {
 				return withCode(fmt.Errorf("update server: %s (%s)", http.StatusText(resp.StatusCode), gitInfo), 6003)
 			}
@@ -75,7 +71,6 @@ func BinaryUpdate() (err error) {
 
 	// Update from your own Server
 	default:
-
 		updater.URL = Settings.UpdateURL
 
 		if len(updater.URL) == 0 {
@@ -94,7 +89,6 @@ func BinaryUpdate() (err error) {
 		// Load version information from the Server
 		err = up2date.GetVersion()
 		if err != nil {
-
 			debug = err.Error()
 			showDebug(debug, 1)
 
@@ -102,17 +96,14 @@ func BinaryUpdate() (err error) {
 		}
 
 		if len(updater.Response.Reason) > 0 {
-
 			return withCode(fmt.Errorf("update server: %s", updater.Response.Reason), 6002)
 		}
-
 	}
 
 	var currentVersion = System.Version
 
 	// Check Version Number
 	if updater.Response.Version > currentVersion && updater.Response.Status {
-
 		if Settings.XteveAutoUpdate {
 			// Perform update
 			var fileType, url string
@@ -120,7 +111,6 @@ func BinaryUpdate() (err error) {
 			showInfo(fmt.Sprintf("Update Available:Version: %s", updater.Response.Version))
 
 			switch System.Branch {
-
 			// Update from GitHub
 			case "master", "beta":
 				showInfo("Update Server:GitHub")
@@ -128,7 +118,6 @@ func BinaryUpdate() (err error) {
 			// Update from your own Server
 			default:
 				showInfo(fmt.Sprintf("Update Server:%s", Settings.UpdateURL))
-
 			}
 
 			showInfo(fmt.Sprintf("Start Update:Branch: %s", updater.Branch))
@@ -146,25 +135,20 @@ func BinaryUpdate() (err error) {
 			}
 
 			if len(url) > 0 {
-
 				if err = up2date.DoUpdate(fileType, updater.Response.Filename); err != nil {
 					return withCode(err, 6002)
 				}
-
 			}
-
 		} else {
 			// Display update exception
 			showWarning(6004)
 		}
-
 	}
 
 	return nil
 }
 
 func conditionalUpdateChanges() (err error) {
-
 checkVersion:
 	settingsMap, err := loadJSONFileToMap(System.File.Settings)
 	if err != nil || len(settingsMap) == 0 {
@@ -172,7 +156,6 @@ checkVersion:
 	}
 
 	if settingsVersion, ok := settingsMap["version"].(string); ok {
-
 		if settingsVersion > System.DBVersion {
 			showInfo("Settings DB Version:" + settingsVersion)
 			showInfo("System DB Version:" + System.DBVersion)
@@ -187,7 +170,6 @@ checkVersion:
 		}
 
 		switch settingsVersion {
-
 		case "1.4.4":
 			// Set UUID Value in xepg.json
 			err = setValueForUUID()
@@ -208,16 +190,13 @@ checkVersion:
 				}
 
 				goto checkVersion
-
 			} else {
 				err = errors.New(getErrMsg(1030))
 				return
 			}
 
 		case "2.0.0":
-
 			if oldBuffer, ok := settingsMap["buffer"].(bool); ok {
-
 				var newBuffer string
 				switch oldBuffer {
 				case true:
@@ -236,7 +215,6 @@ checkVersion:
 				}
 
 				goto checkVersion
-
 			} else {
 				err = errors.New(getErrMsg(1030))
 				return
@@ -273,7 +251,6 @@ checkVersion:
 
 			break
 		}
-
 	} else {
 		// settings.json is too old (older than Version 1.4.4)
 		err = errors.New(getErrMsg(1013))
@@ -283,16 +260,13 @@ checkVersion:
 }
 
 func convertToNewFilter(oldFilter []interface{}) (newFilterMap map[int]interface{}) {
-
 	newFilterMap = make(map[int]interface{})
 
 	switch reflect.TypeOf(oldFilter).Kind() {
-
 	case reflect.Slice:
 		s := reflect.ValueOf(oldFilter)
 
 		for i := 0; i < s.Len(); i++ {
-
 			var newFilter FilterStruct
 			newFilter.Active = true
 			newFilter.Name = fmt.Sprintf("Custom filter %d", i+1)
@@ -301,37 +275,28 @@ func convertToNewFilter(oldFilter []interface{}) (newFilterMap map[int]interface
 			newFilter.CaseSensitive = false
 
 			newFilterMap[i] = newFilter
-
 		}
-
 	}
 
 	return
 }
 
 func setValueForUUID() (err error) {
-
 	xepg, err := loadJSONFileToMap(System.File.XEPG)
 	if err != nil {
 		return
 	}
 
 	for _, c := range xepg {
-
 		var xepgChannel = c.(map[string]interface{})
 
 		if uuidKey, ok := xepgChannel["_uuid.key"].(string); ok {
-
 			if value, ok := xepgChannel[uuidKey].(string); ok {
-
 				if len(value) > 0 {
 					xepgChannel["_uuid.value"] = value
 				}
-
 			}
-
 		}
-
 	}
 
 	err = saveMapToJSONFile(System.File.XEPG, xepg)

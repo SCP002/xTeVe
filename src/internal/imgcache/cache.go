@@ -32,7 +32,6 @@ type imageFunc struct {
 
 // New : New cache
 func New(path, chacheURL string, caching bool) (c *Cache, err error) {
-
 	c = &Cache{}
 
 	c.images = make(map[string]string)
@@ -45,7 +44,6 @@ func New(path, chacheURL string, caching bool) (c *Cache, err error) {
 	var queue []string
 
 	c.Image.GetURL = func(src string) (cacheURL string) {
-
 		c.Lock()
 		defer c.Unlock()
 
@@ -66,11 +64,9 @@ func New(path, chacheURL string, caching bool) (c *Cache, err error) {
 		}
 
 		if indexOfString(filename, c.Cache) == -1 {
-
 			if indexOfString(src, c.Queue) == -1 {
 				c.Queue = append(c.Queue, src)
 			}
-
 		} else {
 			c.images[filename] = c.cacheURL + filename
 			src = c.cacheURL + filename
@@ -91,7 +87,6 @@ func New(path, chacheURL string, caching bool) (c *Cache, err error) {
 	}
 
 	c.Image.Caching = func() error {
-
 		c.Lock()
 		defer c.Unlock()
 
@@ -99,7 +94,6 @@ func New(path, chacheURL string, caching bool) (c *Cache, err error) {
 		var firstErr error
 
 		for _, src := range c.Queue {
-
 			var filename = fmt.Sprintf("%s%s%s%s", c.path, string(os.PathSeparator), strToMD5(src), filepath.Ext(src))
 
 			if err := download(src, filename); err != nil {
@@ -117,7 +111,6 @@ func New(path, chacheURL string, caching bool) (c *Cache, err error) {
 			}
 
 			queue = append(queue, src)
-
 		}
 
 		var total = len(c.Queue)
@@ -139,7 +132,6 @@ func New(path, chacheURL string, caching bool) (c *Cache, err error) {
 	}
 
 	c.Image.Remove = func() error {
-
 		c.Lock()
 		defer c.Unlock()
 
@@ -151,7 +143,6 @@ func New(path, chacheURL string, caching bool) (c *Cache, err error) {
 		var errs []error
 
 		for _, file := range files {
-
 			if _, ok := c.images[file.Name()]; c.caching && ok {
 				continue
 			}
@@ -159,7 +150,6 @@ func New(path, chacheURL string, caching bool) (c *Cache, err error) {
 			if err := os.RemoveAll(c.path + file.Name()); err != nil {
 				errs = append(errs, err)
 			}
-
 		}
 
 		return errors.Join(errs...)
@@ -179,7 +169,6 @@ func New(path, chacheURL string, caching bool) (c *Cache, err error) {
 
 // download saves the image at src to filename. A partially written file is removed.
 func download(src, filename string) (err error) {
-
 	resp, err := http.Get(src)
 	if err != nil {
 		return err

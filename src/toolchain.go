@@ -26,7 +26,6 @@ import (
 
 // Checks whether the Folder exists, if not, the Folder is created
 func checkFolder(path string) (err error) {
-
 	var debug string
 	_, err = os.Stat(filepath.Dir(path))
 
@@ -35,10 +34,8 @@ func checkFolder(path string) (err error) {
 
 		err = os.MkdirAll(getPlatformPath(path), 0755)
 		if err == nil {
-
 			debug = fmt.Sprintf("Create Folder:%s", path)
 			showDebug(debug, 1)
-
 		} else {
 			return err
 		}
@@ -51,7 +48,6 @@ func checkFolder(path string) (err error) {
 
 // checkVFSFolder : Checks whether the Folder exists in provided virtual filesystem, if not, the Folder is created
 func checkVFSFolder(path string, vfs avfs.VFS) (err error) {
-
 	var debug string
 	_, err = vfs.Stat(filepath.Dir(path))
 
@@ -60,10 +56,8 @@ func checkVFSFolder(path string, vfs avfs.VFS) (err error) {
 
 		err = vfs.MkdirAll(getPlatformPath(path), 0755)
 		if err == nil {
-
 			debug = fmt.Sprintf("Create virtual filesystem Folder:%s", path)
 			showDebug(debug, 1)
-
 		} else {
 			return err
 		}
@@ -88,7 +82,6 @@ func fsIsNotExistErr(err error) bool {
 
 // Checks whether the File exists in the Filesystem
 func checkFile(filename string) (err error) {
-
 	var file = getPlatformFile(filename)
 
 	if _, err = os.Stat(file); os.IsNotExist(err) {
@@ -118,20 +111,15 @@ func allFilesExist(list ...string) bool {
 
 // GetUserHomeDirectory : User Home Directory
 func GetUserHomeDirectory() (userHomeDirectory string) {
-
 	usr, err := user.Current()
 
 	if err != nil {
-
 		for _, name := range []string{"HOME", "USERPROFILE"} {
-
 			if dir := os.Getenv(name); dir != "" {
 				userHomeDirectory = dir
 				break
 			}
-
 		}
-
 	} else {
 		userHomeDirectory = usr.HomeDir
 	}
@@ -141,7 +129,6 @@ func GetUserHomeDirectory() (userHomeDirectory string) {
 
 // Checks File Permissions
 func checkFilePermission(dir string) (err error) {
-
 	var filename = dir + "permission.test"
 
 	err = os.WriteFile(filename, []byte(""), 0644)
@@ -193,7 +180,6 @@ func getValidTempDir(path string) string {
 
 // Generate File Path for the running OS
 func getPlatformFile(filename string) (osFilePath string) {
-
 	path, file := filepath.Split(filename)
 	var newPath = filepath.Dir(path)
 	osFilePath = newPath + string(os.PathSeparator) + file
@@ -208,46 +194,38 @@ func getFilenameFromPath(path string) (file string) {
 
 // Searches for a File in the OS
 func searchFileInOS(file string) (path string) {
-
 	switch runtime.GOOS {
-
 	case "linux", "darwin", "freebsd":
 		var args = file
 		var cmd = exec.Command("which", strings.Split(args, " ")...)
 
 		out, err := cmd.CombinedOutput()
 		if err == nil {
-
 			var slice = strings.Split(strings.ReplaceAll(string(out), "\r\n", "\n"), "\n")
 
 			if len(slice) > 0 {
 				path = strings.Trim(slice[0], "\r\n")
 			}
-
 		}
 
 	default:
 		return
-
 	}
 
 	return
 }
 
 func removeChildItems(dir string) error {
-
 	files, err := filepath.Glob(filepath.Join(dir, "*"))
 	if err != nil {
 		return err
 	}
 
 	for _, file := range files {
-
 		err = os.RemoveAll(file)
 		if err != nil {
 			return err
 		}
-
 	}
 
 	return nil
@@ -255,7 +233,6 @@ func removeChildItems(dir string) error {
 
 // JSON
 func mapToJSON(tmpMap interface{}) string {
-
 	jsonString, err := json.MarshalIndent(tmpMap, "", "  ")
 	if err != nil {
 		return "{}"
@@ -265,7 +242,6 @@ func mapToJSON(tmpMap interface{}) string {
 }
 
 func jsonToMap(content string) map[string]interface{} {
-
 	var tmpMap = make(map[string]interface{})
 	if err := json.Unmarshal([]byte(content), &tmpMap); err != nil {
 		ShowError(err, 0)
@@ -275,14 +251,11 @@ func jsonToMap(content string) map[string]interface{} {
 }
 
 func jsonToInterface(content string) (tmpMap interface{}, err error) {
-
 	err = json.Unmarshal([]byte(content), &tmpMap)
 	return
-
 }
 
 func saveMapToJSONFile(file string, tmpMap interface{}) error {
-
 	var filename = getPlatformFile(file)
 	jsonString, err := json.MarshalIndent(tmpMap, "", "  ")
 
@@ -299,7 +272,6 @@ func saveMapToJSONFile(file string, tmpMap interface{}) error {
 }
 
 func loadJSONFileToMap(file string) (tmpMap map[string]interface{}, err error) {
-
 	content, err := os.ReadFile(getPlatformFile(file))
 	if err == nil {
 		err = json.Unmarshal(content, &tmpMap)
@@ -310,12 +282,10 @@ func loadJSONFileToMap(file string) (tmpMap map[string]interface{}, err error) {
 
 // Binary
 func readByteFromFile(file string) (content []byte, err error) {
-
 	return os.ReadFile(getPlatformFile(file))
 }
 
 func writeByteToFile(file string, data []byte) (err error) {
-
 	var filename = getPlatformFile(file)
 	err = os.WriteFile(filename, data, 0644)
 
@@ -323,7 +293,6 @@ func writeByteToFile(file string, data []byte) (err error) {
 }
 
 func readStringFromFile(file string) (str string, err error) {
-
 	var content []byte
 	var filename = getPlatformFile(file)
 
@@ -344,36 +313,29 @@ func readStringFromFile(file string) (str string, err error) {
 
 // Network
 func resolveHostIP() (err error) {
-
 	netInterfaceAddresses, err := net.InterfaceAddrs()
 	if err != nil {
 		return
 	}
 
 	for _, netInterfaceAddress := range netInterfaceAddresses {
-
 		networkIP, ok := netInterfaceAddress.(*net.IPNet)
 		System.IPAddressesList = append(System.IPAddressesList, networkIP.IP.String())
 
 		if ok {
-
 			var ip = networkIP.IP.String()
 
 			if networkIP.IP.To4() != nil {
-
 				System.IPAddressesV4 = append(System.IPAddressesV4, ip)
 				System.IPAddressesV4Raw = append(System.IPAddressesV4Raw, networkIP.IP)
 
 				if !networkIP.IP.IsLoopback() && ip[0:7] != "169.254" {
 					System.IPAddressesV4Host = append(System.IPAddressesV4Host, ip)
 				}
-
 			} else {
 				System.IPAddressesV6 = append(System.IPAddressesV6, ip)
 			}
-
 		}
-
 	}
 
 	// If IP previously set in settings (including the default, empty) is not available anymore
@@ -382,9 +344,7 @@ func resolveHostIP() (err error) {
 	}
 
 	if len(Settings.HostIP) == 0 {
-
 		switch len(System.IPAddressesV4) {
-
 		case 0:
 			if len(System.IPAddressesV6) > 0 {
 				Settings.HostIP = System.IPAddressesV6[0]
@@ -392,9 +352,7 @@ func resolveHostIP() (err error) {
 
 		default:
 			Settings.HostIP = System.IPAddressesV4[0]
-
 		}
-
 	}
 
 	System.Hostname, err = os.Hostname()
@@ -407,7 +365,6 @@ func resolveHostIP() (err error) {
 
 // Miscellaneous
 func randomString(n int) string {
-
 	const alphanum = "AB1CD2EF3GH4IJ5KL6MN7OP8QR9ST0UVWXYZ"
 
 	var bytes = make([]byte, n)
@@ -422,7 +379,6 @@ func randomString(n int) string {
 }
 
 func parseTemplate(content string, tmpMap map[string]interface{}) (result string) {
-
 	t := template.Must(template.New("template").Parse(content))
 
 	var tpl bytes.Buffer
@@ -436,7 +392,6 @@ func parseTemplate(content string, tmpMap map[string]interface{}) (result string
 }
 
 func getMD5(str string) string {
-
 	md5Hasher := md5.New()
 	md5Hasher.Write([]byte(str))
 

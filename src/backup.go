@@ -12,7 +12,6 @@ import (
 )
 
 func xTeVeAutoBackup() (err error) {
-
 	var archive = "xteve_auto_backup_" + time.Now().Format("20060102_1504") + ".zip"
 	var target string
 	var sourceFiles = make([]string, 0)
@@ -34,13 +33,10 @@ func xTeVeAutoBackup() (err error) {
 	files, err := os.ReadDir(System.Folder.Backup)
 
 	if err == nil {
-
 		for _, file := range files {
-
 			if filepath.Ext(file.Name()) == ".zip" && strings.Contains(file.Name(), "xteve_auto_backup") {
 				oldBackupFiles = append(oldBackupFiles, file.Name())
 			}
-
 		}
 
 		// Delete All Backups
@@ -53,26 +49,20 @@ func xTeVeAutoBackup() (err error) {
 		}
 
 		for i := 0; i < len(oldBackupFiles)-end; i++ {
-
 			removeAllOrLog(System.Folder.Backup + oldBackupFiles[i])
 			debug = fmt.Sprintf("Delete backup file:%s", oldBackupFiles[i])
 			showDebug(debug, 1)
-
 		}
 
 		if Settings.BackupKeep == 0 {
 			return
 		}
-
 	} else {
-
 		return
-
 	}
 
 	// Create a Backup
 	if err == nil {
-
 		target = System.Folder.Backup + archive
 
 		for _, i := range SystemFiles {
@@ -87,21 +77,17 @@ func xTeVeAutoBackup() (err error) {
 		err = zipFiles(sourceFiles, target)
 
 		if err == nil {
-
 			debug = fmt.Sprintf("Create backup file:%s", target)
 			showDebug(debug, 1)
 
 			showInfo("Backup file:" + target)
-
 		}
-
 	}
 
 	return
 }
 
 func xteveBackup() (archive string, err error) {
-
 	err = checkFolder(System.Folder.Temp)
 	if err != nil {
 		return
@@ -127,7 +113,6 @@ func xteveBackup() (archive string, err error) {
 }
 
 func xteveRestore(archive string) (newWebURL string, err error) {
-
 	var newPort, oldPort, backupVersion, tmpRestore string
 
 	tmpRestore = System.Folder.Temp + "restore" + string(os.PathSeparator)
@@ -186,7 +171,6 @@ func xteveRestore(archive string) (newWebURL string, err error) {
 	oldPort = Settings.Port
 
 	if newPort == oldPort {
-
 		if _, err = loadSettings(); err != nil {
 			return
 		}
@@ -205,7 +189,6 @@ func xteveRestore(archive string) (newWebURL string, err error) {
 }
 
 func xteveRestoreFromWeb(input string) (newWebURL string, err error) {
-
 	// Convert base64 JSON string to base64
 	b64data := input[strings.IndexByte(input, ',')+1:]
 
@@ -230,7 +213,6 @@ func xteveRestoreFromWeb(input string) (newWebURL string, err error) {
 
 // XteveRestoreFromCLI : Recovery from the Command Line
 func XteveRestoreFromCLI(archive string) (err error) {
-
 	var confirm string
 
 	println()
@@ -247,7 +229,6 @@ func XteveRestoreFromCLI(archive string) (err error) {
 	}
 
 	switch strings.ToLower(confirm) {
-
 	case "yes":
 		break
 
@@ -257,11 +238,9 @@ func XteveRestoreFromCLI(archive string) (err error) {
 	default:
 		fmt.Println("Invalid input")
 		return
-
 	}
 
 	if len(System.Folder.Config) > 0 {
-
 		err = checkFilePermission(System.Folder.Config)
 		if err != nil {
 			return
@@ -275,7 +254,6 @@ func XteveRestoreFromCLI(archive string) (err error) {
 		showHighlight(
 			fmt.Sprintf("Restor:Backup was successfully restored. %s can now be started normally", System.Name),
 		)
-
 	}
 	return
 }

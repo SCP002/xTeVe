@@ -13,7 +13,6 @@ import (
 
 // SSDP : SSPD / DLNA Server
 func SSDP() (err error) {
-
 	if !Settings.SSDP || System.Flag.Info {
 		return
 	}
@@ -40,14 +39,11 @@ func SSDP() (err error) {
 	}
 
 	go func(adv *ssdp.Advertiser) {
-
 		aliveTick := time.Tick(300 * time.Second)
 
 	loop:
 		for {
-
 			select {
-
 			case <-aliveTick:
 				err = adv.Alive()
 				if err != nil {
@@ -60,11 +56,8 @@ func SSDP() (err error) {
 				stopAdvertising(adv)
 				os.Exit(0)
 				break loop
-
 			}
-
 		}
-
 	}(ad)
 
 	return

@@ -12,7 +12,6 @@ import (
 )
 
 func showInfo(str string) {
-
 	if System.Flag.Info {
 		return
 	}
@@ -23,7 +22,6 @@ func showInfo(str string) {
 	var space string
 
 	if len(msg) == 2 {
-
 		for i := length; i < max; i++ {
 			space = space + " "
 		}
@@ -37,12 +35,10 @@ func showInfo(str string) {
 		logMsg = strings.ReplaceAll(logMsg, " ", "&nbsp;")
 		WebScreenLog.Log = append(WebScreenLog.Log, time.Now().Format("2006-01-02 15:04:05")+" "+logMsg)
 		logCleanUp()
-
 	}
 }
 
 func showDebug(str string, level int) {
-
 	if System.Flag.Debug < level {
 		return
 	}
@@ -54,7 +50,6 @@ func showDebug(str string, level int) {
 	var mutex = sync.RWMutex{}
 
 	if len(msg) == 2 {
-
 		for i := length; i < max; i++ {
 			space = space + " "
 		}
@@ -69,12 +64,10 @@ func showDebug(str string, level int) {
 		WebScreenLog.Log = append(WebScreenLog.Log, time.Now().Format("2006-01-02 15:04:05")+" "+logMsg)
 		logCleanUp()
 		mutex.Unlock()
-
 	}
 }
 
 func showHighlight(str string) {
-
 	var max = 23
 	var msg = strings.SplitN(str, ":", 2)
 	var length = len(msg[0])
@@ -84,7 +77,6 @@ func showHighlight(str string) {
 	notification.Type = "info"
 
 	if len(msg) == 2 {
-
 		for i := length; i < max; i++ {
 			space = space + " "
 		}
@@ -94,7 +86,6 @@ func showHighlight(str string) {
 		var logMsg = fmt.Sprintf("[%s] %s%s", System.Name, msg[0], msg[1])
 
 		printLogOnScreen(logMsg, "highlight")
-
 	}
 
 	notification.Type = "info"
@@ -104,7 +95,6 @@ func showHighlight(str string) {
 }
 
 func showWarning(errCode int) {
-
 	var errMsg = getErrMsg(errCode)
 	var logMsg = fmt.Sprintf("[%s] [WARNING] %s", System.Name, errMsg)
 	var mutex = sync.RWMutex{}
@@ -119,7 +109,6 @@ func showWarning(errCode int) {
 
 // ShowError : Shows the Error Messages in the Console
 func ShowError(err error, errCode int) {
-
 	var mutex = sync.RWMutex{}
 
 	// A code that comes with the error itself (see withCode) is more specific than errCode
@@ -139,11 +128,9 @@ func ShowError(err error, errCode int) {
 }
 
 func printLogOnScreen(logMsg string, logType string) {
-
 	var color string
 
 	switch logType {
-
 	case "info":
 		color = "\033[0m"
 
@@ -158,11 +145,9 @@ func printLogOnScreen(logMsg string, logType string) {
 
 	case "error":
 		color = "\033[31m"
-
 	}
 
 	switch runtime.GOOS {
-
 	case "windows":
 		log.Println(logMsg)
 
@@ -170,13 +155,10 @@ func printLogOnScreen(logMsg string, logType string) {
 		fmt.Print(color)
 		log.Println(logMsg)
 		fmt.Print("\033[0m")
-
 	}
-
 }
 
 func logCleanUp() {
-
 	var logEntriesRAM = Settings.LogEntriesRAM
 	var logs = WebScreenLog.Log
 
@@ -184,7 +166,6 @@ func logCleanUp() {
 	WebScreenLog.Errors = 0
 
 	if len(logs) > logEntriesRAM {
-
 		var tmp = make([]string, 0)
 		for i := len(logs) - logEntriesRAM; i < logEntriesRAM; i++ {
 			tmp = append(tmp, logs[i])
@@ -194,7 +175,6 @@ func logCleanUp() {
 	}
 
 	for _, log := range logs {
-
 		if strings.Contains(log, "WARNING") {
 			WebScreenLog.Warnings++
 		}
@@ -202,7 +182,6 @@ func logCleanUp() {
 		if strings.Contains(log, "ERROR") {
 			WebScreenLog.Errors++
 		}
-
 	}
 
 	WebScreenLog.Log = logs
@@ -210,9 +189,7 @@ func logCleanUp() {
 
 // Return Error Message from numeric Error Codes
 func getErrMsg(errCode int) (errMsg string) {
-
 	switch errCode {
-
 	case 0:
 		return
 
@@ -411,7 +388,6 @@ func getErrMsg(errCode int) (errMsg string) {
 }
 
 func sendAlert(text string) {
-
 	select {
 	case webAlerts <- text:
 		//
@@ -419,11 +395,9 @@ func sendAlert(text string) {
 		err := fmt.Errorf("client alert buffer is full, dropping the message: %v", text)
 		ShowError(err, 0)
 	}
-
 }
 
 func addNotification(notification Notification) {
-
 	var i int
 	var t = time.Now().UnixNano() / (int64(time.Millisecond) / int64(time.Nanosecond))
 	notification.Time = strconv.FormatInt(t, 10)
@@ -440,12 +414,10 @@ func addNotification(notification Notification) {
 	System.Notification[notification.Time] = notification
 
 	for key := range System.Notification {
-
 		if i < len(System.Notification)-10 {
 			delete(System.Notification, key)
 		}
 
 		i++
-
 	}
 }

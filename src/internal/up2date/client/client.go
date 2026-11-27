@@ -49,18 +49,15 @@ func Init() {
 
 // GetVersion : Information about the latest version
 func GetVersion() (err error) {
-
 	Updater.CMD = "getVersion"
 	err = serverRequest()
 	return
 }
 
 func serverRequest() (err error) {
-
 	var serverResponse ServerResponse
 	jsonByte, err := json.MarshalIndent(Updater, "", "  ")
 	if err == nil {
-
 		// Check server connection
 		u, err := url.Parse(Updater.URL)
 		if err != nil {
@@ -134,7 +131,6 @@ func serverRequest() (err error) {
 		}
 
 		Updater.Response = serverResponse
-
 	}
 
 	return

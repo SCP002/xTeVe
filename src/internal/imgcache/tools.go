@@ -12,7 +12,6 @@ func strToMD5(str string) string {
 }
 
 func indexOfString(str string, slice []string) int {
-
 	for i, v := range slice {
 		if str == v {
 			return i
@@ -23,7 +22,6 @@ func indexOfString(str string, slice []string) int {
 }
 
 func removeStringFromSlice(str string, slice []string) []string {
-
 	var i = indexOfString(str, slice)
 
 	if i != -1 {
