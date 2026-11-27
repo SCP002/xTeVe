@@ -59,7 +59,6 @@ func DoUpdate(fileType, filenameBIN string) (err error) {
 		var tmpFolder = path + "tmp"
 		var tmpFile = tmpFolder + string(os.PathSeparator) + filenameBIN
 
-		//fmt.Println(binary, path+"."+filename)
 		if err = os.Rename(newBinary, oldBinary); err != nil {
 			return err
 		}
@@ -159,7 +158,6 @@ func DoUpdate(fileType, filenameBIN string) (err error) {
 
 func start(args ...string) (p *os.Process, err error) {
 	if args[0], err = exec.LookPath(args[0]); err == nil {
-		//fmt.Println(args[0])
 		var procAttr os.ProcAttr
 		procAttr.Files = []*os.File{os.Stdin, os.Stdout, os.Stderr}
 		p, err := os.StartProcess(args[0], args, &procAttr)

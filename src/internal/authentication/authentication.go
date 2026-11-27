@@ -41,90 +41,6 @@ type Cookie struct {
 	RawExpires string
 }
 
-// Framework examples
-
-/*
-func main() {
-  var err error
-
-  var checkErr = func(err error) {
-     log.Println(err)
-     os.Exit(0)
-  }
-
-  err = Init("", 10)          // Path to save the data, Validity of tokens in minutes | (error)
-  if err != nil {
-    checkErr(err)
-  }
-
-
-  err = CreateDefaultUser("admin", "123")
-  if err != nil {
-    checkErr(err)
-  }
-
-
-
-
-  err = CreateNewUser("xteve", "xteve")          // Username, Password | (error)
-  if err != nil {
-    checkErr(err)
-  }
-
-
-
-  err, token := UserAuthentication("xteve", "xteve")          // Username, Password | (error, token)
-  if err != nil {
-    checkErr(err)
-  } else {
-    fmt.Println("UserAuthentication()")
-    fmt.Println("Token:", token)
-    fmt.Println("---")
-  }
-
-  err, newToken := CheckTheValidityOfTheToken(token)        // Current token | (error, new token)
-  if err != nil {
-    checkErr(err)
-  } else {
-    fmt.Println("CheckTheValidityOfTheToken()")
-    fmt.Println("New Token:", newToken)
-    fmt.Println("---")
-  }
-
-  err, userID := GetUserID(newToken)                        // Current token | (error, user id)
-  if err != nil {
-    checkErr(err)
-  } else {
-    fmt.Println("GetUserID()")
-    fmt.Println("User ID:", userID)
-    fmt.Println("---")
-  }
-
-
-  var userData = make(map[string]interface{})
-  userData["type"] = "Administrator"
-  err = WriteUserData(userID, userData)          // User id, user data | (error)
-  if err != nil {
-    checkErr(err)
-  }
-
-  err, userData = ReadUserData(userID)          // User id | (error, userData)
-  if err != nil {
-    checkErr(err)
-  } else {
-    fmt.Println("ReadUserData()")
-    fmt.Println("User data:", userData)
-    fmt.Println("---")
-  }
-
-  err = RemoveUser(userID)
-  if err != nil {
-    checkErr(err)
-  }
-
-}
-*/
-
 // Init : databasePath = Path to authentication.json
 func Init(databasePath string, validity int) (err error) {
 	database = filepath.Dir(databasePath) + string(os.PathSeparator) + databaseFile
@@ -383,7 +299,6 @@ func ChangeCredentials(userID, username, password string) (err error) {
 	err = createError(032)
 
 	if userData, ok := data["users"].(map[string]interface{})[userID]; ok {
-		//var userData = tmp.(map[string]interface{})
 		var salt = userData.(map[string]interface{})["_salt"].(string)
 
 		if len(username) > 0 {
@@ -429,12 +344,10 @@ func CheckTheValidityOfTheTokenFromHTTPHeader(w http.ResponseWriter, r *http.Req
 		if cookie.Name == "Token" {
 			var token string
 			token, err = CheckTheValidityOfTheToken(cookie.Value)
-			//fmt.Println("T", token, err)
 			SetCookieToken(w, token)
 			newToken = token
 		}
 	}
-	//fmt.Println(err)
 	return
 }
 
@@ -541,7 +454,6 @@ func defaultsForNewUser(username, password string) map[string]interface{} {
 	defaults["_password"] = SHA256(password, salt)
 	defaults["_salt"] = salt
 	defaults["_id"] = "id-" + randomID(idLength)
-	//defaults["_one.time.token"] = randomString(tokenLength)
 	defaults["data"] = make(map[string]interface{})
 
 	return defaults

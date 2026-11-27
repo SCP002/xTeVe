@@ -57,7 +57,6 @@ func bufferingStream(playlistID, streamingURL, channelName string, w http.Respon
 	var timeOut = 0
 	var newStream = true
 
-	//w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Connection", "close")
 
 	// Check whether the Playlist is already in use
@@ -286,7 +285,6 @@ func bufferingStream(playlistID, streamingURL, channelName string, w http.Respon
 					}
 
 					var tmpFiles = getBufTmpFiles(&stream)
-					//fmt.Println("Buffer Loop:", stream.Connection)
 
 					for _, f := range tmpFiles {
 						if _, err := bufferVFS.Stat(stream.Folder); fsIsNotExistErr(err) {
@@ -624,7 +622,6 @@ func connectToStreamingServer(streamID int, playlistID string) {
 			}
 			req.Header.Set("User-Agent", Settings.UserAgent)
 			req.Header.Set("Connection", "close")
-			//req.Header.Set("Range", "bytes=0-")
 			req.Header.Set("Accept", "*/*")
 			debugRequest(req)
 
@@ -641,8 +638,7 @@ func connectToStreamingServer(streamID int, playlistID string) {
 
 			if err != nil {
 				if resp == nil {
-					err = errors.New("no response from streaming server")
-					fmt.Println("Current URL:", currentURL)
+					err = fmt.Errorf("no response from streaming server: %s", currentURL)
 					ShowError(err, 0)
 
 					addErrorToStream(err)
@@ -1298,8 +1294,6 @@ func thirdPartyBuffer(streamID int, playlistID string) {
 			return
 		}
 
-		//args = strings.Replace(args, "[USER-AGENT]", Settings.UserAgent, -1)
-
 		// Set User-Agent
 		var args []string
 
@@ -1541,8 +1535,7 @@ func debugRequest(req *http.Request) {
 
 	var debug string
 
-	fmt.Println()
-	debug = "Request:* * * * * * BEGIN HTTP(S) REQUEST * * * * * * "
+	debug = "Request:Begin HTTP(S) request"
 	showDebug(debug, debugLevel)
 
 	debug = fmt.Sprintf("Method:%s", req.Method)
@@ -1563,7 +1556,7 @@ func debugRequest(req *http.Request) {
 		}
 	}
 
-	debug = "Request:* * * * * * END HTTP(S) REQUEST * * * * * *"
+	debug = "Request:End HTTP(S) request"
 	showDebug(debug, debugLevel)
 }
 
@@ -1576,9 +1569,7 @@ func debugResponse(resp *http.Response) {
 
 	var debug string
 
-	fmt.Println()
-
-	debug = "Response:* * * * * * BEGIN RESPONSE * * * * * * "
+	debug = "Response:Begin HTTP(S) response"
 	showDebug(debug, debugLevel)
 
 	debug = fmt.Sprintf("Proto:%s", resp.Proto)
@@ -1602,6 +1593,6 @@ func debugResponse(resp *http.Response) {
 		showDebug(debug, debugLevel)
 	}
 
-	debug = "Pesponse:* * * * * * END RESPONSE * * * * * * "
+	debug = "Response:End HTTP(S) response"
 	showDebug(debug, debugLevel)
 }

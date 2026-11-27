@@ -72,17 +72,6 @@ func New(path, chacheURL string, caching bool) (c *Cache, err error) {
 			src = c.cacheURL + filename
 		}
 
-		/*
-		   if _, err := os.Stat(c.path + filename); err != nil {
-		     //c.images[filename] = c.cacheURL + filename
-		     if indexOfString(src, c.Queue) == -1 {
-		       c.Queue = append(c.Queue, src)
-		     }
-		   } else {
-		     c.images[filename] = c.cacheURL + filename
-		   }
-		*/
-
 		return src
 	}
 

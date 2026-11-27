@@ -112,7 +112,6 @@ func serverRequest() (err error) {
 		defer closeOrLog(resp.Body)
 
 		if resp.StatusCode != http.StatusOK {
-			//fmt.Println(resp.StatusCode, Updater.URL, Updater.CMD)
 			err = fmt.Errorf("%d: %s (%s)", resp.StatusCode, http.StatusText(resp.StatusCode), Updater.URL)
 			return err
 		}

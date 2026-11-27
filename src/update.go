@@ -84,7 +84,6 @@ func BinaryUpdate() (err error) {
 		}
 
 		showInfo("Update URL:" + updater.URL)
-		fmt.Println("-----------------")
 
 		// Load version information from the Server
 		err = up2date.GetVersion()

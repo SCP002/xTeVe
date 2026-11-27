@@ -44,7 +44,6 @@ func StartWebserver() (err error) {
 	http.HandleFunc("/api/", API)
 	http.HandleFunc("/images/", Images)
 	http.HandleFunc("/data_images/", DataImages)
-	// http.HandleFunc("/auto/", Auto)
 
 	for {
 		showInfo("Web server:" + "Starting")
@@ -187,7 +186,6 @@ func Index(w http.ResponseWriter, r *http.Request) {
 // Stream : Web Server /stream/
 func Stream(w http.ResponseWriter, r *http.Request) {
 	var path = strings.Replace(r.RequestURI, "/stream/", "", 1)
-	//var stream = strings.SplitN(path, "-", 2)
 
 	streamInfo, err := getStreamInfo(path)
 	if err != nil {
@@ -243,28 +241,6 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 	default:
 		bufferingStream(streamInfo.PlaylistID, streamInfo.URL, streamInfo.Name, w, r)
 	}
-}
-
-// Auto : HDHR routing (is currently not used)
-func Auto(w http.ResponseWriter, r *http.Request) {
-	var channelID = strings.Replace(r.RequestURI, "/auto/v", "", 1)
-	fmt.Println(channelID)
-
-	/*
-		switch Settings.Buffer {
-
-		case true:
-			var playlistID, streamURL, err = getStreamByChannelID(channelID)
-			if err == nil {
-				bufferingStream(playlistID, streamURL, w, r)
-			} else {
-				httpStatusError(w, r, 404)
-			}
-
-		case false:
-			httpStatusError(w, r, 423)
-		}
-	*/
 }
 
 // xTeVe : Web Server /xmltv/ and /m3u/
@@ -373,11 +349,6 @@ func WS(w http.ResponseWriter, r *http.Request) {
 
 	var newToken string
 
-	// if r.Header.Get("Origin") != "http://" + r.Host {
-	// 	httpStatusError(w, r, 403)
-	// 	return
-	// }
-
 	conn, err := wsUpgrader.Upgrade(w, r, w.Header())
 	if err != nil {
 		ShowError(err, 0)
@@ -438,8 +409,8 @@ func WS(w http.ResponseWriter, r *http.Request) {
 
 		switch request.Cmd {
 		// Read Data
+		// Answered with the default response data below
 		case "getServerConfig":
-			// response.Config = Settings
 
 		case "updateLog":
 			response = setDefaultResponseData(response, false)
@@ -448,8 +419,8 @@ func WS(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 
+		// Answered with the default response data below
 		case "loadFiles":
-			// response.Response = Settings.Files
 
 		// Save Data
 		case "saveSettings":
@@ -615,12 +586,8 @@ func WS(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-		// case "wizardCompleted":
-		// 	System.ConfigurationWizard = false
-		// 	response.Reload = true
-
 		default:
-			fmt.Println("+ + + + + + + + + + +", request.Cmd)
+			err = fmt.Errorf("unknown command: %s", request.Cmd)
 		}
 
 		// The single place where errors of web UI commands are reported
@@ -930,7 +897,6 @@ func API(w http.ResponseWriter, r *http.Request) {
 
 		default:
 			token, err = tokenAuthentication(request.Token)
-			fmt.Println(err)
 			if err != nil {
 				responseAPIError(err)
 				return
@@ -1052,7 +1018,6 @@ func setDefaultResponseData(response ResponseStruct, data bool) (defaults Respon
 		if defaults.Users, err = authentication.GetAllUserData(); err != nil {
 			ShowError(err, 0)
 		}
-		//defaults.DVR = System.DVRAddress
 
 		if Settings.EpgSource == "XEPG" {
 			defaults.ClientInfo.XEPGCount = Data.XEPG.XEPGCount

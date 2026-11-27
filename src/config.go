@@ -62,7 +62,6 @@ func Init() (err error) {
 	Settings.LogEntriesRAM = 500
 
 	// Variables for the Update Process
-	//System.Update.Git = "https://github.com/xteve-project/xTeVe-Downloads/blob"
 	System.Update.Git = fmt.Sprintf("https://github.com/%s/%s/blob", System.GitHub.User, System.GitHub.Repo)
 	System.Update.Name = "xteve_2"
 
@@ -176,8 +175,6 @@ func Init() (err error) {
 		return
 	}
 
-	// Separate tmp Folder for each Instance
-	// System.Folder.Temp = System.Folder.Temp + Settings.UUID + string(os.PathSeparator)
 	showInfo(fmt.Sprintf("Temporary Folder:%s", getPlatformPath(System.Folder.Temp)))
 
 	err = checkFolder(System.Folder.Temp)
