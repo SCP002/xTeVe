@@ -6,6 +6,7 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -14,6 +15,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 const tokenLength = 40
@@ -56,7 +59,9 @@ type PublicUser struct {
 	Data UserData `json:"data"`
 }
 
-// user is a user of authentication.json. Name and password are stored as hashes.
+// user is a user of authentication.json. Name and password are stored as hashes: the name with SHA256 to find the
+// user (the web UI keeps it readable in Data anyway), the password with bcrypt. Older versions stored the password
+// with SHA256 too; such a password is replaced with bcrypt at the next login, as only then it is known.
 type user struct {
 	ID       string   `json:"_id"`
 	Username string   `json:"_username"`
@@ -64,6 +69,42 @@ type user struct {
 	Salt     string   `json:"_salt"`
 	Data     UserData `json:"data"`
 }
+
+// bcryptCost is the cost of new password hashes; tests lower it.
+var bcryptCost = bcrypt.DefaultCost
+
+// isBcrypt reports whether a stored password is a bcrypt hash ("$2a$10$..."), not one of older versions.
+func isBcrypt(hash string) bool { return len(hash) > 0 && hash[0] == '$' }
+
+// hashPassword returns the bcrypt hash of a password. bcrypt uses at most 72 bytes, a longer password is refused
+// instead of being cut.
+func hashPassword(password string) (string, error) {
+	var hash, err = bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
+	if errors.Is(err, bcrypt.ErrPasswordTooLong) {
+		return "", errors.New("the password is longer than 72 bytes")
+	}
+	return string(hash), err
+}
+
+// nameMatches reports whether username is the name of u.
+func (u *user) nameMatches(username string) bool {
+	return subtle.ConstantTimeCompare([]byte(SHA256(username, u.Salt)), []byte(u.Username)) == 1
+}
+
+// passwordMatches reports whether password is the password of u.
+func (u *user) passwordMatches(password string) bool {
+	if isBcrypt(u.Password) {
+		return bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password)) == nil
+	}
+	return subtle.ConstantTimeCompare([]byte(SHA256(password, u.Salt)), []byte(u.Password)) == 1
+}
+
+// unknownUser is compared with the password of a name that has no user, so that a wrong name takes as long as a
+// wrong password.
+var unknownUser = sync.OnceValue(func() *user {
+	var hash, _ = bcrypt.GenerateFromPassword([]byte("unknown user"), bcryptCost)
+	return &user{Password: string(hash)}
+})
 
 type databaseContent struct {
 	DBVersion string           `json:"dbVersion"`
@@ -143,7 +184,10 @@ func CreateDefaultUser(username, password string) error {
 		return createError(001)
 	}
 
-	var u = newUser(username, password)
+	var u, err = newUser(username, password)
+	if err != nil {
+		return err
+	}
 	data.Users[u.ID] = u
 	return saveDatabase()
 }
@@ -157,30 +201,63 @@ func CreateNewUser(username, password string) (string, error) {
 		return "", err
 	}
 	for _, u := range data.Users {
-		if SHA256(username, u.Salt) == u.Username {
+		if u.nameMatches(username) {
 			return "", createError(020)
 		}
 	}
 
-	var u = newUser(username, password)
+	var u, err = newUser(username, password)
+	if err != nil {
+		return "", err
+	}
 	data.Users[u.ID] = u
 	return u.ID, saveDatabase()
 }
 
-// UserAuthentication logs a user in and returns a new token.
+// UserAuthentication logs a user in and returns a new token. The password is checked without holding the lock,
+// as bcrypt takes a while and clients log in at the same time.
 func UserAuthentication(username, password string) (string, error) {
 	mu.Lock()
-	defer mu.Unlock()
-
 	if err := checkInit(); err != nil {
+		mu.Unlock()
 		return "", err
 	}
-	for id, u := range data.Users {
-		if SHA256(username, u.Salt) == u.Username && SHA256(password, u.Salt) == u.Password {
-			return setToken(id, "-"), nil
+	var id string
+	var found = unknownUser()
+	for i, u := range data.Users {
+		if u.nameMatches(username) {
+			id, found = i, &user{Password: u.Password, Salt: u.Salt}
+			break
 		}
 	}
-	return "", createError(010)
+	mu.Unlock()
+
+	// A wrong name is checked against a dummy hash, so that it takes as long as a wrong password
+	if !found.passwordMatches(password) || id == "" {
+		return "", createError(010)
+	}
+
+	// A password of an older version is hashed with bcrypt now that it is known
+	var hash string
+	if !isBcrypt(found.Password) {
+		hash, _ = hashPassword(password)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	var u, ok = data.Users[id]
+	if !ok || u.Password != found.Password {
+		// Removed or changed meanwhile
+		return "", createError(010)
+	}
+	if hash != "" {
+		// If that can not be saved, the old hash in the file still works and is replaced at the next login
+		u.Password = hash
+		if saveDatabase() != nil {
+			u.Password = found.Password
+		}
+	}
+	return setToken(id, "-"), nil
 }
 
 // CheckTheValidityOfTheToken checks a token and replaces it with a new one.
@@ -271,11 +348,15 @@ func ChangeCredentials(userID, username, password string) error {
 	if !ok {
 		return createError(032)
 	}
+	if len(password) > 0 {
+		var hash, err = hashPassword(password)
+		if err != nil {
+			return err
+		}
+		u.Password = hash
+	}
 	if len(username) > 0 {
 		u.Username = SHA256(username, u.Salt)
-	}
-	if len(password) > 0 {
-		u.Password = SHA256(password, u.Salt)
 	}
 	return saveDatabase()
 }
@@ -332,14 +413,18 @@ func saveDatabase() error {
 	return os.WriteFile(database, content, 0600)
 }
 
-func newUser(username, password string) *user {
+func newUser(username, password string) (*user, error) {
+	var hash, err = hashPassword(password)
+	if err != nil {
+		return nil, err
+	}
 	var salt = randomString(saltLength)
 	return &user{
 		ID:       "id-" + randomID(idLength),
 		Username: SHA256(username, salt),
-		Password: SHA256(password, salt),
+		Password: hash,
 		Salt:     salt,
-	}
+	}, nil
 }
 
 // setToken replaces oldToken with a new token of the user. mu must be held.
@@ -358,7 +443,8 @@ func setToken(userID, oldToken string) string {
 	}
 }
 
-// SHA256 : password + salt = sha256 string
+// SHA256 is the hash of names, and of passwords of older versions: an HMAC with the secret as key over a fixed text.
+// The salt is not used, which older versions did the same way.
 func SHA256(secret, salt string) string {
 	key := []byte(secret)
 	h := hmac.New(sha256.New, key)

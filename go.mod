@@ -10,6 +10,7 @@ require (
 	github.com/orisano/gosax v1.1.4
 	github.com/samber/lo v1.53.0
 	github.com/stretchr/testify v1.12.1
+	golang.org/x/crypto v0.59.0
 	golang.org/x/mod v0.43.0
 	golang.org/x/text v0.44.0
 )

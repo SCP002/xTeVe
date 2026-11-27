@@ -8,7 +8,15 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"golang.org/x/crypto/bcrypt"
 )
+
+func TestMain(m *testing.M) {
+	// bcrypt with its default cost makes the many logins of the tests slow, above all with -race
+	bcryptCost = bcrypt.MinCost
+	os.Exit(m.Run())
+}
 
 // Many clients log in, check their tokens and read the users at the same time. Run with -race; without the lock
 // Go stops with "concurrent map writes".
@@ -115,5 +123,106 @@ func TestExistingDatabase(t *testing.T) {
 		if !strings.Contains(string(saved), key) {
 			t.Errorf("saved database lacks %s:\n%s", key, saved)
 		}
+	}
+}
+
+// storedPassword returns the password hash of the only user in the database file.
+func storedPassword(t *testing.T, dir string) string {
+	t.Helper()
+	var content, err = os.ReadFile(filepath.Join(dir, "authentication.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var db databaseContent
+	if err := json.Unmarshal(content, &db); err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range db.Users {
+		return u.Password
+	}
+	t.Fatal("no user in the database")
+	return ""
+}
+
+// A password of an older version (SHA256) is replaced with bcrypt at the first successful login.
+func TestPasswordRehash(t *testing.T) {
+	var dir = t.TempDir()
+	var salt = "0123456789abcdefghij"
+	var existing = fmt.Sprintf(`{"dbVersion": "1.0", "hash": "sha256", "users": {"id-ABC": {"_id": "id-ABC",
+		"_username": %q, "_password": %q, "_salt": %q, "data": {"username": "plex"}}}}`,
+		SHA256("plex", salt), SHA256("secret", salt), salt)
+	if err := os.WriteFile(filepath.Join(dir, "authentication.json"), []byte(existing), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := Init(dir+string(os.PathSeparator), 60); err != nil {
+		t.Fatal(err)
+	}
+
+	// A wrong password changes nothing
+	if _, err := UserAuthentication("plex", "wrong"); err == nil {
+		t.Fatal("a wrong password was accepted")
+	}
+	if got := storedPassword(t, dir); got != SHA256("secret", salt) {
+		t.Errorf("password after a failed login = %s, want the old hash", got)
+	}
+
+	if _, err := UserAuthentication("plex", "secret"); err != nil {
+		t.Fatal(err)
+	}
+	var hash = storedPassword(t, dir)
+	if bcrypt.CompareHashAndPassword([]byte(hash), []byte("secret")) != nil {
+		t.Errorf("password after the login = %s, want bcrypt", hash)
+	}
+
+	// The new hash works, also after reading the file again
+	if err := Init(dir+string(os.PathSeparator), 60); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := UserAuthentication("plex", "secret"); err != nil {
+		t.Errorf("login with the rehashed password: %v", err)
+	}
+	if _, err := UserAuthentication("plex", "wrong"); err == nil {
+		t.Error("a wrong password was accepted after the rehash")
+	}
+	if _, err := UserAuthentication("nobody", "secret"); err == nil {
+		t.Error("an unknown user was accepted")
+	}
+}
+
+// New and changed passwords are stored with bcrypt; passwords bcrypt would cut are refused.
+func TestNewPasswords(t *testing.T) {
+	var dir = t.TempDir()
+	if err := Init(dir+string(os.PathSeparator), 60); err != nil {
+		t.Fatal(err)
+	}
+	if err := CreateDefaultUser("admin", strings.Repeat("x", 73)); err == nil {
+		t.Error("a password of 73 bytes was accepted")
+	}
+	if err := CreateDefaultUser("admin", "secret"); err != nil {
+		t.Fatal(err)
+	}
+	if hash := storedPassword(t, dir); !strings.HasPrefix(hash, "$2") {
+		t.Errorf("new password = %s, want bcrypt", hash)
+	}
+
+	token, err := UserAuthentication("admin", "secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := GetUserID(token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ChangeCredentials(id, "root", "changed"); err != nil {
+		t.Fatal(err)
+	}
+	if err := ChangeCredentials(id, "", strings.Repeat("x", 73)); err == nil {
+		t.Error("a changed password of 73 bytes was accepted")
+	}
+	if _, err := UserAuthentication("root", "changed"); err != nil {
+		t.Errorf("login with the changed name and password: %v", err)
+	}
+	if _, err := UserAuthentication("admin", "secret"); err == nil {
+		t.Error("the old name and password still work")
 	}
 }
