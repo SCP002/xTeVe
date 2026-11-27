@@ -261,3 +261,26 @@ func TestExtractZIPWindowsNames(t *testing.T) {
 		t.Errorf("content = %q", content)
 	}
 }
+
+func TestRemoveBackupContentKeepsBackups(t *testing.T) {
+	var files = backupTest(t)
+	var autoBackup = filepath.Join(System.Folder.Backup, "xteve_auto_backup_20200101_0000.zip")
+	if err := os.WriteFile(autoBackup, []byte("zip"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := removeBackupContent(); err != nil {
+		t.Fatal(err)
+	}
+
+	for name := range files {
+		if _, err := os.Stat(filepath.Join(System.Folder.Config, filepath.FromSlash(name))); !os.IsNotExist(err) {
+			t.Errorf("%s was not removed (stat error: %v)", name, err)
+		}
+	}
+	for _, kept := range []string{autoBackup, filepath.Join(System.Folder.Config, "other.txt")} {
+		if _, err := os.Stat(kept); err != nil {
+			t.Errorf("%s was removed: %v", kept, err)
+		}
+	}
+}

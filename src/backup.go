@@ -112,6 +112,23 @@ func xteveBackup() (archive string, err error) {
 	return
 }
 
+// removeBackupContent removes the files and folders of the config folder that a backup contains, so that a restore
+// does not mix them with the current ones. Other folders, such as older backups, are kept.
+func removeBackupContent() error {
+	var paths = []string{System.Folder.Data, System.Folder.Certificates}
+	for _, f := range SystemFiles {
+		paths = append(paths, System.Folder.Config+f)
+	}
+
+	for _, p := range paths {
+		if err := os.RemoveAll(p); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func xteveRestore(archive string) (newWebURL string, err error) {
 	var newPort, oldPort, backupVersion, tmpRestore string
 
@@ -147,7 +164,7 @@ func xteveRestore(archive string) (newWebURL string, err error) {
 		return
 	}
 
-	if err = removeChildItems(getPlatformPath(System.Folder.Config)); err != nil {
+	if err = removeBackupContent(); err != nil {
 		ShowError(err, 1073)
 	}
 
