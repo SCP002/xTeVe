@@ -65,6 +65,15 @@ func newTestSource(t *testing.T) *testSource {
 		defer src.active.Add(-1)
 		writeTS(w, r, 0)
 	})
+	mux.HandleFunc("/slow", func(w http.ResponseWriter, r *http.Request) {
+		// Like AceStream: the first data after seconds
+		select {
+		case <-r.Context().Done():
+			return
+		case <-time.After(5 * time.Second):
+		}
+		writeTS(w, r, 0)
+	})
 	mux.HandleFunc("/drop", func(w http.ResponseWriter, r *http.Request) {
 		writeTS(w, r, 300*1024)
 	})
@@ -156,6 +165,7 @@ func bufferTest(t *testing.T, tuners int) *httptest.Server {
 }
 
 type streamResult struct {
+	status      int
 	contentType string
 	data        []byte
 	err         error
@@ -187,7 +197,7 @@ func readStream(
 			break
 		}
 	}
-	return streamResult{contentType: resp.Header.Get("Content-Type"), data: data}
+	return streamResult{status: resp.StatusCode, contentType: resp.Header.Get("Content-Type"), data: data}
 }
 
 func isTS(data []byte) bool {
@@ -312,8 +322,8 @@ func TestServeMissingSource(t *testing.T) {
 	var srv = bufferTest(t, 1)
 
 	var res = readStream(t.Context(), srv, source.URL+"/missing", 1024, 10*time.Second)
-	if len(res.data) != 0 {
-		t.Errorf("got %d bytes from a missing source", len(res.data))
+	if res.status != http.StatusBadGateway || len(res.data) == 0 || isTS(res.data) {
+		t.Errorf("missing source: status %d, %q; want 502 with the error", res.status, res.data)
 	}
 
 	// The tuner is free again
@@ -366,5 +376,32 @@ func TestServeManyClients(t *testing.T) {
 	}
 	if !waitFor(5*time.Second, func() bool { return source.active.Load() == 0 }) {
 		t.Errorf("source connections after all clients left: %d", source.active.Load())
+	}
+}
+
+// A slow source gets the headers before its first data, so that the client does not give up.
+func TestServeSlowSource(t *testing.T) {
+	var source = newTestSource(t)
+	var srv = bufferTest(t, 1)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/?url="+source.URL+"/slow", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var start = time.Now()
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	var headers = time.Since(start)
+	if resp.StatusCode != http.StatusOK || resp.Header.Get("Content-Type") != "video/mpeg" || headers > 4*time.Second {
+		t.Errorf("status %d, %s after %v; want 200 video/mpeg before the first data", resp.StatusCode,
+			resp.Header.Get("Content-Type"), headers)
+	}
+
+	var data = make([]byte, 64*1024)
+	if _, err := io.ReadFull(resp.Body, data); err != nil || !isTS(data) {
+		t.Errorf("stream after the headers: %v", err)
 	}
 }

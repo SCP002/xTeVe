@@ -31,13 +31,8 @@ Still open:
 ## 2. Follow-ups of the package split
 
 The state of `src` is split into `internal/logger`, `system`, `config`, `buffer`, `playlist`, `epg` and `hdhr`; the
-race scenarios with a real playlist (PMS and XEPG) find no race anymore. Left over:
-
-- `imgcache`: `Caching` holds the cache lock while it downloads all images, so building the M3U and XMLTV files
-  waits for it.
-- The buffer answers with `200` only together with the first data: a slow source (AceStream needs more than 10 s
-  for some channels) leaves the client without headers. Send the headers at once, or answer `502` when the source
-  fails before any data.
+race scenarios with a real playlist (PMS and XEPG) find no race anymore. The image cache downloads without holding
+its lock, and the buffer sends its headers to slow sources after 3 s and answers `502` when a source fails before.
 
 ## 3. Web UI security
 

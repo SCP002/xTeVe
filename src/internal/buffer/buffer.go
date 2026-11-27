@@ -145,24 +145,8 @@ func (m *Manager) Serve(w http.ResponseWriter, r *http.Request, playlistID, url,
 	}
 	defer m.leave(s)
 
-	w.WriteHeader(http.StatusOK)
-
-	// Wait until the first segment has been downloaded by the buffer
-	var timeout = time.NewTimer(20 * time.Second)
-	defer timeout.Stop()
-
-	for !s.ready.Load() {
-		select {
-		case <-r.Context().Done():
-			return
-		case <-s.failed:
-			return
-		case <-s.done:
-			return
-		case <-timeout.C:
-			return
-		case <-time.After(100 * time.Millisecond):
-		}
+	if !m.waitReady(w, r, s) {
+		return
 	}
 
 	// Send the segments to the client
@@ -218,6 +202,58 @@ func (m *Manager) Serve(w http.ResponseWriter, r *http.Request, playlistID, url,
 			}
 		}
 	}
+}
+
+// headerDelay is how long Serve waits for the first data before it sends the headers anyway: a source that fails
+// within it is answered with 502, a slower one (AceStream needs more than 10 s for some channels) does not leave
+// the client without an answer.
+const headerDelay = 3 * time.Second
+
+// waitReady waits until the first segment of the stream is complete and sends the headers. It reports false if the
+// stream ended before, the client then got 502 or, after the headers were sent, an empty stream.
+func (m *Manager) waitReady(w http.ResponseWriter, r *http.Request, s *stream) bool {
+	w.Header().Set("Content-Type", "video/mpeg")
+
+	var headers = time.NewTimer(headerDelay)
+	defer headers.Stop()
+	var timeout = time.NewTimer(20 * time.Second)
+	defer timeout.Stop()
+	var tick = time.NewTicker(100 * time.Millisecond)
+	defer tick.Stop()
+
+	// sent reports that the headers were sent: 200 can not be taken back
+	var sent bool
+	var answer = func(status int, err error) bool {
+		if !sent {
+			http.Error(w, err.Error(), status)
+		}
+		return false
+	}
+
+	for !s.ready.Load() {
+		select {
+		case <-r.Context().Done():
+			return false
+		case <-s.failed:
+			return answer(http.StatusBadGateway, s.err)
+		case <-s.done:
+			if s.ready.Load() {
+				break
+			}
+			return answer(http.StatusBadGateway, errors.New("the stream ended before any data"))
+		case <-timeout.C:
+			return answer(http.StatusGatewayTimeout, errors.New("no data from the stream"))
+		case <-headers.C:
+			w.WriteHeader(http.StatusOK)
+			_ = http.NewResponseController(w).Flush()
+			sent = true
+		case <-tick.C:
+		}
+	}
+	if !sent {
+		w.WriteHeader(http.StatusOK)
+	}
+	return true
 }
 
 // join adds a client to the stream of the URL, or starts a new stream if a tuner of the playlist is free. It reports
