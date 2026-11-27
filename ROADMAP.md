@@ -20,57 +20,21 @@ Still open:
 - XEPG mode and the guide: needs an XMLTV source.
 - Image caching: needs a playlist or XMLTV with logos.
 - Plex and Emby themselves. In Docker, SSDP discovery needs host networking.
-- A dead source answers the client with an empty `200`, a `502` or `404` would let Plex fail fast.
 - HLS bandwidth: the measured network bandwidth is bytes/s * 1000 instead of bits/s and is averaged over the whole
   stream including waits between segments, so after the first segment the highest variant is always chosen. Fixing
   only the unit would move streams down to the lowest variant: measure the download time of each segment instead.
 
-## 2. Global state and data races
+## 2. Follow-ups of the package split
 
-`Settings`, `Data` and `System` are global and are changed from many goroutines (web UI, maintenance, buffers) mostly
-without locks.
+The state of `src` is split into `internal/logger`, `system`, `config`, `buffer`, `playlist`, `epg` and `hdhr`; the
+race scenarios with a real playlist (PMS and XEPG) find no race anymore. Left over:
 
-The server built with `-race` reported 85 races during the checks of point 1:
-
-- Most are in the web log: `showInfo`, `showDebug`, `ShowError` and `logCleanUp` change `WebScreenLog` from every
-  goroutine. The mutex in `showDebug` is a local variable and protects nothing.
-- `bufferingStream` against `connectToStreamingServer` and `thirdPartyBuffer` (shared playlist / stream state).
-- `maintenance` against `saveSettings`, `updateServerSettings`, `buildDatabaseDVR` and `buildXEPG` (`Settings`,
-  `System.ScanInProgress`).
-
-The cause is the structure: the whole server is one package (`src`) that shares its state through global variables.
-`Data` is rebuilt as a whole (playlists, filters, XEPG), so the fix is not a mutex per field but packages that own
-their state, and immutable snapshots for the rebuilt data.
-
-Target layout (dependencies point down only):
-
-```
-src/internal/
-  logger/    web log: ring buffer under a mutex, levels, error codes
-  system/    paths, flags, version: set once at start; changing flags via sync/atomic
-  config/    Settings: load / save, Get() returns a copy, Update(func(*Settings)) changes under a lock
-  playlist/  M3U / HDHR sources, filters, the list of streams
-  epg/       XMLTV, XEPG database, mapping, xteve.xml
-  buffer/    xTeVe / FFmpeg / VLC buffers, tuners, clients with their own lock
-  hdhr/      HDHomeRun emulation, SSDP
-src/         web server, wiring of the packages
-```
-
-Rebuilt data (streams, XEPG channels, XMLTV mapping) is published as an immutable snapshot through `atomic.Pointer`:
-readers never see a half built state and need no lock, and rebuilds run one at a time instead of being guarded by
-`System.ScanInProgress`.
-
-Steps, each one with green tests, a `-race` run of the server with a real playlist and its own commit:
-
-1. `logger`: depends on almost nothing and removes most of the races.
-2. `system`: the part set at start, and atomic flags for the rest.
-3. `config`: the maps inside `Settings` (`Files.M3U` and others) are changed in place today, so `Get()` has to
-   return a deep copy.
-4. `buffer`: the riskiest part, with several goroutines per stream. Add tests with a local HTTP source first.
-5. `playlist` and `epg`: snapshots through `atomic.Pointer`, one rebuild at a time.
-6. `hdhr`, then what is left in `src`.
-
-The behavior seen from outside (API, file formats, web UI) stays the same.
+- XEPG channels are `map[string]any` and go through JSON in every step; use `epg.XEPGChannel` throughout.
+- `imgcache`: `Caching` holds the cache lock while it downloads all images, so building the M3U and XMLTV files
+  waits for it.
+- The buffer answers with `200` only together with the first data: a slow source (AceStream needs more than 10 s
+  for some channels) leaves the client without headers. Send the headers at once, or answer `502` when the source
+  fails before any data.
 
 ## 3. Web UI security
 
