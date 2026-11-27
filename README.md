@@ -7,15 +7,6 @@
 
 ## M3U Proxy and EPG aggregator for Plex DVR and Emby Live TV
 
-### This is a fork of <https://github.com/xteve-project/xTeVe>, all credit goes to the original author
-
-Documentation for setup and configuration is [here](https://github.com/xteve-project/xTeVe-Documentation/blob/master/en/configuration.md).
-
-#### Donation
-
-* **Bitcoin:** 1c1iCe4CJPfNUXtqxKBbW2Qd2EtqRPWme  
-![Bitcoin](html/img/BC-QR.jpg "Bitcoin - xTeVe")
-
 ---
 
 ## Features
@@ -188,14 +179,6 @@ When the branch is changed, an update is only performed if there is a new versio
 
 * [Go](https://golang.org) (go1.27.3 or newer)
 
-### Dependencies
-
-* [avfs](https://github.com/avfs/avfs)
-* [go-ssdp](https://github.com/koron/go-ssdp)
-* [lo](https://github.com/samber/lo)
-* [testify](https://github.com/stretchr/testify)
-* [websocket](https://github.com/gorilla/websocket)
-
 ### Build
 
 ```sh
@@ -256,7 +239,7 @@ The [release workflow](.github/workflows/release.yml) checks that the tag matche
 
 When creating a fork, the xTeVe GitHub account must be changed from the source code or the update function disabled.
 
-xteve.go - Line: 31
+xteve.go:
 
 ```go
 var GitHub = GitHubStruct{Branch: "master", User: "SCP002", Repo: "xTeVe", Update: true}
