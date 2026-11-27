@@ -207,16 +207,13 @@ If TypeScript files were changed, run:
 tsc -p ./ts/tsconfig.json
 ```
 
-Then, to embed updated JavaScript files into the source code (src/webUI.go), run it in development mode at least once:
+The `html` folder is embedded into the binary at build time (`go:embed`), so `go build .` is enough. To see changes
+without a new build, run xTeVe in developer mode in the folder of the source code: it then reads the web UI from the
+local `html` folder.
 
 ```sh
-go build .
 ./xteve -dev
 ```
-
-:exclamation: To not to get CreateFile error, do not forget to switch your binary to "regular" mode after runnning with `-dev` flag:
-
-`xteve -branch master` or `xteve -branch beta`
 
 ### Development
 

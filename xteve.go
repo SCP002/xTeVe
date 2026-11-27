@@ -6,6 +6,7 @@
 package main
 
 import (
+	"embed"
 	"flag"
 	"fmt"
 	"os"
@@ -16,6 +17,11 @@ import (
 	"xteve/src"
 	"xteve/version"
 )
+
+// webFiles is the web UI, embedded into the binary.
+//
+//go:embed html
+var webFiles embed.FS
 
 // GitHubStruct : GitHub Account. The Updates are published via this Account
 type GitHubStruct struct {
@@ -82,7 +88,7 @@ var dev = flag.Bool(
 	"dev",
 	false,
 	": Activates the developer mode, the source code must be available. "+
-		"The local files for the web interface are used.",
+		"The local files for the web interface are used (run in the folder of the source code).",
 )
 
 func main() {
@@ -131,6 +137,13 @@ func main() {
 	}
 
 	system.Dev = *dev
+
+	// In developer mode the web UI is read from the local html folder, so that changes show without a new build
+	if *dev {
+		src.SetWebFiles(os.DirFS("."))
+	} else {
+		src.SetWebFiles(webFiles)
+	}
 
 	// Display System Information
 	if *info {

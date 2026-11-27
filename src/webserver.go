@@ -631,18 +631,10 @@ func Web(w http.ResponseWriter, r *http.Request) {
 
 	setGlobalDomain(r.Host)
 
-	if System.Dev {
-		lang, err = loadJSONFileToMap(fmt.Sprintf("html/lang/%s.json", config.Get().Language))
-		if err != nil {
-			ShowError(err, 000)
-		}
+	if data, err := readWebFile("html/lang/en.json"); err != nil {
+		ShowError(err, 000)
 	} else {
-		var languageFile = "html/lang/en.json"
-
-		if value, ok := webUI[languageFile]; ok {
-			content = GetHTMLString(value)
-			lang = jsonToMap(content)
-		}
+		lang = jsonToMap(string(data))
 	}
 
 	err = json.Unmarshal([]byte(mapToJSON(lang)), &language)
@@ -771,27 +763,16 @@ func Web(w http.ResponseWriter, r *http.Request) {
 		requestFile = file
 	}
 
-	if value, ok := webUI[requestFile]; ok {
-		content = GetHTMLString(value)
-		contentType = getContentType(requestFile)
-
-		if contentType == "text/plain" {
-			w.Header().Set("Content-Disposition", "attachment; filename="+getFilenameFromPath(requestFile))
-		}
-	} else {
+	data, err := readWebFile(requestFile)
+	if err != nil {
 		httpStatusError(w, 404)
 		return
 	}
-
+	content = string(data)
 	contentType = getContentType(requestFile)
 
-	if System.Dev {
-		// Local web server Files are loaded, only for Development
-		var err error
-		if content, err = readStringFromFile(requestFile); err != nil {
-			httpStatusError(w, 404)
-			return
-		}
+	if contentType == "text/plain" {
+		w.Header().Set("Content-Disposition", "attachment; filename="+getFilenameFromPath(requestFile))
 	}
 
 	w.Header().Add("Content-Type", contentType)

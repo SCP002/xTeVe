@@ -8,6 +8,5 @@ compose.dev.yaml
 /.claude/
 /CLAUDE.md
 /build/
-# Web UI sources; the built web UI is embedded in src/webUI.go
-/html/
+# Web UI sources; the built web UI in html/ is embedded with go:embed
 /ts/

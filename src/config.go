@@ -192,23 +192,11 @@ func Init() (err error) {
 
 	System.URLBase = fmt.Sprintf("%s://%s:%s", System.Protocol(), config.Get().HostIP, config.Get().Port)
 
-	// Create HTML Files, with dev == true the local HTML Files are used
-	if System.Dev {
-		HTMLInit("webUI", "src", "html"+string(os.PathSeparator), "src"+string(os.PathSeparator)+"webUI.go")
-		err = BuildGoFile()
-		if err != nil {
-			return
-		}
-	}
-
 	// Start the DLNA Server
 	err = SSDP()
 	if err != nil {
 		return
 	}
-
-	// Load HTML Files
-	loadHTMLMap()
 
 	return
 }

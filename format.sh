@@ -11,8 +11,7 @@ for tool in goimports golines golangci-lint; do
 	fi
 done
 
-# src/webUI.go is generated from html/ and holds the web UI as long base64 strings.
-mapfile -t go_files < <(find . -name '*.go' -not -path './.git/*' -not -path './src/webUI.go')
+mapfile -t go_files < <(find . -name '*.go' -not -path './.git/*')
 
 printf 'Sorting imports\n'
 goimports -w "${go_files[@]}" || exit $?
