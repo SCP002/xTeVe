@@ -759,10 +759,10 @@ func saveWizard(request RequestStruct) (nextStep int, err error) {
 func createFilterRules() (err error) {
 
 	Data.Filter = nil
-	var dataFilter Filter
 
 	for _, f := range Settings.Filter {
 
+		var dataFilter Filter
 		var filter FilterStruct
 
 		var exclude, include string

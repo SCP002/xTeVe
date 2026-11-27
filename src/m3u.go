@@ -39,8 +39,8 @@ func parsePlaylist(filename, fileType string) (channels []interface{}, err error
 func filterThisStream(s interface{}) (status bool) {
 
 	var stream = s.(map[string]string)
-	var regexpYES = `[{]+[^.]+[}]`
-	var regexpNO = `!+[{]+[^.]+[}]`
+	var regexpYES = `[{]+[^}]+[}]`
+	var regexpNO = `!+[{]+[^}]+[}]`
 
 	for _, filter := range Data.Filter {
 
@@ -103,39 +103,34 @@ func filterThisStream(s interface{}) (status bool) {
 
 		case "group-title":
 			search = name
-
-			if group == filter.Rule {
-				match = true
-				stream["_preserve-mapping"] = strconv.FormatBool(filter.PreserveMapping)
-				stream["_starting-channel"] = filter.StartingChannel
-			}
+			match = group == filter.Rule
 
 		case "custom-filter":
 			search = streamValues
-			if strings.Contains(search, filter.Rule) {
-				match = true
-			}
+			match = strings.Contains(search, filter.Rule)
 		}
 
-		if match {
-
-			if len(exclude) > 0 {
-				var status = checkConditions(search, exclude, "exclude")
-				if !status {
-					return false
-				}
-			}
-
-			if len(include) > 0 {
-				var status = checkConditions(search, include, "include")
-				if !status {
-					return false
-				}
-			}
-
-			return true
-
+		// Include and exclude conditions only apply to their own filter, so a
+		// stream rejected by one filter can still be accepted by another one.
+		// The filters come from a map and have no fixed order.
+		if !match {
+			continue
 		}
+
+		if len(exclude) > 0 && !checkConditions(search, exclude, "exclude") {
+			continue
+		}
+
+		if len(include) > 0 && !checkConditions(search, include, "include") {
+			continue
+		}
+
+		if filter.Type == "group-title" {
+			stream["_preserve-mapping"] = strconv.FormatBool(filter.PreserveMapping)
+			stream["_starting-channel"] = filter.StartingChannel
+		}
+
+		return true
 
 	}
 
@@ -161,6 +156,11 @@ func checkConditions(streamValues, conditions, coType string) (status bool) {
 	var keys = strings.Split(conditions, ",")
 
 	for _, key := range keys {
+
+		// An empty key (from "a,,b" or a trailing comma) would match everything
+		if key == "" {
+			continue
+		}
 
 		if strings.Contains(streamValues, key) {
 
