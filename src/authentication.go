@@ -60,7 +60,7 @@ func createFirstUserForAuthentication(username, password string) (token string, 
 }
 
 func tokenAuthentication(token string) (newToken string, err error) {
-	if System.ConfigurationWizard {
+	if System.ConfigurationWizard.Load() {
 		return
 	}
 

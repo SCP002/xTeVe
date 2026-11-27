@@ -29,7 +29,7 @@ func SSDP() (err error) {
 
 	ad, err := ssdp.Advertise(
 		"upnp:rootdevice", // send as "ST"
-		fmt.Sprintf("uuid:%s::upnp:rootdevice", System.DeviceID), // send as "USN"
+		fmt.Sprintf("uuid:%s::upnp:rootdevice", deviceID()), // send as "USN"
 		fmt.Sprintf("%s/device.xml", System.URLBase),             // send as "LOCATION"
 		System.AppName, // send as "SERVER"
 		1800)           // send as "maxAge" in "CACHE-CONTROL"

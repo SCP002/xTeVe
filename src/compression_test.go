@@ -78,8 +78,11 @@ func TestExtractZIPRejectsPathTraversal(t *testing.T) {
 func backupTest(t *testing.T) map[string]string {
 	t.Helper()
 
-	var oldFolder, oldTLS = System.Folder, Settings.TLSMode
-	t.Cleanup(func() { System.Folder, Settings.TLSMode = oldFolder, oldTLS })
+	var oldFolder, oldTemp, oldTLS = System.Folder, System.TempFolder(), Settings.TLSMode
+	t.Cleanup(func() {
+		System.Folder, Settings.TLSMode = oldFolder, oldTLS
+		System.SetTempFolder(oldTemp)
+	})
 
 	var sep = string(os.PathSeparator)
 	System.Folder.Config = t.TempDir() + sep
@@ -87,7 +90,7 @@ func backupTest(t *testing.T) map[string]string {
 	System.Folder.Certificates = System.Folder.Config + "certificates" + sep
 	System.Folder.ImagesUpload = System.Folder.Data + "images" + sep
 	System.Folder.Backup = System.Folder.Config + "backup" + sep
-	System.Folder.Temp = t.TempDir() + sep
+	System.SetTempFolder(t.TempDir() + sep)
 	Settings.TLSMode = true
 
 	var files = map[string]string{
@@ -174,7 +177,7 @@ func TestBackupRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkArchive(t, filepath.Join(System.Folder.Temp, archive), files)
+	checkArchive(t, filepath.Join(System.TempFolder(), archive), files)
 }
 
 func TestAutoBackupRoundTrip(t *testing.T) {
@@ -228,7 +231,7 @@ func TestBackupWithoutTLS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkArchive(t, filepath.Join(System.Folder.Temp, archive), files)
+	checkArchive(t, filepath.Join(System.TempFolder(), archive), files)
 }
 
 func TestExtractZIPWindowsNames(t *testing.T) {

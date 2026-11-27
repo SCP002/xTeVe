@@ -119,7 +119,7 @@ func loadSettings() (settings SettingsStruct, err error) {
 	defaults["port"] = "34400"
 	defaults["ssdp"] = true
 	defaults["storeBufferInRAM"] = false
-	defaults["temp.path"] = System.Folder.Temp
+	defaults["temp.path"] = System.TempFolder()
 	defaults["tlsMode"] = false
 	defaults["tuner"] = 1
 	defaults["udpxy"] = ""
@@ -200,7 +200,7 @@ func saveSettings(settings SettingsStruct) (err error) {
 		Settings.UUID = "2019-01-DEV-xTeVe!"
 	}
 
-	System.Folder.Temp = getValidTempDir(settings.TempPath + settings.UUID)
+	System.SetTempFolder(getValidTempDir(settings.TempPath + settings.UUID))
 
 	err = writeByteToFile(System.File.Settings, []byte(mapToJSON(settings)))
 	if err != nil {
@@ -209,51 +209,41 @@ func saveSettings(settings SettingsStruct) (err error) {
 
 	Settings = settings
 
-	setDeviceID()
 
 	return
 }
 
 // Enable access via the Domain
-func setGlobalDomain(domain string) {
-	System.Domain = domain
+func setGlobalDomain(domain string) { System.SetDomain(domain) }
 
-	if Settings.TLSMode {
-		System.ServerProtocol.API = "https"
-		System.ServerProtocol.DVR = "https"
-		System.ServerProtocol.M3U = "https"
-		System.ServerProtocol.WEB = "https"
-		System.ServerProtocol.XML = "https"
-	}
-
-	switch Settings.AuthenticationPMS {
-	case true:
-		System.Addresses.DVR = "username:password@" + System.Domain
-	case false:
-		System.Addresses.DVR = System.Domain
-	}
-
-	switch Settings.AuthenticationM3U {
-	case true:
-		System.Addresses.M3U = System.ServerProtocol.M3U + "://" + System.Domain +
-			"/m3u/xteve.m3u?username=xxx&password=yyy<br>(Specific groups: [http://...&group-title=foo,bar])"
-	case false:
-		System.Addresses.M3U = System.ServerProtocol.M3U + "://" + System.Domain +
-			"/m3u/xteve.m3u     (Specific groups: [http://...?group-title=foo,bar])"
-	}
-
-	switch Settings.AuthenticationXML {
-	case true:
-		System.Addresses.XML = System.ServerProtocol.XML + "://" + System.Domain +
-			"/xmltv/xteve.xml?username=xxx&password=yyy"
-	case false:
-		System.Addresses.XML = System.ServerProtocol.XML + "://" + System.Domain + "/xmltv/xteve.xml"
-	}
+// clientAddresses returns the addresses shown in the web UI for the DVR, the M3U and the XMLTV file.
+func clientAddresses() (dvr, m3u, xml string) {
+	var domain, protocol = System.Domain(), System.Protocol()
 
 	if Settings.EpgSource != "XEPG" {
-		System.Addresses.M3U = getErrMsg(2106)
-		System.Addresses.XML = getErrMsg(2106)
+		dvr = domain
+		if Settings.AuthenticationPMS {
+			dvr = "username:password@" + domain
+		}
+		return dvr, getErrMsg(2106), getErrMsg(2106)
 	}
+
+	dvr = domain
+	m3u = protocol + "://" + domain + "/m3u/xteve.m3u     (Specific groups: [http://...?group-title=foo,bar])"
+	xml = protocol + "://" + domain + "/xmltv/xteve.xml"
+
+	if Settings.AuthenticationPMS {
+		dvr = "username:password@" + domain
+	}
+	if Settings.AuthenticationM3U {
+		m3u = protocol + "://" + domain +
+			"/m3u/xteve.m3u?username=xxx&password=yyy<br>(Specific groups: [http://...&group-title=foo,bar])"
+	}
+	if Settings.AuthenticationXML {
+		xml = protocol + "://" + domain + "/xmltv/xteve.xml?username=xxx&password=yyy"
+	}
+
+	return dvr, m3u, xml
 }
 
 // Generate UUID
@@ -262,17 +252,13 @@ func createUUID() (uuid string) {
 	return
 }
 
-// Generate Unique Device ID for Plex
-func setDeviceID() {
-	var id = Settings.UUID
-
-	switch Settings.Tuner {
-	case 1:
-		System.DeviceID = id
-
-	default:
-		System.DeviceID = fmt.Sprintf("%s:%d", id, Settings.Tuner)
+// deviceID returns the unique device ID for Plex. It changes with the number of tuners, so that Plex sees a new
+// device.
+func deviceID() string {
+	if Settings.Tuner == 1 {
+		return Settings.UUID
 	}
+	return fmt.Sprintf("%s:%d", Settings.UUID, Settings.Tuner)
 }
 
 // Convert Provider Streaming URL to xTeVe Streaming URL
@@ -302,13 +288,13 @@ func createStreamingURL(
 
 	switch streamingType {
 	case "DVR":
-		serverProtocol = System.ServerProtocol.DVR
+		serverProtocol = System.Protocol()
 
 	case "M3U":
-		serverProtocol = System.ServerProtocol.M3U
+		serverProtocol = System.Protocol()
 	}
 
-	streamingURL = fmt.Sprintf("%s://%s/stream/%s", serverProtocol, System.Domain, streamInfo.URLid)
+	streamingURL = fmt.Sprintf("%s://%s/stream/%s", serverProtocol, System.Domain(), streamInfo.URLid)
 
 	return
 }

@@ -20,7 +20,7 @@ func maintenance() {
 		var t = time.Now()
 
 		// Update the playlist and XMLTV files
-		if System.ScanInProgress == 0 {
+		if !System.ScanInProgress.Load() {
 			for _, schedule := range Settings.Update {
 				if schedule == t.Format("1504") {
 					showInfo("Update:" + schedule)
@@ -51,7 +51,7 @@ func maintenance() {
 						ShowError(err, 000)
 					}
 
-					if !Settings.CacheImages && System.ImageCachingInProgress == 0 {
+					if !Settings.CacheImages && !System.ImageCachingInProgress.Load() {
 						if err := removeChildItems(System.Folder.ImagesCache); err != nil {
 							ShowError(err, 0)
 						}

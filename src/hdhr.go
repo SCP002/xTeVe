@@ -38,7 +38,7 @@ func getCapability() (xmlContent []byte, err error) {
 	var buffer bytes.Buffer
 
 	capability.Xmlns = "urn:schemas-upnp-org:device-1-0"
-	capability.URLBase = System.ServerProtocol.WEB + "://" + System.Domain
+	capability.URLBase = System.Protocol() + "://" + System.Domain()
 
 	capability.SpecVersion.Major = 1
 	capability.SpecVersion.Minor = 0
@@ -49,7 +49,7 @@ func getCapability() (xmlContent []byte, err error) {
 	capability.Device.ModelName = "HDTC-2US"
 	capability.Device.ModelNumber = "HDTC-2US"
 	capability.Device.SerialNumber = ""
-	capability.Device.UDN = "uuid:" + System.DeviceID
+	capability.Device.UDN = "uuid:" + deviceID()
 
 	output, err := xml.MarshalIndent(capability, " ", "  ")
 	if err != nil {
@@ -66,14 +66,14 @@ func getCapability() (xmlContent []byte, err error) {
 func getDiscover() (jsonContent []byte, err error) {
 	var discover Discover
 
-	discover.BaseURL = System.ServerProtocol.WEB + "://" + System.Domain
+	discover.BaseURL = System.Protocol() + "://" + System.Domain()
 	discover.DeviceAuth = System.AppName
-	discover.DeviceID = System.DeviceID
+	discover.DeviceID = deviceID()
 	discover.FirmwareName = "bin_" + System.Version
 	discover.FirmwareVersion = System.Version
 	discover.FriendlyName = System.Name
 
-	discover.LineupURL = fmt.Sprintf("%s://%s/lineup.json", System.ServerProtocol.DVR, System.Domain)
+	discover.LineupURL = fmt.Sprintf("%s://%s/lineup.json", System.Protocol(), System.Domain())
 	discover.Manufacturer = "Golang"
 	discover.ModelNumber = System.Version
 	discover.TunerCount = Settings.Tuner
@@ -86,7 +86,9 @@ func getDiscover() (jsonContent []byte, err error) {
 func getLineupStatus() (jsonContent []byte, err error) {
 	var lineupStatus LineupStatus
 
-	lineupStatus.ScanInProgress = System.ScanInProgress
+	if System.ScanInProgress.Load() {
+		lineupStatus.ScanInProgress = 1
+	}
 	lineupStatus.ScanPossible = 0
 	lineupStatus.Source = "Cable"
 	lineupStatus.SourceList = []string{"Cable"}

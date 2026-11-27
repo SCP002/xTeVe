@@ -190,7 +190,7 @@ func buildM3U(groups []string) (m3u string, err error) {
 	// Create M3U Content
 	sort.Float64s(channelNumbers)
 
-	var xmltvURL = fmt.Sprintf("%s://%s/xmltv/xteve.xml", System.ServerProtocol.XML, System.Domain)
+	var xmltvURL = fmt.Sprintf("%s://%s/xmltv/xteve.xml", System.Protocol(), System.Domain())
 	m3u = fmt.Sprintf(`#EXTM3U url-tvg="%s" x-tvg-url="%s"`+"\n", xmltvURL, xmltvURL)
 
 	for _, channelNumber := range channelNumbers {

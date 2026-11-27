@@ -64,7 +64,7 @@ func bufferingStream(playlistID, streamingURL, channelName string, w http.Respon
 	if p, ok := BufferInformation.Load(playlistID); !ok {
 		var playlistType string
 		// Playlist is not yet used, create Default Values for the Playlist
-		playlist.Folder = System.Folder.Temp + playlistID + string(os.PathSeparator)
+		playlist.Folder = System.TempFolder() + playlistID + string(os.PathSeparator)
 		playlist.PlaylistID = playlistID
 		playlist.Streams = make(map[int]ThisStream)
 		playlist.Clients = make(map[int]ThisClient)

@@ -18,19 +18,20 @@ func xTeVeAutoBackup() (err error) {
 	var oldBackupFiles = make([]string, 0)
 	var debug string
 
+	var backupFolder = System.Folder.Backup
 	if len(Settings.BackupPath) > 0 {
-		System.Folder.Backup = Settings.BackupPath
+		backupFolder = Settings.BackupPath
 	}
 
-	showInfo("Backup Path:" + System.Folder.Backup)
+	showInfo("Backup Path:" + backupFolder)
 
-	err = checkFolder(System.Folder.Backup)
+	err = checkFolder(backupFolder)
 	if err != nil {
 		return withCode(err, 1070)
 	}
 
 	// Delete Old Backups
-	files, err := os.ReadDir(System.Folder.Backup)
+	files, err := os.ReadDir(backupFolder)
 	if err != nil {
 		return err
 	}
@@ -48,7 +49,7 @@ func xTeVeAutoBackup() (err error) {
 	}
 
 	for i := 0; i < len(oldBackupFiles)-end; i++ {
-		removeAllOrLog(System.Folder.Backup + oldBackupFiles[i])
+		removeAllOrLog(backupFolder + oldBackupFiles[i])
 		debug = fmt.Sprintf("Delete backup file:%s", oldBackupFiles[i])
 		showDebug(debug, 1)
 	}
@@ -58,7 +59,7 @@ func xTeVeAutoBackup() (err error) {
 	}
 
 	// Create a Backup
-	target = System.Folder.Backup + archive
+	target = backupFolder + archive
 
 	for _, i := range SystemFiles {
 		sourceFiles = append(sourceFiles, System.Folder.Config+i)
@@ -81,14 +82,14 @@ func xTeVeAutoBackup() (err error) {
 }
 
 func xteveBackup() (archive string, err error) {
-	err = checkFolder(System.Folder.Temp)
+	err = checkFolder(System.TempFolder())
 	if err != nil {
 		return
 	}
 
 	archive = "xteve_backup_" + time.Now().Format("20060102_1504") + ".zip"
 
-	var target = System.Folder.Temp + archive
+	var target = System.TempFolder() + archive
 	var sourceFiles = make([]string, 0)
 
 	for _, i := range SystemFiles {
@@ -125,7 +126,7 @@ func removeBackupContent() error {
 func xteveRestore(archive string) (newWebURL string, err error) {
 	var newPort, oldPort, backupVersion, tmpRestore string
 
-	tmpRestore = System.Folder.Temp + "restore" + string(os.PathSeparator)
+	tmpRestore = System.TempFolder() + "restore" + string(os.PathSeparator)
 
 	defer removeAllOrLog(tmpRestore)
 	defer removeAllOrLog(archive)
@@ -209,7 +210,7 @@ func xteveRestoreFromWeb(input string) (newWebURL string, err error) {
 		return
 	}
 
-	var archive = System.Folder.Temp + "restore.zip"
+	var archive = System.TempFolder() + "restore.zip"
 
 	err = writeByteToFile(archive, sDec)
 	if err != nil {

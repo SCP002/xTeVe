@@ -1,117 +1,13 @@
 package src
 
 import (
-	"net"
 	"xteve/src/internal/imgcache"
 	"xteve/src/internal/logger"
+	"xteve/src/internal/system"
 )
 
 // SystemStruct : Contains all System Information
-type SystemStruct struct {
-	Addresses struct {
-		DVR string
-		M3U string
-		XML string
-	}
-
-	APIVersion          string
-	AppName             string
-	ARCH                string
-	BackgroundProcess   bool
-	Branch              string
-	Compatibility       string
-	ConfigurationWizard bool
-	DBVersion           string
-	Dev                 bool
-	DeviceID            string
-	Domain              string
-	PlexChannelLimit    int
-
-	FFmpeg struct {
-		DefaultOptions string
-		Path           string
-	}
-
-	VLC struct {
-		DefaultOptions string
-		Path           string
-	}
-
-	File struct {
-		Authentication    string
-		M3U               string
-		PMS               string
-		ServerCert        string
-		ServerCertPrivKey string
-		Settings          string
-		URLS              string
-		XEPG              string
-		XML               string
-	}
-
-	Compressed struct {
-		GZxml string
-	}
-
-	Flag struct {
-		Branch  string
-		Debug   int
-		Info    bool
-		Port    string
-		Restore string
-		SSDP    bool
-	}
-
-	Folder struct {
-		Backup       string
-		Cache        string
-		Certificates string
-		Config       string
-		Data         string
-		ImagesCache  string
-		ImagesUpload string
-		Temp         string
-	}
-
-	Hostname               string
-	ImageCachingInProgress int
-	IPAddressesList        []string // Every IP address available (IPv4 + IPv6)
-	IPAddressesV4          []string // Every IPv4 address available in string format
-	IPAddressesV4Host      []string // Every IPv4 address available except loopback and link-local
-	IPAddressesV4Raw       []net.IP // Every IPv4 address available in net.IP format
-	IPAddressesV6          []string // Every IPv6 address available
-	Name                   string
-	OS                     string
-	ScanInProgress         int
-	TimeForAutoUpdate      string
-
-	ServerProtocol struct {
-		API string
-		DVR string
-		M3U string
-		WEB string
-		XML string
-	}
-
-	GitHub struct {
-		Branch string
-		Repo   string
-		Update bool
-		User   string
-	}
-
-	Update struct {
-		Git  string
-		Name string
-	}
-
-	URLBase string
-	UDPxy   string
-	Version string
-	WEB     struct {
-		Menu []string
-	}
-}
+type SystemStruct = system.Info
 
 // GitStruct : Update information from GitHub
 type GitStruct struct {

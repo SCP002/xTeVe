@@ -55,14 +55,14 @@ func StartWebserver() (err error) {
 		switch ips {
 		case 0:
 			showHighlight(
-				fmt.Sprintf("Web Interface:%s://%s:%s/web/", System.ServerProtocol.WEB, Settings.HostIP, Settings.Port),
+				fmt.Sprintf("Web Interface:%s://%s:%s/web/", System.Protocol(), Settings.HostIP, Settings.Port),
 			)
 
 		case 1:
 			showHighlight(
 				fmt.Sprintf(
 					"Web Interface:%s://%s:%s/web/ | xTeVe is also available via the other %d IP.",
-					System.ServerProtocol.WEB,
+					System.Protocol(),
 					Settings.HostIP,
 					Settings.Port,
 					ips,
@@ -73,7 +73,7 @@ func StartWebserver() (err error) {
 			showHighlight(
 				fmt.Sprintf(
 					"Web Interface:%s://%s:%s/web/ | xTeVe is also available via the other %d IP's.",
-					System.ServerProtocol.WEB,
+					System.Protocol(),
 					Settings.HostIP,
 					Settings.Port,
 					len(System.IPAddressesV4)+len(System.IPAddressesV6)-1,
@@ -97,13 +97,16 @@ func StartWebserver() (err error) {
 					}
 				}
 
+				System.SetTLS(true)
 				err = server.ListenAndServeTLS(System.File.ServerCert, System.File.ServerCertPrivKey)
 				if err != nil && err != http.ErrServerClosed {
-					// Fall back to HTTP
+					// Fall back to HTTP, the URLs handed out then use http as well
 					ShowError(err, 1017)
+					System.SetTLS(false)
 					err = server.ListenAndServe()
 				}
 			} else {
+				System.SetTLS(false)
 				err = server.ListenAndServe()
 			}
 
@@ -371,7 +374,7 @@ func WS(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if !System.ConfigurationWizard {
+		if !System.ConfigurationWizard.Load() {
 			switch Settings.AuthenticationWEB {
 			// Token Authentication
 			case true:
@@ -528,7 +531,7 @@ func WS(w http.ResponseWriter, r *http.Request) {
 			file, errNew := xteveBackup()
 			err = errNew
 			if err == nil {
-				response.OpenLink = fmt.Sprintf("%s://%s/download/%s", System.ServerProtocol.WEB, System.Domain, file)
+				response.OpenLink = fmt.Sprintf("%s://%s/download/%s", System.Protocol(), System.Domain(), file)
 			}
 
 		case "xteveRestore":
@@ -573,7 +576,7 @@ func WS(w http.ResponseWriter, r *http.Request) {
 			err = errNew
 			if err == nil {
 				if nextStep == 10 {
-					System.ConfigurationWizard = false
+					System.ConfigurationWizard.Store(false)
 					response.Reload = true
 				} else {
 					response.Wizard = nextStep
@@ -593,8 +596,8 @@ func WS(w http.ResponseWriter, r *http.Request) {
 		}
 
 		response = setDefaultResponseData(response, true)
-		if System.ConfigurationWizard {
-			response.ConfigurationWizard = System.ConfigurationWizard
+		if System.ConfigurationWizard.Load() {
+			response.ConfigurationWizard = System.ConfigurationWizard.Load()
 		}
 
 		if err = conn.WriteJSON(response); err != nil {
@@ -638,13 +641,13 @@ func Web(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if getFilenameFromPath(requestFile) == "html" {
-		if System.ScanInProgress == 0 {
+		if !System.ScanInProgress.Load() {
 			if len(Settings.Files.M3U) == 0 && len(Settings.Files.HDHR) == 0 {
-				System.ConfigurationWizard = true
+				System.ConfigurationWizard.Store(true)
 			}
 		}
 
-		switch System.ConfigurationWizard {
+		switch System.ConfigurationWizard.Load() {
 		case true:
 			file = requestFile + "configuration.html"
 			Settings.AuthenticationWEB = false
@@ -653,7 +656,7 @@ func Web(w http.ResponseWriter, r *http.Request) {
 			file = requestFile + "index.html"
 		}
 
-		if System.ScanInProgress == 1 {
+		if System.ScanInProgress.Load() {
 			file = requestFile + "maintenance.html"
 		}
 
@@ -915,9 +918,9 @@ func API(w http.ResponseWriter, r *http.Request) {
 		response.StreamsAll = int64(len(Data.Streams.All))
 		response.StreamsXepg = int64(Data.XEPG.XEPGCount)
 		response.EpgSource = Settings.EpgSource
-		response.URLDvr = System.Domain
-		response.URLM3U = System.ServerProtocol.M3U + "://" + System.Domain + "/m3u/xteve.m3u"
-		response.URLXepg = System.ServerProtocol.XML + "://" + System.Domain + "/xmltv/xteve.xml"
+		response.URLDvr = System.Domain()
+		response.URLM3U = System.Protocol() + "://" + System.Domain() + "/m3u/xteve.m3u"
+		response.URLXepg = System.Protocol() + "://" + System.Domain() + "/xmltv/xteve.xml"
 
 	case "update.m3u":
 		err = getProviderData("m3u", "")
@@ -968,7 +971,7 @@ func API(w http.ResponseWriter, r *http.Request) {
 // Download : File Download
 func Download(w http.ResponseWriter, r *http.Request) {
 	var path = r.URL.Path
-	var file = System.Folder.Temp + getFilenameFromPath(path)
+	var file = System.TempFolder() + getFilenameFromPath(path)
 	w.Header().Set("Content-Disposition", "attachment; filename="+getFilenameFromPath(file))
 
 	content, err := readStringFromFile(file)
@@ -978,7 +981,7 @@ func Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	removeAllOrLog(System.Folder.Temp + getFilenameFromPath(path))
+	removeAllOrLog(System.TempFolder() + getFilenameFromPath(path))
 	writeResponse(w, []byte(content))
 }
 
@@ -988,9 +991,7 @@ func setDefaultResponseData(response ResponseStruct, data bool) (defaults Respon
 	// Always transfer the following Data to the Client
 	defaults.ClientInfo.ARCH = System.ARCH
 	defaults.ClientInfo.EpgSource = Settings.EpgSource
-	defaults.ClientInfo.DVR = System.Addresses.DVR
-	defaults.ClientInfo.M3U = System.Addresses.M3U
-	defaults.ClientInfo.XML = System.Addresses.XML
+	defaults.ClientInfo.DVR, defaults.ClientInfo.M3U, defaults.ClientInfo.XML = clientAddresses()
 	defaults.ClientInfo.OS = System.OS
 	defaults.ClientInfo.Streams = fmt.Sprintf("%d / %d", len(Data.Streams.Active), len(Data.Streams.All))
 	defaults.ClientInfo.UUID = Settings.UUID

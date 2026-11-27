@@ -47,11 +47,8 @@ func Init() (err error) {
 	System.AppName = strings.ToLower(System.Name)
 	System.ARCH = runtime.GOARCH
 	System.OS = runtime.GOOS
-	System.ServerProtocol.API = "http"
-	System.ServerProtocol.DVR = "http"
-	System.ServerProtocol.M3U = "http"
-	System.ServerProtocol.WEB = "http"
-	System.ServerProtocol.XML = "http"
+	// Until the web server starts, the protocol follows the setting
+	System.SetTLS(Settings.TLSMode)
 	System.PlexChannelLimit = 480
 	System.Compatibility = "1.4.4"
 
@@ -87,7 +84,7 @@ func Init() (err error) {
 	System.Folder.Certificates = System.Folder.Config + "certificates" + string(os.PathSeparator)
 	System.Folder.ImagesCache = System.Folder.Cache + "images" + string(os.PathSeparator)
 	System.Folder.ImagesUpload = System.Folder.Data + "images" + string(os.PathSeparator)
-	System.Folder.Temp = getDefaultTempDir()
+	System.SetTempFolder(getDefaultTempDir())
 
 	// Dev Info
 	showDevInfo()
@@ -169,18 +166,18 @@ func Init() (err error) {
 	if err = checkFilePermission(System.Folder.Config); err != nil {
 		return
 	}
-	if err = checkFilePermission(System.Folder.Temp); err != nil {
+	if err = checkFilePermission(System.TempFolder()); err != nil {
 		return
 	}
 
-	showInfo(fmt.Sprintf("Temporary Folder:%s", getPlatformPath(System.Folder.Temp)))
+	showInfo(fmt.Sprintf("Temporary Folder:%s", getPlatformPath(System.TempFolder())))
 
-	err = checkFolder(System.Folder.Temp)
+	err = checkFolder(System.TempFolder())
 	if err != nil {
 		return
 	}
 
-	err = removeChildItems(getPlatformPath(System.Folder.Temp))
+	err = removeChildItems(getPlatformPath(System.TempFolder()))
 	if err != nil {
 		return
 	}
@@ -200,9 +197,10 @@ func Init() (err error) {
 	showInfo(fmt.Sprintf("Git Branch:%s [%s]", System.Branch, System.GitHub.User))
 
 	// Set Domain Names
+	System.SetTLS(Settings.TLSMode)
 	setGlobalDomain(fmt.Sprintf("%s:%s", Settings.HostIP, Settings.Port))
 
-	System.URLBase = fmt.Sprintf("%s://%s:%s", System.ServerProtocol.WEB, Settings.HostIP, Settings.Port)
+	System.URLBase = fmt.Sprintf("%s://%s:%s", System.Protocol(), Settings.HostIP, Settings.Port)
 
 	// Create HTML Files, with dev == true the local HTML Files are used
 	if System.Dev {
@@ -227,9 +225,7 @@ func Init() (err error) {
 
 // StartSystem : System is starting up
 func StartSystem(updateProviderFiles bool) (err error) {
-	setDeviceID()
-
-	if System.ScanInProgress == 1 {
+	if System.ScanInProgress.Load() {
 		return
 	}
 

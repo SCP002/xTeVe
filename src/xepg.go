@@ -43,17 +43,16 @@ func checkXMLCompatibility(id string, body []byte) (err error) {
 
 // Create XEPG Data
 func buildXEPG(background bool) {
-	if System.ScanInProgress == 1 {
+	// Only one rebuild at a time
+	if !System.ScanInProgress.CompareAndSwap(false, true) {
 		return
 	}
-
-	System.ScanInProgress = 1
 
 	var err error
 
 	Data.Cache.Images, err = imgcache.New(
 		System.Folder.ImagesCache,
-		fmt.Sprintf("%s://%s/images/", System.ServerProtocol.WEB, System.Domain),
+		fmt.Sprintf("%s://%s/images/", System.Protocol(), System.Domain()),
 		Settings.CacheImages,
 	)
 	if err != nil {
@@ -79,9 +78,8 @@ func buildXEPG(background bool) {
 
 				showInfo("XEPG:" + "Ready to use")
 
-				if Settings.CacheImages && System.ImageCachingInProgress == 0 {
+				if Settings.CacheImages && System.ImageCachingInProgress.CompareAndSwap(false, true) {
 					go func() {
-						System.ImageCachingInProgress = 1
 						showInfo(fmt.Sprintf("Image Caching:Images are cached (%d)", len(Data.Cache.Images.Queue)))
 
 						if err := Data.Cache.Images.Image.Caching(); err != nil {
@@ -97,11 +95,11 @@ func buildXEPG(background bool) {
 						}
 						createM3UFile()
 
-						System.ImageCachingInProgress = 0
+						System.ImageCachingInProgress.Store(false)
 					}()
 				}
 
-				System.ScanInProgress = 0
+				System.ScanInProgress.Store(false)
 
 				if Settings.ClearXMLTVCache {
 					clearXMLTVCache()
@@ -124,9 +122,8 @@ func buildXEPG(background bool) {
 				}
 				createM3UFile()
 
-				if Settings.CacheImages && System.ImageCachingInProgress == 0 {
+				if Settings.CacheImages && System.ImageCachingInProgress.CompareAndSwap(false, true) {
 					go func() {
-						System.ImageCachingInProgress = 1
 						showInfo(fmt.Sprintf("Image Caching:Images are cached (%d)", len(Data.Cache.Images.Queue)))
 
 						if err := Data.Cache.Images.Image.Caching(); err != nil {
@@ -142,13 +139,13 @@ func buildXEPG(background bool) {
 						}
 						createM3UFile()
 
-						System.ImageCachingInProgress = 0
+						System.ImageCachingInProgress.Store(false)
 					}()
 				}
 
 				showInfo("XEPG:" + "Ready to use")
 
-				System.ScanInProgress = 0
+				System.ScanInProgress.Store(false)
 
 				if Settings.ClearXMLTVCache {
 					clearXMLTVCache()
@@ -159,7 +156,7 @@ func buildXEPG(background bool) {
 		if _, err := getLineup(); err != nil {
 			ShowError(err, 0)
 		}
-		System.ScanInProgress = 0
+		System.ScanInProgress.Store(false)
 	}
 }
 
@@ -207,7 +204,7 @@ func createXEPGMapping() {
 
 		Data.XMLTV.Mapping = tmpMap
 	} else {
-		if !System.ConfigurationWizard {
+		if !System.ConfigurationWizard.Load() {
 			showWarning(1007)
 		}
 	}

@@ -171,10 +171,10 @@ func updateServerSettings(request RequestStruct) (settings SettingsStruct, err e
 		}
 
 		if cacheImages {
-			if Settings.EpgSource == "XEPG" && System.ImageCachingInProgress == 0 {
+			if Settings.EpgSource == "XEPG" && !System.ImageCachingInProgress.Load() {
 				Data.Cache.Images, err = imgcache.New(
 					System.Folder.ImagesCache,
-					fmt.Sprintf("%s://%s/images/", System.ServerProtocol.WEB, System.Domain),
+					fmt.Sprintf("%s://%s/images/", System.Protocol(), System.Domain()),
 					Settings.CacheImages,
 				)
 				if err != nil {
@@ -195,7 +195,7 @@ func updateServerSettings(request RequestStruct) (settings SettingsStruct, err e
 						}
 						createM3UFile()
 
-						System.ImageCachingInProgress = 1
+						System.ImageCachingInProgress.Store(true)
 						showInfo("Image Caching:Images are cached")
 
 						if err := Data.Cache.Images.Image.Caching(); err != nil {
@@ -203,7 +203,7 @@ func updateServerSettings(request RequestStruct) (settings SettingsStruct, err e
 						}
 						showInfo("Image Caching:Done")
 
-						System.ImageCachingInProgress = 0
+						System.ImageCachingInProgress.Store(false)
 
 						buildXEPG(false)
 					}()
@@ -453,7 +453,7 @@ func saveXEpgMapping(request RequestStruct) (err error) {
 
 	Data.Cache.Images, err = imgcache.New(
 		System.Folder.ImagesCache,
-		fmt.Sprintf("%s://%s/images/", System.ServerProtocol.WEB, System.Domain),
+		fmt.Sprintf("%s://%s/images/", System.Protocol(), System.Domain()),
 		Settings.CacheImages,
 	)
 	if err != nil {
@@ -472,35 +472,28 @@ func saveXEpgMapping(request RequestStruct) (err error) {
 
 	Data.XEPG.Channels = request.EpgMapping
 
-	if System.ScanInProgress == 0 {
-		System.ScanInProgress = 1
+	if System.ScanInProgress.CompareAndSwap(false, true) {
 		cleanupXEPG()
-		System.ScanInProgress = 0
+		System.ScanInProgress.Store(false)
 		buildXEPG(true)
 	} else {
 		// If the Mapping is saved again while the Database is being created, the Database will not be updated again
 		// until later.
 		go func() {
-			if System.BackgroundProcess {
+			// Only one waiting update
+			if !System.BackgroundProcess.CompareAndSwap(false, true) {
 				return
 			}
+			defer System.BackgroundProcess.Store(false)
 
-			System.BackgroundProcess = true
-
-			for {
+			for !System.ScanInProgress.CompareAndSwap(false, true) {
 				time.Sleep(time.Duration(1) * time.Second)
-				if System.ScanInProgress == 0 {
-					break
-				}
 			}
 
-			System.ScanInProgress = 1
 			cleanupXEPG()
-			System.ScanInProgress = 0
+			System.ScanInProgress.Store(false)
 			buildXEPG(false)
 			showInfo("XEPG:" + "Ready to use")
-
-			System.BackgroundProcess = false
 		}()
 	}
 
@@ -648,7 +641,7 @@ func saveWizard(request RequestStruct) (nextStep int, err error) {
 				}
 
 				buildXEPG(false)
-				System.ScanInProgress = 0
+				System.ScanInProgress.Store(false)
 			}
 		}
 	}
@@ -708,7 +701,7 @@ func createFilterRules() (err error) {
 
 // Create a Database for the DVR System
 func buildDatabaseDVR() (err error) {
-	System.ScanInProgress = 1
+	System.ScanInProgress.Store(true)
 
 	Data.Streams.All = make([]any, 0)
 	Data.Streams.Active = make([]any, 0)
@@ -870,7 +863,7 @@ func buildDatabaseDVR() (err error) {
 		showWarning(2000)
 	}
 
-	System.ScanInProgress = 0
+	System.ScanInProgress.Store(false)
 	showInfo(fmt.Sprintf("All streams:%d", len(Data.Streams.All)))
 	showInfo(fmt.Sprintf("Active streams:%d", len(Data.Streams.Active)))
 	showInfo(fmt.Sprintf("Filter:%d", len(Data.Filter)))
