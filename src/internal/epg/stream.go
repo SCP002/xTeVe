@@ -92,6 +92,8 @@ func Count(file string) (channels, programmes int, err error) {
 // old ones only when they are complete.
 type xmltvWriter struct {
 	file, gzFile string
+	// temporary files next to them
+	tmp, gzTmp string
 
 	f, gzf *os.File
 	gz     *gzip.Writer
@@ -103,13 +105,15 @@ func newXMLTVWriter(file, gzFile, generator, source string) (*xmltvWriter, error
 	var w = &xmltvWriter{file: file, gzFile: gzFile}
 	var err error
 
-	if w.f, err = os.Create(file + ".tmp"); err != nil {
+	if w.f, err = os.CreateTemp(filepath.Dir(file), filepath.Base(file)+".*.tmp"); err != nil {
 		return nil, err
 	}
-	if w.gzf, err = os.Create(gzFile + ".tmp"); err != nil {
+	w.tmp = w.f.Name()
+	if w.gzf, err = os.CreateTemp(filepath.Dir(gzFile), filepath.Base(gzFile)+".*.tmp"); err != nil {
 		w.abort()
 		return nil, err
 	}
+	w.gzTmp = w.gzf.Name()
 	w.gz = gzip.NewWriter(w.gzf)
 	w.buf = bufio.NewWriterSize(io.MultiWriter(w.f, w.gz), 1<<16)
 
@@ -156,11 +160,11 @@ func (w *xmltvWriter) close() error {
 		w.remove()
 		return err
 	}
-	if err := os.Rename(w.file+".tmp", w.file); err != nil {
+	if err := os.Rename(w.tmp, w.file); err != nil {
 		w.remove()
 		return err
 	}
-	return os.Rename(w.gzFile+".tmp", w.gzFile)
+	return os.Rename(w.gzTmp, w.gzFile)
 }
 
 // abort removes the incomplete files.
@@ -175,6 +179,10 @@ func (w *xmltvWriter) abort() {
 }
 
 func (w *xmltvWriter) remove() {
-	_ = os.Remove(w.file + ".tmp")
-	_ = os.Remove(w.gzFile + ".tmp")
+	if w.tmp != "" {
+		_ = os.Remove(w.tmp)
+	}
+	if w.gzTmp != "" {
+		_ = os.Remove(w.gzTmp)
+	}
 }

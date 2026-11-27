@@ -83,7 +83,12 @@ func New(path, chacheURL string, caching bool) (c *Cache, err error) {
 		var firstErr error
 
 		for _, src := range c.Queue {
-			var filename = fmt.Sprintf("%s%s%s%s", c.path, string(os.PathSeparator), strToMD5(src), filepath.Ext(src))
+			// The same name as GetURL looks for: the extension of the URL path, without a query
+			var name = strToMD5(src)
+			if u, err := url.Parse(src); err == nil {
+				name += filepath.Ext(u.Path)
+			}
+			var filename = filepath.Join(c.path, name)
 
 			if err := download(src, filename); err != nil {
 				// The image stays in the queue and is retried on the next run
@@ -94,10 +99,8 @@ func New(path, chacheURL string, caching bool) (c *Cache, err error) {
 				continue
 			}
 
-			u, err := url.Parse(src)
-			if err == nil {
-				c.images[fmt.Sprintf("%s%s", strToMD5(src), filepath.Ext(u.Path))] = c.cacheURL + filename
-			}
+			// The URL that xTeVe serves the image at
+			c.images[name] = c.cacheURL + name
 
 			queue = append(queue, src)
 		}

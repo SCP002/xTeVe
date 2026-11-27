@@ -204,4 +204,14 @@ func TestConcurrentRebuilds(t *testing.T) {
 	if len(m.Get().Channels) != 2 {
 		t.Errorf("channels = %d, want 2", len(m.Get().Channels))
 	}
+
+	// The files written at the same time are complete, no temporary file is left
+	m.writeMu.Lock()
+	defer m.writeMu.Unlock()
+	if _, _, err := Count(info.File.XML); err != nil {
+		t.Errorf("xteve.xml: %v", err)
+	}
+	if tmp, _ := filepath.Glob(filepath.Join(filepath.Dir(info.File.XML), "*.tmp")); len(tmp) != 0 {
+		t.Errorf("temporary files left: %v", tmp)
+	}
 }

@@ -58,6 +58,11 @@ type Manager struct {
 	// pending is the newest mapping saved in the web UI while a rebuild was running
 	pending atomic.Pointer[Channels]
 
+	// writeMu writes xteve.xml and the M3U file one at a time
+	writeMu sync.Mutex
+	// imagesMu caches the images of one build at a time
+	imagesMu sync.Mutex
+
 	// cacheMu guards the channels of the XMLTV files, read once per file version
 	cacheMu      sync.Mutex
 	channelCache map[string]cachedChannels
@@ -78,6 +83,8 @@ type build struct {
 	files    []string
 	mapping  Mapping
 	images   *imgcache.Cache
+	// cacheImages is the setting the image cache of the build was created with
+	cacheImages bool
 
 	streams       []playlist.Stream
 	activeStreams []string
@@ -94,10 +101,11 @@ func NewManager(cfg Config) *Manager {
 func (m *Manager) Get() *Snapshot { return m.current.Load() }
 
 func (m *Manager) newBuild() *build {
+	var cacheImages = config.Get().CacheImages
 	var images, err = imgcache.New(
 		m.cfg.System.Folder.ImagesCache,
 		fmt.Sprintf("%s://%s/images/", m.cfg.System.Protocol(), m.cfg.System.Domain()),
-		config.Get().CacheImages,
+		cacheImages,
 	)
 	if err != nil {
 		errcode.Report(err, 0)
@@ -109,7 +117,7 @@ func (m *Manager) newBuild() *build {
 		active = append(active, s["name"]+s["_file.m3u.id"])
 	}
 
-	return &build{m: m, images: images, streams: streams, activeStreams: active}
+	return &build{m: m, images: images, cacheImages: cacheImages, streams: streams, activeStreams: active}
 }
 
 func (m *Manager) publish(b *build) {
@@ -202,6 +210,9 @@ func (m *Manager) WriteFiles() {
 }
 
 func (m *Manager) writeFiles(b *build) {
+	m.writeMu.Lock()
+	defer m.writeMu.Unlock()
+
 	if err := b.createXMLTVFile(); err != nil {
 		errcode.Report(err, 0)
 	}
@@ -213,14 +224,16 @@ func (m *Manager) writeFiles(b *build) {
 // cacheImages downloads the images of the build in the background and writes the files again with the cached
 // images, unless that is disabled or already running.
 func (m *Manager) cacheImages(b *build) {
-	if b.images == nil || !config.Get().CacheImages {
-		return
-	}
-	if !m.cfg.System.ImageCachingInProgress.CompareAndSwap(false, true) {
+	// Only a cache created with caching enabled has a queue of images
+	if b.images == nil || !b.cacheImages {
 		return
 	}
 
 	go func() {
+		// The images of a newer build are cached after the running caching
+		m.imagesMu.Lock()
+		defer m.imagesMu.Unlock()
+		m.cfg.System.ImageCachingInProgress.Store(true)
 		defer m.cfg.System.ImageCachingInProgress.Store(false)
 
 		b.images.RLock()
