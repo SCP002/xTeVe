@@ -10,3 +10,6 @@ compose.dev.yaml
 /build/
 # Web UI sources; the built web UI in html/ is embedded with go:embed
 /ts/
+# The new web UI is built in its own stage
+/web/node_modules/
+/web/dist/app/

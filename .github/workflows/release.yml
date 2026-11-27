@@ -32,6 +32,17 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Check web UI
+        working-directory: web
+        run: npm ci && npm run check && npm run format:check
+
       - name: Test
         run: go test ./...
 

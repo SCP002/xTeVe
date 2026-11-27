@@ -182,16 +182,19 @@ When the branch is changed, an update is only performed if there is a newer rele
 ### Requirements
 
 * [Go](https://golang.org) (go1.27.3 or newer)
+* [Node.js](https://nodejs.org) 20.19 or newer, for the new web UI
 
 ### Build
 
 ```sh
 git clone https://github.com/SCP002/xTeVe.git
 cd xTeVe
+(cd web && npm ci && npm run build)
 go build .
 ```
 
-A binary built this way reports its version as `dev`.
+A binary built this way reports its version as `dev`. Without the `npm` step it still builds, but `/ui/` only says
+that the web UI was not built.
 
 To build release binaries for every supported OS / architecture pair into the `build` folder, with the version from `build.sh`:
 
@@ -199,7 +202,21 @@ To build release binaries for every supported OS / architecture pair into the `b
 ./build.sh
 ```
 
-### Update web files (optional)
+### New web UI
+
+The new web UI in `web/` (Svelte 5, Vite, TypeScript, Tailwind, shadcn-svelte) is served at `/ui/`; it replaces the
+old one at `/web/` page by page. During development, run xTeVe and the Vite dev server, which reloads on every change
+and forwards the WebSocket and the API to xTeVe:
+
+```sh
+cd web
+npm ci
+npm run dev                                      # http://localhost:5173/ui/, xTeVe at 127.0.0.1:34400
+XTEVE=http://127.0.0.1:34500 npm run dev         # xTeVe at another address
+npm run check                                    # svelte-check and tsc
+```
+
+### Old web UI
 
 If TypeScript files were changed, run:
 

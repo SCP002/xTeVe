@@ -1,0 +1,5 @@
+dist/
+node_modules/
+package-lock.json
+# shadcn-svelte components, written by "npx shadcn-svelte add" in their own style
+src/lib/components/ui/

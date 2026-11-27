@@ -37,15 +37,19 @@ its lock, and the buffer sends its headers to slow sources after 3 s and answers
 ## 3. New web UI
 
 The web UI in `ts/` builds the DOM by hand in old TypeScript (about 4200 lines, `menu_ts.js` alone 81 KB). It is
-rewritten instead of updated; the Go side and the WebSocket protocol (`/data/`) stay.
+rewritten in `web/` (Svelte 5, Vite, TypeScript, Tailwind, shadcn-svelte) and served at `/ui/`; the Go side and the
+WebSocket protocol (`/data/`) stay.
 
-- Stack: Svelte 5, Vite, TypeScript, Tailwind and shadcn-svelte, with `package.json` and the lock file pinning the
-  tools (Prettier included) instead of global installs.
-- `vite build` writes the UI into a folder embedded with `go:embed`, like `html` today. `build.sh` and the
-  Dockerfile build it first; decide whether the built files are committed, so that `go build` works on a fresh
-  clone without Node.
-- Typed messages for the WebSocket commands, shared by all screens.
-- Screen by screen: login and first user, playlists, XMLTV, filters, mapping (XEPG), users, settings, log. The old
-  UI is removed when the new one covers everything.
-- Formatting: Prettier in `format.sh` and a VS Code task like in
-  [eggplant](https://github.com/SCP002/eggplant/blob/main/.vscode/tasks.json#L68-L84).
+Done: the build (`build.sh`, Dockerfile, release workflow, a placeholder for `go build` without Node), Prettier in
+`format.sh`, typed WebSocket commands sent one after the other (every answer replaces the login token), `/ui/api/`
+for the login and the first user, the configuration wizard, the overview and the log.
+
+Left, screen by screen, each checked against a running xTeVe:
+
+- Playlists (M3U and HDHomeRun) and XMLTV files: list, add, edit, update, delete.
+- Filters.
+- Mapping (XEPG): the big table, bulk edit, XMLTV channel search, logo upload.
+- Users.
+- Settings, backup and restore.
+- Then remove the old web UI (`ts/`, `html/`, `/web/`, the global `tsc` of the devcontainer) and serve the new one
+  at `/web/`.

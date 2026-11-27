@@ -42,6 +42,23 @@
       ],
       "group": "build",
       "label": "tsc build"
+    },
+    {
+      "label": "Web UI: dev server",
+      "detail": "Vite at port 5173, forwarding to xTeVe at port 34400 (XTEVE=... to change)",
+      "type": "npm",
+      "script": "dev",
+      "path": "web",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Web UI: check",
+      "detail": "svelte-check and tsc",
+      "type": "npm",
+      "script": "check",
+      "path": "web",
+      "problemMatcher": []
     }
   ]
 }

@@ -1,5 +1,17 @@
 # syntax=docker/dockerfile:1
 
+# The web UI, embedded into the binary
+FROM node:26-bookworm-slim AS web
+
+WORKDIR /web
+
+COPY web/package.json web/package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
+
+COPY web/ ./
+RUN npm run build
+
 FROM golang:1.27.3-bookworm AS builder
 
 WORKDIR /src
@@ -9,6 +21,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
 COPY . .
+COPY --from=web /web/dist/app web/dist/app
 
 # Version is taken from build.sh unless set explicitly.
 ARG VERSION
