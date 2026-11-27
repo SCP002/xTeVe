@@ -14,6 +14,10 @@ Checked with a real MPEG-TS playlist (432 channels, PMS mode) and local test sou
 - Backup and restore through the web UI, web authentication.
 - XEPG mode with the EPG of epg.one (3214 channels, 662000 programmes): mapping by name, xteve.xml, M3U, lineup,
   image caching of the channel logos.
+- XMLTV sources iptvx.one, programtv.ru, epg.it999.ru (edem) and epg.one are read completely; non-standard parts
+  (`<year>` of iptvx.one, `source-info-logo`) are accepted. A full XEPG rebuild with epg.one takes about 3 s with
+  28 MB of memory, and xteve.xml is valid against the XMLTV DTD (`xmllint --dtdvalid`). The JTV format
+  (teleguide.info) is not XMLTV and is not supported.
 
 Still open:
 
