@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"os"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -15,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 	"xteve/src/internal/config"
 	"xteve/src/internal/errcode"
@@ -544,10 +546,9 @@ func (b *build) createXMLTVFile() (err error) {
 	}
 
 	for _, c := range active {
-		var channel = Channel{
-			ID:           c.XChannelID,
-			Icon:         Icon{Src: ImageURL(b.images, c.TvgLogo)},
-			DisplayNames: []DisplayName{{Value: c.XName}},
+		var channel = Channel{ID: c.XChannelID, DisplayNames: []DisplayName{{Value: c.XName}}}
+		if len(c.TvgLogo) > 0 {
+			channel.Icon = &Icon{Src: ImageURL(b.images, c.TvgLogo)}
 		}
 		if err = w.channel(&channel); err != nil {
 			w.abort()
@@ -555,9 +556,11 @@ func (b *build) createXMLTVFile() (err error) {
 		}
 	}
 
+	// The dummy programmes go through programFor like the others, which sets the channel number
 	for _, c := range dummies {
+		var t = newProgrammeTarget(c)
 		for _, p := range b.createDummyProgram(c).Program {
-			if err = w.programme(p); err != nil {
+			if err = w.programme(b.programFor(t, p)); err != nil {
 				w.abort()
 				return err
 			}
@@ -571,14 +574,37 @@ func (b *build) createXMLTVFile() (err error) {
 	for _, file := range slices.Sorted(maps.Keys(wanted)) {
 		var targets = wanted[file]
 
-		var readErr = readXMLTV(file, nil, func(p *Program) error {
-			for _, t := range targets[p.Channel] {
-				if err := w.programme(b.programFor(t, p)); err != nil {
-					return &writeError{err}
-				}
+		// Only the programmes of the active channels are decoded; a programme that can not be decoded is skipped
+		var skipped int
+		var readErr = func() error {
+			var f, err = os.Open(filepath.Clean(file))
+			if err != nil {
+				return err
 			}
-			return nil
-		})
+			defer func() { _ = f.Close() }()
+
+			return scanXMLTV(f, func(name, channel string, element []byte) error {
+				if name != "programme" || len(targets[channel]) == 0 {
+					return nil
+				}
+				var p Program
+				if err := decodeElement(element, &p); err != nil {
+					skipped++
+					return nil
+				}
+				normalizeProgramme(&p)
+				for _, t := range targets[channel] {
+					if err := w.programme(b.programFor(t, &p)); err != nil {
+						return &writeError{err}
+					}
+				}
+				return nil
+			})
+		}()
+		if skipped > 0 {
+			errcode.Report(fmt.Errorf("%s: %d programmes could not be read and are left out", filepath.Base(file),
+				skipped), 0)
+		}
 
 		if writeErr, ok := errors.AsType[*writeError](readErr); ok {
 			w.abort()
@@ -630,7 +656,7 @@ type programmeTarget struct {
 	channel XEPGChannel
 	// timeshift in hours, from the channel settings or the "tvg-shift" M3U attribute
 	timeshift         int
-	timeshiftReported bool
+	timeshiftReported atomic.Bool
 }
 
 func newProgrammeTarget(c XEPGChannel) *programmeTarget {
@@ -649,49 +675,35 @@ func newProgrammeTarget(c XEPGChannel) *programmeTarget {
 	return t
 }
 
-// programFor returns the programme of an XMLTV file as the channel shows it.
+// programFor returns the programme of an XMLTV file as the channel shows it. Everything of the source programme is
+// kept, the channel, the times (timeshift), the categories, the images, the episode numbers and the video quality
+// are adjusted.
 func (b *build) programFor(t *programmeTarget, xmltvProgram *Program) *Program {
 	var xepgChannel = t.channel
-	var program = &Program{}
+	var program = *xmltvProgram
 
 	// Channel ID
 	program.Channel = xepgChannel.XChannelID
-	program.Start = xmltvProgram.Start
-	program.Stop = xmltvProgram.Stop
 
 	if t.timeshift != 0 {
 		start, startErr := shiftXMLTVTime(xmltvProgram.Start, t.timeshift)
 		stop, stopErr := shiftXMLTVTime(xmltvProgram.Stop, t.timeshift)
 		if shiftErr := errors.Join(startErr, stopErr); shiftErr != nil {
 			// The program keeps its original time; report the problem once per channel
-			if !t.timeshiftReported {
+			if t.timeshiftReported.CompareAndSwap(false, true) {
 				errcode.Report(fmt.Errorf("channel %s: timeshift is not applied: %w", xepgChannel.XName, shiftErr), 0)
-				t.timeshiftReported = true
 			}
 		} else {
 			program.Start, program.Stop = start, stop
 		}
 	}
 
-	program.Title = xmltvProgram.Title
-	program.SubTitle = xmltvProgram.SubTitle
-	program.Desc = xmltvProgram.Desc
-	b.getCategory(program, xmltvProgram, xepgChannel)
-	program.Credits = xmltvProgram.Credits
-	program.Rating = xmltvProgram.Rating
-	program.StarRating = xmltvProgram.StarRating
-	program.Country = xmltvProgram.Country
-	b.getPoster(program, xmltvProgram)
-	program.Language = xmltvProgram.Language
-	b.getEpisodeNum(program, xmltvProgram, xepgChannel)
-	b.getVideo(program, xmltvProgram, xepgChannel)
-	program.Date = xmltvProgram.Date
-	program.PreviouslyShown = xmltvProgram.PreviouslyShown
-	program.New = xmltvProgram.New
-	program.Live = xmltvProgram.Live
-	program.Premiere = xmltvProgram.Premiere
+	b.getCategory(&program, xmltvProgram, xepgChannel)
+	b.getPoster(&program, xmltvProgram, xepgChannel)
+	b.getEpisodeNum(&program, xmltvProgram, xepgChannel)
+	b.getVideo(&program, xmltvProgram, xepgChannel)
 
-	return program
+	return &program
 }
 
 // Create Dummy Data (createXMLTVFile)
@@ -755,7 +767,7 @@ func (b *build) createDummyProgram(xepgChannel XEPGChannelStruct) (dummyXMLTV XM
 				epg.Desc = append(epg.Desc, &Desc{Value: xepgChannel.XDescription, Lang: "en"})
 			}
 
-			if config.Get().XepgReplaceMissingImages {
+			if config.Get().XepgReplaceMissingImages && len(xepgChannel.TvgLogo) > 0 {
 				poster.Src = ImageURL(imgc, xepgChannel.TvgLogo)
 				epg.Poster = append(epg.Poster, poster)
 			}
@@ -767,7 +779,7 @@ func (b *build) createDummyProgram(xepgChannel XEPGChannelStruct) (dummyXMLTV XM
 				)
 			}
 
-			epg.New = &New{Value: ""}
+			epg.New = &New{}
 
 			dummyXMLTV.Program = append(dummyXMLTV.Program, &epg)
 			epgStartTime = epgStopTime
@@ -779,6 +791,7 @@ func (b *build) createDummyProgram(xepgChannel XEPGChannelStruct) (dummyXMLTV XM
 
 // Expand Categories (createXMLTVFile)
 func (b *build) getCategory(program *Program, xmltvProgram *Program, xepgChannel XEPGChannelStruct) {
+	program.Category = nil
 	for _, i := range xmltvProgram.Category {
 		category := &Category{}
 		category.Value = i.Value
@@ -794,27 +807,26 @@ func (b *build) getCategory(program *Program, xmltvProgram *Program, xepgChannel
 	}
 }
 
-// Load the Poster Cover Program from the XMLTV File
-func (b *build) getPoster(program *Program, xmltvProgram *Program) {
-	var imgc = b.images
-
+// getPoster sets the images of a programme, through the image cache. A programme without images gets the channel
+// logo if XepgReplaceMissingImages is set.
+func (b *build) getPoster(program *Program, xmltvProgram *Program, xepgChannel XEPGChannelStruct) {
+	program.Poster = nil
 	for _, poster := range xmltvProgram.Poster {
-		poster.Src = ImageURL(imgc, poster.Src)
+		if len(poster.Src) == 0 {
+			continue
+		}
+		poster.Src = ImageURL(b.images, poster.Src)
 		program.Poster = append(program.Poster, poster)
 	}
 
-	if config.Get().XepgReplaceMissingImages {
-		if len(xmltvProgram.Poster) == 0 {
-			var poster Poster
-			poster.Src = ImageURL(imgc, poster.Src)
-			program.Poster = append(program.Poster, poster)
-		}
+	if len(program.Poster) == 0 && config.Get().XepgReplaceMissingImages && len(xepgChannel.TvgLogo) > 0 {
+		program.Poster = append(program.Poster, Poster{Src: ImageURL(b.images, xepgChannel.TvgLogo)})
 	}
 }
 
 // Apply Episode system, if none is available and a Category has been set in the mapping, an Episode is created
 func (b *build) getEpisodeNum(program *Program, xmltvProgram *Program, xepgChannel XEPGChannelStruct) {
-	program.EpisodeNum = xmltvProgram.EpisodeNum
+	program.EpisodeNum = slices.Clone(xmltvProgram.EpisodeNum)
 
 	if len(xepgChannel.XCategory) > 0 && xepgChannel.XCategory != "Movie" {
 		if len(xmltvProgram.EpisodeNum) == 0 {
@@ -836,24 +848,24 @@ func (b *build) getEpisodeNum(program *Program, xmltvProgram *Program, xepgChann
 // Create Video Parameters (createXMLTVFile)
 func (b *build) getVideo(program *Program, xmltvProgram *Program, xepgChannel XEPGChannelStruct) {
 	var video Video
-	video.Present = xmltvProgram.Video.Present
-	video.Colour = xmltvProgram.Video.Colour
-	video.Aspect = xmltvProgram.Video.Aspect
-	video.Quality = xmltvProgram.Video.Quality
+	if xmltvProgram.Video != nil {
+		video = *xmltvProgram.Video
+	}
 
-	if len(xmltvProgram.Video.Quality) == 0 {
-		if strings.Contains(strings.ToUpper(xepgChannel.XName), " HD") ||
-			strings.Contains(strings.ToUpper(xepgChannel.XName), " FHD") {
+	if len(video.Quality) == 0 {
+		var name = strings.ToUpper(xepgChannel.XName)
+		if strings.Contains(name, " HD") || strings.Contains(name, " FHD") {
 			video.Quality = "HDTV"
 		}
-
-		if strings.Contains(strings.ToUpper(xepgChannel.XName), " UHD") ||
-			strings.Contains(strings.ToUpper(xepgChannel.XName), " 4K") {
+		if strings.Contains(name, " UHD") || strings.Contains(name, " 4K") {
 			video.Quality = "UHDTV"
 		}
 	}
 
-	program.Video = video
+	program.Video = nil
+	if video != (Video{}) {
+		program.Video = &video
+	}
 }
 
 // Clean up the XEPG Database

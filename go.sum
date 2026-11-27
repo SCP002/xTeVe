@@ -6,6 +6,8 @@ github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aN
 github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/koron/go-ssdp v0.9.2 h1:s7YOSyV2Sch54U4+JGtiT+qgyUUKqbHbelgAV5PBCu0=
 github.com/koron/go-ssdp v0.9.2/go.mod h1:AfRmwB0yUX/pCcB5dI7Z3947zo+sC3lXmqQOW8VO/TA=
+github.com/orisano/gosax v1.1.4 h1:fJZ8180lWGOqck/unlYTo9bxjT4dcemG/NErUDcVOOw=
+github.com/orisano/gosax v1.1.4/go.mod h1:mw6A5jIOFDeVOqffQkggKOOjRFevYnLyXgiZP06fRjI=
 github.com/samber/lo v1.53.0 h1:t975lj2py4kJPQ6haz1QMgtId2gtmfktACxIXArw3HM=
 github.com/samber/lo v1.53.0/go.mod h1:4+MXEGsJzbKGaUEQFKBq2xtfuznW9oz/WrgyzMzRoM0=
 github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=

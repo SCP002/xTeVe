@@ -16,11 +16,21 @@ type XMLTV struct {
 type Channel struct {
 	ID           string        `xml:"id,attr"`
 	DisplayNames []DisplayName `xml:"display-name"`
-	Icon         Icon          `xml:"icon"`
+	Icon         *Icon         `xml:"icon"`
+	URL          []URL         `xml:"url"`
+}
+
+// IconSrc returns the source of the channel icon, "" if it has none.
+func (c *Channel) IconSrc() string {
+	if c.Icon == nil {
+		return ""
+	}
+	return c.Icon.Src
 }
 
 // DisplayName : Channel Name
 type DisplayName struct {
+	Lang  string `xml:"lang,attr,omitempty"`
 	Value string `xml:",chardata"`
 }
 
@@ -29,147 +39,185 @@ type Icon struct {
 	Src string `xml:"src,attr"`
 }
 
-// Program : Programs
+// Program is a programme. The fields follow the order of the XMLTV DTD
+// (https://github.com/XMLTV/xmltv/blob/master/xmltv.dtd), so that written programmes are valid; empty elements
+// and attributes are left out.
 type Program struct {
-	Channel string `xml:"channel,attr"`
-	Start   string `xml:"start,attr"`
-	Stop    string `xml:"stop,attr"`
+	Start     string `xml:"start,attr"`
+	Stop      string `xml:"stop,attr,omitempty"`
+	PDCStart  string `xml:"pdc-start,attr,omitempty"`
+	VPSStart  string `xml:"vps-start,attr,omitempty"`
+	Showview  string `xml:"showview,attr,omitempty"`
+	Videoplus string `xml:"videoplus,attr,omitempty"`
+	Channel   string `xml:"channel,attr"`
+	Clumpidx  string `xml:"clumpidx,attr,omitempty"`
 
 	Title           []*Title         `xml:"title"`
 	SubTitle        []*SubTitle      `xml:"sub-title"`
 	Desc            []*Desc          `xml:"desc"`
+	Credits         *Credits         `xml:"credits"`
+	Date            string           `xml:"date,omitempty"`
 	Category        []*Category      `xml:"category"`
+	Keyword         []*Text          `xml:"keyword"`
+	Language        *Text            `xml:"language"`
+	OrigLanguage    *Text            `xml:"orig-language"`
+	Length          *Length          `xml:"length"`
+	Poster          []Poster         `xml:"icon"`
+	URL             []URL            `xml:"url"`
 	Country         []*Country       `xml:"country"`
 	EpisodeNum      []*EpisodeNum    `xml:"episode-num"`
-	Poster          []Poster         `xml:"icon"`
-	Credits         Credits          `xml:"credits,omitempty"` //`xml:",innerxml,omitempty"`
+	Video           *Video           `xml:"video"`
+	Audio           *Audio           `xml:"audio"`
+	PreviouslyShown *PreviouslyShown `xml:"previously-shown"`
+	Premiere        *Text            `xml:"premiere"`
+	LastChance      *Text            `xml:"last-chance"`
+	New             *New             `xml:"new"`
+	Subtitles       []Subtitles      `xml:"subtitles"`
 	Rating          []Rating         `xml:"rating"`
 	StarRating      []StarRating     `xml:"star-rating"`
-	Language        []*Language      `xml:"language"`
-	Video           Video            `xml:"video"`
-	Date            string           `xml:"date"`
-	PreviouslyShown *PreviouslyShown `xml:"previously-shown"`
-	New             *New             `xml:"new"`
-	Live            *Live            `xml:"live"`
-	Premiere        *Live            `xml:"premiere"`
+	Review          []Review         `xml:"review"`
+	Image           []Image          `xml:"image"`
+
+	// Year is not in the XMLTV DTD (iptvx.one), it is read into Date and not written
+	Year string `xml:"year,omitempty"`
+}
+
+// Text is a text with an optional language.
+type Text struct {
+	Lang  string `xml:"lang,attr,omitempty"`
+	Value string `xml:",chardata"`
 }
 
 // Title : Program Title
-type Title struct {
-	Lang  string `xml:"lang,attr"`
-	Value string `xml:",chardata"`
-}
+type Title = Text
 
 // SubTitle : Brief Description
-type SubTitle struct {
-	Lang  string `xml:"lang,attr"`
-	Value string `xml:",chardata"`
-}
+type SubTitle = Text
 
 // Desc : Program Description
-type Desc struct {
-	Lang  string `xml:"lang,attr"`
+type Desc = Text
+
+// Category : Categories
+type Category = Text
+
+// Country : Countries
+type Country = Text
+
+// Language : Languages
+type Language = Text
+
+// Length is the length of a programme.
+type Length struct {
+	Units string `xml:"units,attr"`
 	Value string `xml:",chardata"`
 }
 
-// Category : Categories
-type Category struct {
-	Lang  string `xml:"lang,attr"`
-	Value string `xml:",chardata"`
+// URL is a link to more information.
+type URL struct {
+	System string `xml:"system,attr,omitempty"`
+	Value  string `xml:",chardata"`
 }
 
 // Rating : Rating
 type Rating struct {
-	System string `xml:"system,attr"`
+	System string `xml:"system,attr,omitempty"`
 	Value  string `xml:"value"`
 	Icon   []Icon `xml:"icon"`
 }
 
 // StarRating : Rating / Reviews
 type StarRating struct {
+	System string `xml:"system,attr,omitempty"`
 	Value  string `xml:"value"`
-	System string `xml:"system,attr"`
-}
-
-// Language : Langueages
-type Language struct {
-	Value string `xml:",chardata"`
-}
-
-// Country : Countries
-type Country struct {
-	Lang  string `xml:"lang,attr"`
-	Value string `xml:",chardata"`
+	Icon   []Icon `xml:"icon"`
 }
 
 // EpisodeNum : Episode Numbering
 type EpisodeNum struct {
-	System string `xml:"system,attr"`
+	System string `xml:"system,attr,omitempty"`
 	Value  string `xml:",chardata"`
 }
 
 // Poster : Program Poster / Cover
 type Poster struct {
-	Height string `xml:"height,attr"`
 	Src    string `xml:"src,attr"`
-	Value  string `xml:",chardata"`
-	Width  string `xml:"width,attr"`
+	Width  string `xml:"width,attr,omitempty"`
+	Height string `xml:"height,attr,omitempty"`
 }
 
-// Credits : Credits
+// Credits are the people of a programme.
 type Credits struct {
-	Director  []Director  `xml:"director,omitempty"`
-	Actor     []Actor     `xml:"actor,omitempty"`
-	Writer    []Writer    `xml:"writer,omitempty"`
-	Presenter []Presenter `xml:"presenter,omitempty"`
-	Producer  []Producer  `xml:"producer,omitempty"`
+	Director    []Person `xml:"director"`
+	Actor       []Person `xml:"actor"`
+	Writer      []Person `xml:"writer"`
+	Adapter     []Person `xml:"adapter"`
+	Producer    []Person `xml:"producer"`
+	Composer    []Person `xml:"composer"`
+	Editor      []Person `xml:"editor"`
+	Presenter   []Person `xml:"presenter"`
+	Commentator []Person `xml:"commentator"`
+	Guest       []Person `xml:"guest"`
 }
 
-// Director : Director
-type Director struct {
-	Value string `xml:",chardata"`
-}
-
-// Actor : Actor
-type Actor struct {
-	Value string `xml:",chardata"`
+// Person is a person in the credits.
+type Person struct {
 	Role  string `xml:"role,attr,omitempty"`
-}
-
-// Writer : Writer
-type Writer struct {
+	Guest string `xml:"guest,attr,omitempty"`
 	Value string `xml:",chardata"`
 }
 
-// Presenter : Presenter
-type Presenter struct {
-	Value string `xml:",chardata"`
-}
-
-// Producer : Producer
-type Producer struct {
-	Value string `xml:",chardata"`
-}
+// Director, Actor, Writer, Presenter and Producer are the names of the older versions.
+type (
+	Director  = Person
+	Actor     = Person
+	Writer    = Person
+	Presenter = Person
+	Producer  = Person
+)
 
 // Video : Video Metadata
 type Video struct {
-	Aspect  string `xml:"aspect,omitempty"`
-	Colour  string `xml:"colour,omitempty"`
 	Present string `xml:"present,omitempty"`
+	Colour  string `xml:"colour,omitempty"`
+	Aspect  string `xml:"aspect,omitempty"`
 	Quality string `xml:"quality,omitempty"`
+}
+
+// Audio is the sound of a programme.
+type Audio struct {
+	Present string `xml:"present,omitempty"`
+	Stereo  string `xml:"stereo,omitempty"`
 }
 
 // PreviouslyShown : Repetition or first Broadcast
 type PreviouslyShown struct {
-	Start string `xml:"start,attr"`
+	Start   string `xml:"start,attr,omitempty"`
+	Channel string `xml:"channel,attr,omitempty"`
 }
 
 // New : Declare the Broadcast as new
-type New struct {
-	Value string `xml:",chardata"`
+type New struct{}
+
+// Subtitles are the subtitles of a programme.
+type Subtitles struct {
+	Type     string `xml:"type,attr,omitempty"`
+	Language *Text  `xml:"language"`
 }
 
-// Live : Declare the Broadcast as a Live Broadcast
-type Live struct {
-	Value string `xml:",chardata"`
+// Review is a review of a programme.
+type Review struct {
+	Type     string `xml:"type,attr"`
+	Source   string `xml:"source,attr,omitempty"`
+	Reviewer string `xml:"reviewer,attr,omitempty"`
+	Lang     string `xml:"lang,attr,omitempty"`
+	Value    string `xml:",chardata"`
+}
+
+// Image is an image of a programme.
+type Image struct {
+	Type   string `xml:"type,attr,omitempty"`
+	Size   string `xml:"size,attr,omitempty"`
+	Orient string `xml:"orient,attr,omitempty"`
+	System string `xml:"system,attr,omitempty"`
+	Value  string `xml:",chardata"`
 }

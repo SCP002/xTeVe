@@ -284,7 +284,7 @@ func (m *Manager) xmltvChannels(file string) (map[string]MappingChannel, error) 
 
 	var channels = make(map[string]MappingChannel)
 	err = readXMLTV(file, func(c *Channel) error {
-		channels[c.ID] = MappingChannel{ID: c.ID, DisplayNames: c.DisplayNames, Icon: c.Icon.Src}
+		channels[c.ID] = MappingChannel{ID: c.ID, DisplayNames: c.DisplayNames, Icon: c.IconSrc()}
 		return nil
 	}, nil)
 	if err != nil {
