@@ -11,14 +11,14 @@ Checked with a real MPEG-TS playlist (432 channels, PMS mode) and local test sou
 - Tuner limit with the "stream limit" video, two clients sharing one channel, client disconnects (the upstream
   connection and FFmpeg are stopped).
 - HDHR emulation: `discover.json`, `lineup.json`, `lineup_status.json`, `device.xml`, an SSDP M-SEARCH answer.
-- Backup and restore through the web UI.
+- Backup and restore through the web UI, web authentication.
+- XEPG mode with the EPG of epg.one (3214 channels, 662000 programmes): mapping by name, xteve.xml, M3U, lineup,
+  image caching of the channel logos.
 
 Still open:
 
 - VLC: refuses to run as root, and as `nobody` exits silently in the devcontainer. The Docker image runs xTeVe as
   the `xteve` user, check it there.
-- XEPG mode and the guide: needs an XMLTV source.
-- Image caching: needs a playlist or XMLTV with logos.
 - Plex and Emby themselves. In Docker, SSDP discovery needs host networking.
 - HLS bandwidth: the measured network bandwidth is bytes/s * 1000 instead of bits/s and is averaged over the whole
   stream including waits between segments, so after the first segment the highest variant is always chosen. Fixing
