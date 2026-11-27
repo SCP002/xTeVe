@@ -3,6 +3,7 @@ package src
 import (
 	"net"
 	"xteve/src/internal/imgcache"
+	"xteve/src/internal/logger"
 )
 
 // SystemStruct : Contains all System Information
@@ -83,8 +84,6 @@ type SystemStruct struct {
 	OS                     string
 	ScanInProgress         int
 	TimeForAutoUpdate      string
-
-	Notification map[string]Notification
 
 	ServerProtocol struct {
 		API string
@@ -260,13 +259,7 @@ type StreamInfo struct {
 }
 
 // Notification : Notifications in the Web Interface
-type Notification struct {
-	Headline string `json:"headline"`
-	Message  string `json:"message"`
-	New      bool   `json:"new"`
-	Time     string `json:"time"`
-	Type     string `json:"type"`
-}
+type Notification = logger.Notification
 
 // SettingsStruct : Content of settings.json
 type SettingsStruct struct {

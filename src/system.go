@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"time"
+	"xteve/src/internal/logger"
 )
 
 // Show Developer Information
@@ -166,6 +167,8 @@ func loadSettings() (settings SettingsStruct, err error) {
 	settings.TempPath = getValidTempDir(settings.TempPath)
 
 	err = saveSettings(settings)
+
+	logger.Default().SetLimit(settings.LogEntriesRAM)
 
 	// Warning if FFmpeg was not found
 	if len(Settings.FFmpegPath) == 0 && Settings.Buffer == "ffmpeg" {

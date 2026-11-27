@@ -6,15 +6,13 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"xteve/src/internal/logger"
 
 	"github.com/avfs/avfs"
 )
 
 // System : Contains all System Information
 var System SystemStruct
-
-// WebScreenLog : Logs are saved in RAM and made available for the Web interface
-var WebScreenLog WebScreenLogStruct
 
 // Settings : Content of settings.json
 var Settings SettingsStruct
@@ -41,6 +39,10 @@ var Lock = sync.RWMutex{}
 func Init() (err error) {
 	var debug string
 
+	logger.Default().SetName(System.Name)
+	logger.Default().SetDebugLevel(System.Flag.Debug)
+	logger.Default().SetQuiet(System.Flag.Info)
+
 	// System Settings
 	System.AppName = strings.ToLower(System.Name)
 	System.ARCH = runtime.GOARCH
@@ -56,10 +58,6 @@ func Init() (err error) {
 	// FFmpeg Default Settings
 	System.FFmpeg.DefaultOptions = "-hide_banner -loglevel error -i [URL] -c copy -f mpegts pipe:1"
 	System.VLC.DefaultOptions = "-I dummy [URL] --sout #std{mux=ts,access=file,dst=-}"
-
-	// Default Log Entries, which will later be overwritten by those from settings.json. Needed so that the first
-	// entries are also displayed in the Log (webUI are displayed)
-	Settings.LogEntriesRAM = 500
 
 	// Variables for the Update Process
 	System.Update.Git = fmt.Sprintf("https://github.com/%s/%s/blob", System.GitHub.User, System.GitHub.Repo)

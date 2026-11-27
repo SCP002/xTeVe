@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"xteve/src/internal/authentication"
+	"xteve/src/internal/logger"
 
 	"github.com/gorilla/websocket"
 	"github.com/samber/lo"
@@ -520,9 +521,7 @@ func WS(w http.ResponseWriter, r *http.Request) {
 			}
 
 		case "resetLogs":
-			WebScreenLog.Log = make([]string, 0)
-			WebScreenLog.Errors = 0
-			WebScreenLog.Warnings = 0
+			logger.Default().Clear()
 			response.OpenMenu = strconv.Itoa(lo.IndexOf(System.WEB.Menu, "log"))
 
 		case "xteveBackup":
@@ -533,9 +532,7 @@ func WS(w http.ResponseWriter, r *http.Request) {
 			}
 
 		case "xteveRestore":
-			WebScreenLog.Log = make([]string, 0)
-			WebScreenLog.Errors = 0
-			WebScreenLog.Warnings = 0
+			logger.Default().Clear()
 
 			if len(request.Base64) > 0 {
 				newWebURL, err := xteveRestoreFromWeb(request.Base64)
@@ -997,12 +994,13 @@ func setDefaultResponseData(response ResponseStruct, data bool) (defaults Respon
 	defaults.ClientInfo.OS = System.OS
 	defaults.ClientInfo.Streams = fmt.Sprintf("%d / %d", len(Data.Streams.Active), len(Data.Streams.All))
 	defaults.ClientInfo.UUID = Settings.UUID
-	defaults.ClientInfo.Errors = WebScreenLog.Errors
-	defaults.ClientInfo.Warnings = WebScreenLog.Warnings
+	var log = logger.Default().Log()
+	defaults.ClientInfo.Errors = log.Errors
+	defaults.ClientInfo.Warnings = log.Warnings
 	defaults.IPAddressesV4Host = System.IPAddressesV4Host
 	defaults.Settings.HostIP = Settings.HostIP
-	defaults.Notification = System.Notification
-	defaults.Log = WebScreenLog
+	defaults.Notification = logger.Default().Notifications()
+	defaults.Log = log
 
 	defaults.ClientInfo.Version = System.Version
 
