@@ -12,21 +12,14 @@ The stream buffer received the most changes during the restoration and has not b
 - Check the tuner limit, the "stream limit" placeholder video and client disconnects.
 - Check backup and restore through the web UI, and image caching.
 
-## 2. Tests
-
-Tests cover the M3U parser, `parseM3U8`, channel filters, the XEPG database and mapping, and a few helpers. Most useful
-next:
-
-- Backup round trip (`zipFiles` and `extractZIP` with the real file set).
-
-## 3. Global state and data races
+## 2. Global state and data races
 
 `Settings`, `Data` and `System` are global and are changed from many goroutines (web UI, maintenance, buffers) mostly without locks.
 
 - Run the tests and the server built with `-race` and collect the reports.
 - Decide on protection: a mutex per structure, or copies handed to readers.
 
-## 4. Web UI (TypeScript)
+## 3. Web UI (TypeScript)
 
 The `ts/` sources and their build are as old as the Go part was.
 
@@ -34,13 +27,13 @@ The `ts/` sources and their build are as old as the Go part was.
 - Rebuild `html/js` and the embedded `src/webUI.go`.
 - Consider a reproducible build step instead of running the binary with `-dev` to embed the files.
 
-## 5. Built-in updater
+## 4. Built-in updater
 
 Updates are disabled for this fork (`GitHub.Update` in `xteve.go`), but the updater code (`src/update.go`, `src/internal/up2date`) is still built and partly reachable through a custom update URL.
 
 - Decide: remove it, or point it to GitHub releases of this fork (the release workflow already publishes binaries).
 
-## 6. Web UI formatting in the devcontainer
+## 5. Web UI formatting in the devcontainer
 
 The devcontainer already installs the TypeScript compiler (`npm install -g typescript`), but nothing formats `ts/`.
 
@@ -50,7 +43,7 @@ The devcontainer already installs the TypeScript compiler (`npm install -g types
   `npx prettier --write "**/*.{js,jsx,ts,tsx,json,css,md}" --ignore-path .gitignore`. Exclude the generated
   `html/js` and `src/webUI.go`.
 
-## 7. EPG loading and memory use
+## 6. EPG loading and memory use
 
 Large EPG sources take several gigabytes of RAM, because every step holds the whole data in memory:
 

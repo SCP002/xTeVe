@@ -50,12 +50,13 @@ func zipFiles(sourceFiles []string, target string) (err error) {
 				return err
 			}
 
+			// ZIP entry names always use "/", whatever the platform
 			if baseDir != "" {
-				header.Name = filepath.Join(strings.TrimPrefix(path, System.Folder.Config))
+				header.Name = filepath.ToSlash(filepath.Join(strings.TrimPrefix(path, System.Folder.Config)))
 			}
 
 			if info.IsDir() {
-				header.Name += string(os.PathSeparator)
+				header.Name += "/"
 			} else {
 				header.Method = zip.Deflate
 			}
@@ -112,15 +113,22 @@ func extractZIP(archive, target string) (err error) {
 
 func extractZIPFile(file *zip.File, target string) (err error) {
 
-	path := filepath.Join(target, file.Name)
+	// Backups made on Windows by older versions use "\" in entry names
+	var name = strings.ReplaceAll(file.Name, `\`, "/")
+	path := filepath.Join(target, filepath.FromSlash(name))
 
 	// Reject entries like "../../etc/passwd" that would be written outside of the target folder
 	if !strings.HasPrefix(path, filepath.Clean(target)+string(os.PathSeparator)) {
 		return fmt.Errorf("invalid file path in archive: %s", file.Name)
 	}
 
-	if file.FileInfo().IsDir() {
+	if file.FileInfo().IsDir() || strings.HasSuffix(name, "/") {
 		return os.MkdirAll(path, file.Mode())
+	}
+
+	// Archives made by other tools do not always contain entries for folders
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
 	}
 
 	fileReader, err := file.Open()
