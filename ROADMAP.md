@@ -42,14 +42,11 @@ WebSocket protocol (`/data/`) stay.
 
 Done: the build (`build.sh`, Dockerfile, release workflow, a placeholder for `go build` without Node), Prettier in
 `format.sh`, typed WebSocket commands sent one after the other (every answer replaces the login token), `/ui/api/`
-for the login and the first user, the configuration wizard, the overview and the log.
+for the login and the first user, and every page of the old web UI: the configuration wizard, overview, playlists,
+XMLTV files, filters, mapping, users, settings with backup and restore, and the log. Each was checked against a
+running xTeVe, the mapping also with 3000 channels.
 
-Left, screen by screen, each checked against a running xTeVe:
+Left:
 
-- Playlists (M3U and HDHomeRun) and XMLTV files: list, add, edit, update, delete.
-- Filters.
-- Mapping (XEPG): the big table, bulk edit, XMLTV channel search, logo upload.
-- Users.
-- Settings, backup and restore.
-- Then remove the old web UI (`ts/`, `html/`, `/web/`, the global `tsc` of the devcontainer) and serve the new one
+- Remove the old web UI (`ts/`, `html/`, `/web/`, the global `tsc` of the devcontainer) and serve the new one
   at `/web/`.

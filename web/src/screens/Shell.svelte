@@ -18,9 +18,9 @@
   import Filters from '../pages/Filters.svelte'
   import Log from '../pages/Log.svelte'
   import Mapping from '../pages/Mapping.svelte'
-  import NotYet from '../pages/NotYet.svelte'
   import Overview from '../pages/Overview.svelte'
   import Playlists from '../pages/Playlists.svelte'
+  import SettingsPage from '../pages/Settings.svelte'
   import UsersPage from '../pages/Users.svelte'
   import Xmltv from '../pages/Xmltv.svelte'
 
@@ -35,19 +35,20 @@
     { page: 'log', title: 'Log', icon: FileText },
   ]
 
-  const pages: Partial<Record<Page, Component>> = {
+  const pages: Record<Page, Component> = {
     overview: Overview,
     playlists: Playlists,
     filters: Filters,
     xmltv: Xmltv,
     mapping: Mapping,
     users: UsersPage,
+    settings: SettingsPage,
     log: Log,
   }
 
   const info = $derived(server().clientInfo)
   const current = $derived(menu.find((m) => m.page === route.page) ?? menu[0])
-  const Content = $derived(pages[route.page] ?? NotYet)
+  const Content = $derived(pages[route.page])
   // Mapping is only used with the XEPG source
   const visible = $derived(menu.filter((m) => m.page !== 'mapping' || info.epgSource === 'XEPG'))
 </script>
@@ -98,7 +99,7 @@
     <Sidebar.Rail />
   </Sidebar.Root>
 
-  <Sidebar.Inset>
+  <Sidebar.Inset class="min-w-0">
     <header class="flex h-14 shrink-0 items-center gap-2 border-b px-4">
       <Sidebar.Trigger class="-ml-1" />
       <Separator orientation="vertical" class="mr-2 data-vertical:h-4 data-vertical:self-center" />
@@ -111,7 +112,7 @@
         <Badge variant="outline">Streams {info.streams}</Badge>
       </div>
     </header>
-    <div class="flex-1 p-4 md:p-6">
+    <div class="min-w-0 flex-1 p-4 md:p-6">
       <Content />
     </div>
   </Sidebar.Inset>

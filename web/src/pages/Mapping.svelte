@@ -173,7 +173,7 @@
   {#if counts.all === 0}
     <p class="text-sm text-muted-foreground">No channels: add a playlist, and filters if needed.</p>
   {:else}
-    <div class="rounded-md border">
+    <div class="min-w-0 rounded-md border">
       <Table.Root>
         <Table.Header>
           <Table.Row>
@@ -186,7 +186,7 @@
             </Table.Head>
             <Table.Head class="w-24">Number</Table.Head>
             <Table.Head>Channel</Table.Head>
-            <Table.Head>Group</Table.Head>
+            <Table.Head class="hidden md:table-cell">Group</Table.Head>
             <Table.Head>XMLTV</Table.Head>
             <Table.Head class="w-16">Active</Table.Head>
             <Table.Head class="w-0"><span class="sr-only">Edit</span></Table.Head>
@@ -225,7 +225,9 @@
                   </div>
                 </div>
               </Table.Cell>
-              <Table.Cell class="max-w-40 truncate text-muted-foreground">{c['x-group-title']}</Table.Cell>
+              <Table.Cell class="hidden max-w-40 truncate text-muted-foreground md:table-cell">
+                {c['x-group-title']}
+              </Table.Cell>
               <Table.Cell class="max-w-64">
                 {#if mappable(c)}
                   <div class="truncate">{xmltvChannelName(xepg.xmltvMap, c['x-xmltv-file'], c['x-mapping'])}</div>
