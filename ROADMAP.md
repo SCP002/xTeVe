@@ -29,7 +29,6 @@ Still open:
 The state of `src` is split into `internal/logger`, `system`, `config`, `buffer`, `playlist`, `epg` and `hdhr`; the
 race scenarios with a real playlist (PMS and XEPG) find no race anymore. Left over:
 
-- XEPG channels are `map[string]any` and go through JSON in every step; use `epg.XEPGChannel` throughout.
 - `imgcache`: `Caching` holds the cache lock while it downloads all images, so building the M3U and XMLTV files
   waits for it.
 - The buffer answers with `200` only together with the first data: a slow source (AceStream needs more than 10 s
@@ -40,6 +39,9 @@ race scenarios with a real playlist (PMS and XEPG) find no race anymore. Left ov
 
 - The WebSocket upgrader accepts any `Origin` (`CheckOrigin` returns true). Without authentication any web page the
   user opens can connect to `/data/` and change settings. Check the origin against the host.
+- Passwords are hashed with `SHA256(secret, salt)`, an HMAC with the password as key over a fixed text: the salt is
+  not used and the hash is fast. Use bcrypt or argon2 and rehash a password at its next successful login (the old
+  hash can only be checked, not converted).
 
 ## 4. Web UI (TypeScript)
 
@@ -49,13 +51,7 @@ The `ts/` sources and their build are as old as the Go part was.
 - Rebuild `html/js` and the embedded `src/webUI.go`.
 - Consider a reproducible build step instead of running the binary with `-dev` to embed the files.
 
-## 5. Built-in updater
-
-Updates are disabled for this fork (`GitHub.Update` in `xteve.go`), but the updater code (`src/update.go`, `src/internal/up2date`) is still built and partly reachable through a custom update URL.
-
-- Decide: remove it, or point it to GitHub releases of this fork (the release workflow already publishes binaries).
-
-## 6. Web UI formatting in the devcontainer
+## 5. Web UI formatting in the devcontainer
 
 The devcontainer already installs the TypeScript compiler (`npm install -g typescript`), but nothing formats `ts/`.
 
@@ -65,7 +61,7 @@ The devcontainer already installs the TypeScript compiler (`npm install -g types
   `npx prettier --write "**/*.{js,jsx,ts,tsx,json,css,md}" --ignore-path .gitignore`. Exclude the generated
   `html/js` and `src/webUI.go`.
 
-## 7. EPG loading and memory use
+## 6. EPG loading and memory use
 
 Large EPG sources take several gigabytes of RAM, because every step holds the whole data in memory:
 
