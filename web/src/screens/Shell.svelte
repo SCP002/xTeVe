@@ -17,6 +17,7 @@
   import { app, server, signOut } from '$lib/state.svelte'
   import Filters from '../pages/Filters.svelte'
   import Log from '../pages/Log.svelte'
+  import Mapping from '../pages/Mapping.svelte'
   import NotYet from '../pages/NotYet.svelte'
   import Overview from '../pages/Overview.svelte'
   import Playlists from '../pages/Playlists.svelte'
@@ -38,6 +39,7 @@
     playlists: Playlists,
     filters: Filters,
     xmltv: Xmltv,
+    mapping: Mapping,
     log: Log,
   }
 
