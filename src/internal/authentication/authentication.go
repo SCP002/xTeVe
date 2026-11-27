@@ -1,36 +1,91 @@
+// Package authentication keeps the users of xTeVe (authentication.json) and the login tokens. It is safe for use by
+// multiple goroutines.
 package authentication
 
 import (
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
-
-	"crypto/hmac"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
-
 	"time"
-	//"fmt"
-	//"log"
 )
 
 const tokenLength = 40
 const saltLength = 20
 const idLength = 10
 
-var tokenValidity int
-var database string
+const databaseFile = "authentication.json"
 
-var databaseFile = "authentication.json"
+// UserData are the permissions of a user and the name shown in the web UI.
+type UserData struct {
+	Username    string `json:"username,omitempty"`
+	DefaultUser bool   `json:"defaultUser,omitempty"`
+	WEB         bool   `json:"authentication.web"`
+	PMS         bool   `json:"authentication.pms"`
+	M3U         bool   `json:"authentication.m3u"`
+	XML         bool   `json:"authentication.xml"`
+	API         bool   `json:"authentication.api"`
+}
 
-var data = make(map[string]any)
-var tokens = make(map[string]any)
+// Allowed reports whether the user may use a part of xTeVe: "authentication.web", "authentication.pms",
+// "authentication.m3u", "authentication.xml" or "authentication.api".
+func (d UserData) Allowed(level string) bool {
+	switch level {
+	case "authentication.web":
+		return d.WEB
+	case "authentication.pms":
+		return d.PMS
+	case "authentication.m3u":
+		return d.M3U
+	case "authentication.xml":
+		return d.XML
+	case "authentication.api":
+		return d.API
+	}
+	return false
+}
 
-var initAuthentication = false
+// PublicUser is what the web UI gets of a user: no hashes or salts.
+type PublicUser struct {
+	Data UserData `json:"data"`
+}
+
+// user is a user of authentication.json. Name and password are stored as hashes.
+type user struct {
+	ID       string   `json:"_id"`
+	Username string   `json:"_username"`
+	Password string   `json:"_password"`
+	Salt     string   `json:"_salt"`
+	Data     UserData `json:"data"`
+}
+
+type databaseContent struct {
+	DBVersion string           `json:"dbVersion"`
+	Hash      string           `json:"hash"`
+	Users     map[string]*user `json:"users"`
+}
+
+type token struct {
+	userID  string
+	expires time.Time
+}
+
+// mu guards the state below: every exported function that uses it holds mu.
+var mu sync.Mutex
+
+var (
+	database      string
+	tokenValidity int
+	data          databaseContent
+	tokens        = make(map[string]token)
+	initialized   = false
+)
 
 // Cookie : cookie
 type Cookie struct {
@@ -42,300 +97,202 @@ type Cookie struct {
 	RawExpires string
 }
 
-// Init : databasePath = Path to authentication.json
-func initDatabase(databasePath string, validity int) (err error) {
-	database = filepath.Dir(databasePath) + string(os.PathSeparator) + databaseFile
+// Init loads the users from authentication.json in the folder of databasePath, creating the file if needed. Tokens
+// are valid for validity minutes.
+func Init(databasePath string, validity int) error {
+	mu.Lock()
+	defer mu.Unlock()
 
-	// Check if the database already exists
-	if _, err = os.Stat(database); os.IsNotExist(err) {
-		// Create an empty database
-		var defaults = make(map[string]any)
-		defaults["dbVersion"] = "1.0"
-		defaults["hash"] = "sha256"
-		defaults["users"] = make(map[string]any)
+	database = filepath.Join(filepath.Dir(databasePath), databaseFile)
 
-		if saveDatabase(defaults) != nil {
-			return
+	var content, err = os.ReadFile(database)
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		data = databaseContent{}
+	case err != nil:
+		return err
+	default:
+		data = databaseContent{}
+		if err := json.Unmarshal(content, &data); err != nil {
+			return err
 		}
 	}
 
-	// Loading the database
-	err = loadDatabase()
+	// An empty database (as created at the first start) gets its defaults
+	if data.Users == nil {
+		data = databaseContent{DBVersion: "1.0", Hash: "sha256", Users: make(map[string]*user)}
+		if err := saveDatabase(); err != nil {
+			return err
+		}
+	}
 
-	// Set Token Validity
 	tokenValidity = validity
-	initAuthentication = true
-	return
+	initialized = true
+	return nil
 }
 
-// CreateDefaultUser = created efault user
-func createDefaultUser(username, password string) (err error) {
-	err = checkInit()
-	if err != nil {
-		return
+// CreateDefaultUser creates the first user. It fails if a user exists.
+func CreateDefaultUser(username, password string) error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if err := checkInit(); err != nil {
+		return err
+	}
+	if len(data.Users) > 0 {
+		return createError(001)
 	}
 
-	var users = data["users"].(map[string]any)
-	// Check if the default user exists
-	if len(users) > 0 {
-		err = createError(001)
-		return
-	}
-
-	var defaults = defaultsForNewUser(username, password)
-	users[defaults["_id"].(string)] = defaults
-	if err = saveDatabase(data); err != nil {
-		return
-	}
-
-	return
+	var u = newUser(username, password)
+	data.Users[u.ID] = u
+	return saveDatabase()
 }
 
-// CreateNewUser : create new user
-func createNewUser(username, password string) (userID string, err error) {
-	err = checkInit()
-	if err != nil {
-		return
+// CreateNewUser creates a user and returns its ID. It fails if a user with the name exists.
+func CreateNewUser(username, password string) (string, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if err := checkInit(); err != nil {
+		return "", err
 	}
-
-	var checkIfTheUserAlreadyExists = func(username string, userData map[string]any) (err error) {
-		var salt = userData["_salt"].(string)
-		var loginUsername = userData["_username"].(string)
-
-		if SHA256(username, salt) == loginUsername {
-			err = createError(020)
-		}
-
-		return
-	}
-
-	var users = data["users"].(map[string]any)
-	for _, userData := range users {
-		err = checkIfTheUserAlreadyExists(username, userData.(map[string]any))
-		if err != nil {
-			return
+	for _, u := range data.Users {
+		if SHA256(username, u.Salt) == u.Username {
+			return "", createError(020)
 		}
 	}
 
-	var defaults = defaultsForNewUser(username, password)
-	userID = defaults["_id"].(string)
-	users[userID] = defaults
-
-	if err = saveDatabase(data); err != nil {
-		return
-	}
-
-	return
+	var u = newUser(username, password)
+	data.Users[u.ID] = u
+	return u.ID, saveDatabase()
 }
 
-// UserAuthentication : user authentication
-func userAuthentication(username, password string) (token string, err error) {
-	err = checkInit()
-	if err != nil {
-		return
+// UserAuthentication logs a user in and returns a new token.
+func UserAuthentication(username, password string) (string, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if err := checkInit(); err != nil {
+		return "", err
 	}
-
-	var login = func(username, password string, loginData map[string]any) (err error) {
-		err = createError(010)
-
-		var salt = loginData["_salt"].(string)
-		var loginUsername = loginData["_username"].(string)
-		var loginPassword = loginData["_password"].(string)
-
-		if SHA256(username, salt) == loginUsername {
-			if SHA256(password, salt) == loginPassword {
-				err = nil
-			}
-		}
-
-		return
-	}
-
-	var users = data["users"].(map[string]any)
-	for id, loginData := range users {
-		err = login(username, password, loginData.(map[string]any))
-		if err == nil {
-			token = setToken(id, "-")
-			return
+	for id, u := range data.Users {
+		if SHA256(username, u.Salt) == u.Username && SHA256(password, u.Salt) == u.Password {
+			return setToken(id, "-"), nil
 		}
 	}
-
-	return
+	return "", createError(010)
 }
 
-// CheckTheValidityOfTheToken : check token
-func checkTheValidityOfTheToken(token string) (newToken string, err error) {
-	err = checkInit()
-	if err != nil {
-		return
+// CheckTheValidityOfTheToken checks a token and replaces it with a new one.
+func CheckTheValidityOfTheToken(oldToken string) (string, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if err := checkInit(); err != nil {
+		return "", err
 	}
-
-	err = createError(011)
-
-	if v, ok := tokens[token]; ok {
-		var expires = v.(map[string]any)["expires"].(time.Time)
-		var userID = v.(map[string]any)["id"].(string)
-
-		if expires.Sub(time.Now().Local()) < 0 {
-			return
-		}
-
-		newToken = setToken(userID, token)
-
-		err = nil
-	} else {
-		return
+	var t, ok = tokens[oldToken]
+	if !ok || time.Now().After(t.expires) {
+		return "", createError(011)
 	}
-
-	return
+	return setToken(t.userID, oldToken), nil
 }
 
-// GetUserID : get user ID
-func getUserID(token string) (userID string, err error) {
-	err = checkInit()
-	if err != nil {
-		return
+// GetUserID returns the user of a valid token.
+func GetUserID(tok string) (string, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if err := checkInit(); err != nil {
+		return "", err
 	}
-
-	err = createError(002)
-
-	if v, ok := tokens[token]; ok {
-		var expires = v.(map[string]any)["expires"].(time.Time)
-		userID = v.(map[string]any)["id"].(string)
-
-		if expires.Sub(time.Now().Local()) < 0 {
-			return
-		}
-
-		err = nil
+	var t, ok = tokens[tok]
+	if !ok || time.Now().After(t.expires) {
+		return "", createError(002)
 	}
-
-	return
+	return t.userID, nil
 }
 
-// WriteUserData : save user date
-func writeUserData(userID string, userData map[string]any) (err error) {
-	err = checkInit()
-	if err != nil {
-		return
+// WriteUserData saves the data of a user.
+func WriteUserData(userID string, userData UserData) error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if err := checkInit(); err != nil {
+		return err
 	}
-
-	err = createError(030)
-
-	if v, ok := data["users"].(map[string]any)[userID].(map[string]any); ok {
-		v["data"] = userData
-		err = saveDatabase(data)
-	} else {
-		return
+	var u, ok = data.Users[userID]
+	if !ok {
+		return createError(030)
 	}
-
-	return
+	u.Data = userData
+	return saveDatabase()
 }
 
-// ReadUserData : load user date
-func readUserData(userID string) (userData map[string]any, err error) {
-	err = checkInit()
-	if err != nil {
-		return
+// ReadUserData returns the data of a user.
+func ReadUserData(userID string) (UserData, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if err := checkInit(); err != nil {
+		return UserData{}, err
 	}
-
-	err = createError(031)
-
-	if v, ok := data["users"].(map[string]any)[userID].(map[string]any); ok {
-		userData = v["data"].(map[string]any)
-		err = nil
-
-		return
+	var u, ok = data.Users[userID]
+	if !ok {
+		return UserData{}, createError(031)
 	}
-
-	return
+	return u.Data, nil
 }
 
-// RemoveUser : remove user
-func removeUser(userID string) (err error) {
-	err = checkInit()
-	if err != nil {
-		return
+// RemoveUser removes a user.
+func RemoveUser(userID string) error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if err := checkInit(); err != nil {
+		return err
 	}
-
-	err = createError(032)
-
-	if _, ok := data["users"].(map[string]any)[userID]; ok {
-		delete(data["users"].(map[string]any), userID)
-		err = saveDatabase(data)
-
-		return
+	if _, ok := data.Users[userID]; !ok {
+		return createError(032)
 	}
-
-	return
+	delete(data.Users, userID)
+	return saveDatabase()
 }
 
-// SetDefaultUserData : set default user data
-func setDefaultUserData(defaults map[string]any) (err error) {
-	allUserData, err := getAllUserData()
+// ChangeCredentials changes the name and, if not empty, the password of a user.
+func ChangeCredentials(userID, username, password string) error {
+	mu.Lock()
+	defer mu.Unlock()
 
-	for _, d := range allUserData {
-		var data = d.(map[string]any)["data"].(map[string]any)
-		var userID = d.(map[string]any)["_id"].(string)
-
-		for k, v := range defaults {
-			if _, ok := data[k]; ok {
-				// Key exist
-			} else {
-				data[k] = v
-			}
-		}
-		err = writeUserData(userID, data)
+	if err := checkInit(); err != nil {
+		return err
 	}
-	return
+	var u, ok = data.Users[userID]
+	if !ok {
+		return createError(032)
+	}
+	if len(username) > 0 {
+		u.Username = SHA256(username, u.Salt)
+	}
+	if len(password) > 0 {
+		u.Password = SHA256(password, u.Salt)
+	}
+	return saveDatabase()
 }
 
-// ChangeCredentials : change credentials
-func changeCredentials(userID, username, password string) (err error) {
-	err = checkInit()
-	if err != nil {
-		return
+// GetAllUserData returns the users by ID, without their hashes.
+func GetAllUserData() (map[string]PublicUser, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if err := checkInit(); err != nil {
+		return nil, err
 	}
-
-	err = createError(032)
-
-	if userData, ok := data["users"].(map[string]any)[userID]; ok {
-		var salt = userData.(map[string]any)["_salt"].(string)
-
-		if len(username) > 0 {
-			userData.(map[string]any)["_username"] = SHA256(username, salt)
-		}
-
-		if len(password) > 0 {
-			userData.(map[string]any)["_password"] = SHA256(password, salt)
-		}
-
-		err = saveDatabase(data)
+	var users = make(map[string]PublicUser, len(data.Users))
+	for id, u := range data.Users {
+		users[id] = PublicUser{Data: u.Data}
 	}
-
-	return
-}
-
-// GetAllUserData : get all user data
-func getAllUserData() (allUserData map[string]any, err error) {
-	err = checkInit()
-	if err != nil {
-		return
-	}
-
-	if len(data) == 0 {
-		var defaults = make(map[string]any)
-		defaults["dbVersion"] = "1.0"
-		defaults["hash"] = "sha256"
-		defaults["users"] = make(map[string]any)
-		if err = saveDatabase(defaults); err != nil {
-			return
-		}
-		data = defaults
-	}
-
-	allUserData = data["users"].(map[string]any)
-	return
+	return users, nil
 }
 
 // CheckTheValidityOfTheTokenFromHTTPHeader : get token from HTTP header
@@ -352,43 +309,53 @@ func CheckTheValidityOfTheTokenFromHTTPHeader(w http.ResponseWriter, r *http.Req
 	return
 }
 
-// Framework tools
-
-func checkInit() (err error) {
-	if !initAuthentication {
-		err = createError(000)
-	}
-
-	return
+// SetCookieToken : set cookie
+func SetCookieToken(w http.ResponseWriter, token string) {
+	expiration := time.Now().Add(time.Minute * time.Duration(tokenValidity))
+	cookie := http.Cookie{Name: "Token", Value: token, Expires: expiration}
+	http.SetCookie(w, &cookie)
 }
 
-func saveDatabase(tmpMap any) (err error) {
-	jsonString, err := json.MarshalIndent(tmpMap, "", "  ")
-
-	if err != nil {
-		return
+func checkInit() error {
+	if !initialized {
+		return createError(000)
 	}
-
-	err = os.WriteFile(database, []byte(jsonString), 0600)
-	if err != nil {
-		return
-	}
-
-	return
+	return nil
 }
 
-func loadDatabase() (err error) {
-	jsonString, err := os.ReadFile(database)
+// saveDatabase writes the database. mu must be held.
+func saveDatabase() error {
+	var content, err = json.MarshalIndent(data, "", "  ")
 	if err != nil {
-		return
+		return err
 	}
+	return os.WriteFile(database, content, 0600)
+}
 
-	err = json.Unmarshal([]byte(jsonString), &data)
-	if err != nil {
-		return
+func newUser(username, password string) *user {
+	var salt = randomString(saltLength)
+	return &user{
+		ID:       "id-" + randomID(idLength),
+		Username: SHA256(username, salt),
+		Password: SHA256(password, salt),
+		Salt:     salt,
 	}
+}
 
-	return
+// setToken replaces oldToken with a new token of the user. mu must be held.
+func setToken(userID, oldToken string) string {
+	delete(tokens, oldToken)
+
+	for {
+		var newToken = randomString(tokenLength)
+		if _, ok := tokens[newToken]; !ok {
+			tokens[newToken] = token{
+				userID:  userID,
+				expires: time.Now().Add(time.Minute * time.Duration(tokenValidity)),
+			}
+			return newToken
+		}
+	}
 }
 
 // SHA256 : password + salt = sha256 string
@@ -446,146 +413,4 @@ func createError(errCode int) (err error) {
 
 	err = errors.New(errMsg)
 	return
-}
-
-func defaultsForNewUser(username, password string) map[string]any {
-	var defaults = make(map[string]any)
-	var salt = randomString(saltLength)
-	defaults["_username"] = SHA256(username, salt)
-	defaults["_password"] = SHA256(password, salt)
-	defaults["_salt"] = salt
-	defaults["_id"] = "id-" + randomID(idLength)
-	defaults["data"] = make(map[string]any)
-
-	return defaults
-}
-
-func setToken(id, oldToken string) (newToken string) {
-	delete(tokens, oldToken)
-
-loopToken:
-	newToken = randomString(tokenLength)
-	if _, ok := tokens[newToken]; ok {
-		goto loopToken
-	}
-
-	var tmp = make(map[string]any)
-	tmp["id"] = id
-	tmp["expires"] = time.Now().Local().Add(time.Minute * time.Duration(tokenValidity))
-
-	tokens[newToken] = tmp
-
-	return
-}
-
-// SetCookieToken : set cookie
-func SetCookieToken(w http.ResponseWriter, token string) {
-	expiration := time.Now().Add(time.Minute * time.Duration(tokenValidity))
-	cookie := http.Cookie{Name: "Token", Value: token, Expires: expiration}
-	http.SetCookie(w, &cookie)
-}
-
-// mu guards the database and the tokens: every exported function that uses them holds it.
-var mu sync.Mutex
-
-// Init : see initDatabase.
-func Init(databasePath string, validity int) (err error) {
-	mu.Lock()
-	defer mu.Unlock()
-	return initDatabase(databasePath, validity)
-}
-
-// CreateDefaultUser : see createDefaultUser.
-func CreateDefaultUser(username, password string) (err error) {
-	mu.Lock()
-	defer mu.Unlock()
-	return createDefaultUser(username, password)
-}
-
-// CreateNewUser : see createNewUser.
-func CreateNewUser(username, password string) (userID string, err error) {
-	mu.Lock()
-	defer mu.Unlock()
-	return createNewUser(username, password)
-}
-
-// UserAuthentication : see userAuthentication.
-func UserAuthentication(username, password string) (token string, err error) {
-	mu.Lock()
-	defer mu.Unlock()
-	return userAuthentication(username, password)
-}
-
-// CheckTheValidityOfTheToken : see checkTheValidityOfTheToken.
-func CheckTheValidityOfTheToken(token string) (newToken string, err error) {
-	mu.Lock()
-	defer mu.Unlock()
-	return checkTheValidityOfTheToken(token)
-}
-
-// GetUserID : see getUserID.
-func GetUserID(token string) (userID string, err error) {
-	mu.Lock()
-	defer mu.Unlock()
-	return getUserID(token)
-}
-
-// WriteUserData : see writeUserData.
-func WriteUserData(userID string, userData map[string]any) (err error) {
-	mu.Lock()
-	defer mu.Unlock()
-	return writeUserData(userID, userData)
-}
-
-// ReadUserData : see readUserData. It returns a copy.
-func ReadUserData(userID string) (userData map[string]any, err error) {
-	mu.Lock()
-	defer mu.Unlock()
-	userData, err = readUserData(userID)
-	return copyMap(userData), err
-}
-
-// RemoveUser : see removeUser.
-func RemoveUser(userID string) (err error) {
-	mu.Lock()
-	defer mu.Unlock()
-	return removeUser(userID)
-}
-
-// SetDefaultUserData : see setDefaultUserData.
-func SetDefaultUserData(defaults map[string]any) (err error) {
-	mu.Lock()
-	defer mu.Unlock()
-	return setDefaultUserData(defaults)
-}
-
-// ChangeCredentials : see changeCredentials.
-func ChangeCredentials(userID, username, password string) (err error) {
-	mu.Lock()
-	defer mu.Unlock()
-	return changeCredentials(userID, username, password)
-}
-
-// GetAllUserData : see getAllUserData. It returns a copy.
-func GetAllUserData() (allUserData map[string]any, err error) {
-	mu.Lock()
-	defer mu.Unlock()
-	allUserData, err = getAllUserData()
-	return copyMap(allUserData), err
-}
-
-// copyMap returns a deep copy of a map of the database.
-func copyMap(m map[string]any) map[string]any {
-	if m == nil {
-		return nil
-	}
-	var c = make(map[string]any, len(m))
-	for k, v := range m {
-		if inner, ok := v.(map[string]any); ok {
-			c[k] = copyMap(inner)
-		} else {
-			c[k] = v
-		}
-	}
-	return c
 }

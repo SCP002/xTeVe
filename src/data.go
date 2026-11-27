@@ -394,50 +394,41 @@ func saveXEpgMapping(request RequestStruct) (err error) {
 	return
 }
 
+// UserForm is a user as the web UI sends it.
+type UserForm struct {
+	authentication.UserData
+	Password string `json:"password,omitempty"`
+	Confirm  string `json:"confirm,omitempty"`
+	Delete   bool   `json:"delete,omitempty"`
+}
+
 // Save User Data (WebUI)
 func saveUserData(request RequestStruct) (err error) {
-	var userData = request.UserData
-
-	var newCredentials = func(userID string, newUserData map[string]any) (err error) {
-		var newUsername, newPassword string
-		if username, ok := newUserData["username"].(string); ok {
-			newUsername = username
-		}
-
-		if password, ok := newUserData["password"].(string); ok {
-			newPassword = password
-		}
-
-		if len(newUsername) > 0 {
-			err = authentication.ChangeCredentials(userID, newUsername, newPassword)
-		}
-
+	var users map[string]UserForm
+	if err = json.Unmarshal(request.UserData, &users); err != nil {
 		return
 	}
 
-	for userID, newUserData := range userData {
-		err = newCredentials(userID, newUserData.(map[string]any))
-		if err != nil {
-			return
+	for userID, form := range users {
+		if len(form.Username) > 0 {
+			if err = authentication.ChangeCredentials(userID, form.Username, form.Password); err != nil {
+				return
+			}
 		}
 
 		if request.DeleteUser {
-			err = authentication.RemoveUser(userID)
-			return
+			return authentication.RemoveUser(userID)
 		}
 
-		delete(newUserData.(map[string]any), "password")
-		delete(newUserData.(map[string]any), "confirm")
-
-		if _, ok := newUserData.(map[string]any)["delete"]; ok {
+		if form.Delete {
 			if err = authentication.RemoveUser(userID); err != nil {
 				return
 			}
-		} else {
-			err = authentication.WriteUserData(userID, newUserData.(map[string]any))
-			if err != nil {
-				return
-			}
+			continue
+		}
+
+		if err = authentication.WriteUserData(userID, form.UserData); err != nil {
+			return
 		}
 	}
 
@@ -446,20 +437,17 @@ func saveUserData(request RequestStruct) (err error) {
 
 // Create New User (WebUI)
 func saveNewUser(request RequestStruct) (err error) {
-	var data = request.UserData
-	var username = data["username"].(string)
-	var password = data["password"].(string)
+	var form UserForm
+	if err = json.Unmarshal(request.UserData, &form); err != nil {
+		return
+	}
 
-	delete(data, "password")
-	delete(data, "confirm")
-
-	userID, err := authentication.CreateNewUser(username, password)
+	userID, err := authentication.CreateNewUser(form.Username, form.Password)
 	if err != nil {
 		return
 	}
 
-	err = authentication.WriteUserData(userID, data)
-	return
+	return authentication.WriteUserData(userID, form.UserData)
 }
 
 // Wizard (WebUI)

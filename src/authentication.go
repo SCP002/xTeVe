@@ -10,52 +10,37 @@ import (
 	"xteve/src/internal/config"
 )
 
-func activatedSystemAuthentication() (err error) {
-	err = authentication.Init(System.Folder.Config, 60)
+func activatedSystemAuthentication() error {
+	return authentication.Init(System.Folder.Config, 60)
+}
+
+func createFirstUserForAuthentication(username, password string) (token string, err error) {
+	if err = authentication.CreateDefaultUser(username, password); err != nil {
+		return
+	}
+
+	if token, err = authentication.UserAuthentication(username, password); err != nil {
+		return
+	}
+
+	if token, err = authentication.CheckTheValidityOfTheToken(token); err != nil {
+		return
+	}
+
+	userID, err := authentication.GetUserID(token)
 	if err != nil {
 		return
 	}
 
-	var defaults = make(map[string]any)
-	defaults["authentication.web"] = false
-	defaults["authentication.pms"] = false
-	defaults["authentication.xml"] = false
-	defaults["authentication.api"] = false
-	err = authentication.SetDefaultUserData(defaults)
-
-	return
-}
-
-func createFirstUserForAuthentication(username, password string) (token string, err error) {
-	var authenticationErr = func(err error) {
-		if err != nil {
-			return
-		}
-	}
-
-	err = authentication.CreateDefaultUser(username, password)
-	authenticationErr(err)
-
-	token, err = authentication.UserAuthentication(username, password)
-	authenticationErr(err)
-
-	token, err = authentication.CheckTheValidityOfTheToken(token)
-	authenticationErr(err)
-
-	var userData = make(map[string]any)
-	userData["username"] = username
-	userData["authentication.web"] = true
-	userData["authentication.pms"] = true
-	userData["authentication.m3u"] = true
-	userData["authentication.xml"] = true
-	userData["authentication.api"] = false
-	userData["defaultUser"] = true
-
-	userID, err := authentication.GetUserID(token)
-	authenticationErr(err)
-
-	err = authentication.WriteUserData(userID, userData)
-	authenticationErr(err)
+	err = authentication.WriteUserData(userID, authentication.UserData{
+		Username:    username,
+		WEB:         true,
+		PMS:         true,
+		M3U:         true,
+		XML:         true,
+		API:         false,
+		DefaultUser: true,
+	})
 
 	return
 }
@@ -134,37 +119,19 @@ func urlAuth(r *http.Request, requestType string) (err error) {
 	return
 }
 
-func checkAuthorizationLevel(token, level string) (err error) {
-	var authenticationErr = func(err error) {
-		if err != nil {
-			return
-		}
-	}
-
+func checkAuthorizationLevel(token, level string) error {
 	userID, err := authentication.GetUserID(token)
-	authenticationErr(err)
+	if err != nil {
+		return err
+	}
 
 	userData, err := authentication.ReadUserData(userID)
-	authenticationErr(err)
-
-	if len(userData) > 0 {
-		if v, ok := userData[level].(bool); ok {
-			if !v {
-				err = errors.New("no authorization")
-			}
-		} else {
-			userData[level] = false
-			if err = authentication.WriteUserData(userID, userData); err != nil {
-				return
-			}
-			err = errors.New("no authorization")
-		}
-	} else {
-		if err = authentication.WriteUserData(userID, userData); err != nil {
-			return
-		}
-		err = errors.New("no authorization")
+	if err != nil {
+		return err
 	}
 
-	return
+	if !userData.Allowed(level) {
+		return errors.New("no authorization")
+	}
+	return nil
 }

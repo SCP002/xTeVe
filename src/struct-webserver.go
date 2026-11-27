@@ -1,6 +1,8 @@
 package src
 
 import (
+	"encoding/json"
+	"xteve/src/internal/authentication"
 	"xteve/src/internal/config"
 	"xteve/src/internal/epg"
 	"xteve/src/internal/logger"
@@ -12,8 +14,8 @@ type RequestStruct struct {
 	Cmd string `json:"cmd"`
 
 	// User
-	DeleteUser bool           `json:"deleteUser,omitempty"`
-	UserData   map[string]any `json:"userData,omitempty"`
+	DeleteUser bool            `json:"deleteUser,omitempty"`
+	UserData   json.RawMessage `json:"userData,omitempty"`
 
 	// Mapping
 	EpgMapping epg.Channels `json:"epgMapping,omitempty"`
@@ -116,21 +118,22 @@ type ResponseStruct struct {
 		}
 	} `json:"data"`
 
-	Alert               string             `json:"alert,omitempty"`
-	ConfigurationWizard bool               `json:"configurationWizard"`
-	Error               string             `json:"err,omitempty"`
-	IPAddressesV4Host   []string           `json:"ipAddressesV4Host"` // Every IPv4 address to display in web client
-	Log                 WebScreenLogStruct `json:"log"`
-	LogoURL             string             `json:"logoURL,omitempty"`
-	OpenLink            string             `json:"openLink,omitempty"`
-	OpenMenu            string             `json:"openMenu,omitempty"`
-	Reload              bool               `json:"reload,omitempty"`
-	Settings            SettingsStruct     `json:"settings"`
-	Status              bool               `json:"status"`
-	Token               string             `json:"token,omitempty"`
-	Users               map[string]any     `json:"users,omitempty"`
-	Wizard              int                `json:"wizard"`
-	XEPG                map[string]any     `json:"xepg"`
+	Alert               string `json:"alert,omitempty"`
+	ConfigurationWizard bool   `json:"configurationWizard"`
+	Error               string `json:"err,omitempty"`
+	// Every IPv4 address to display in web client
+	IPAddressesV4Host []string                             `json:"ipAddressesV4Host"`
+	Log               WebScreenLogStruct                   `json:"log"`
+	LogoURL           string                               `json:"logoURL,omitempty"`
+	OpenLink          string                               `json:"openLink,omitempty"`
+	OpenMenu          string                               `json:"openMenu,omitempty"`
+	Reload            bool                                 `json:"reload,omitempty"`
+	Settings          SettingsStruct                       `json:"settings"`
+	Status            bool                                 `json:"status"`
+	Token             string                               `json:"token,omitempty"`
+	Users             map[string]authentication.PublicUser `json:"users,omitempty"`
+	Wizard            int                                  `json:"wizard"`
+	XEPG              map[string]any                       `json:"xepg"`
 
 	Notification map[string]Notification `json:"notification,omitempty"`
 }
