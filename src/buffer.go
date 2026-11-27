@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -756,12 +757,24 @@ func connectToStreamingServer(streamID int, playlistID string) {
 			// Clean up Content Type
 			if len(contentType) > 0 {
 				var ct = strings.SplitN(contentType, ";", 2)
-				contentType = strings.ToLower(ct[0])
+				contentType = strings.TrimSpace(strings.ToLower(ct[0]))
 			}
 
-			switch contentType {
+			// Many servers send no or a wrong content type, so the data decides
+			if !slices.Contains(m3u8ContentTypes, contentType) && !slices.Contains(tsContentTypes, contentType) {
+				var body = bufio.NewReaderSize(resp.Body, 188*2)
+				var start, _ = body.Peek(188 + 1)
+				resp.Body = readCloser{body, resp.Body}
+
+				if sniffed := sniffStreamType(start); sniffed != "" {
+					showDebug(fmt.Sprintf("Content Type:%q is treated as %s", contentType, sniffed), 1)
+					contentType = sniffed
+				}
+			}
+
+			switch {
 			// M3U8 Playlist
-			case "application/x-mpegurl", "application/vnd.apple.mpegurl", "audio/mpegurl", "audio/x-mpegurl":
+			case slices.Contains(m3u8ContentTypes, contentType):
 				body, err := io.ReadAll(resp.Body)
 				if err != nil {
 					ShowError(err, 0)
@@ -779,14 +792,7 @@ func connectToStreamingServer(streamID int, playlistID string) {
 				}
 
 			// Video Stream (TS)
-			case "video/mpeg",
-				"video/mp4",
-				"video/mp2t",
-				"video/m2ts",
-				"application/octet-stream",
-				"binary/octet-stream",
-				"application/mp2t",
-				"video/x-matroska":
+			case slices.Contains(tsContentTypes, contentType):
 
 				var fileSize int
 
@@ -916,8 +922,6 @@ func connectToStreamingServer(streamID int, playlistID string) {
 					}
 				}
 
-				//--
-
 			// Unknown Format
 			default:
 				showInfo("Content Type:" + resp.Header.Get("Content-Type"))
@@ -972,6 +976,36 @@ func connectToStreamingServer(streamID int, playlistID string) {
 			closeOrLog(resp.Body)
 		} // End for loop
 	} // End of BufferInformation
+}
+
+// Content types of HLS playlists
+var m3u8ContentTypes = []string{
+	"application/x-mpegurl", "application/mpegurl", "application/vnd.apple.mpegurl", "audio/mpegurl",
+	"audio/x-mpegurl",
+}
+
+// Content types of streams that are passed through as they are
+var tsContentTypes = []string{
+	"video/mpeg", "video/mp4", "video/mp2t", "video/m2ts", "application/octet-stream", "binary/octet-stream",
+	"application/mp2t", "video/x-matroska",
+}
+
+// sniffStreamType returns the content type of a stream judging by its first bytes: an HLS playlist or an MPEG-TS
+// stream (sync byte 0x47 every 188 bytes). It returns "" if it is neither.
+func sniffStreamType(start []byte) string {
+	if bytes.HasPrefix(bytes.TrimLeft(start, "\ufeff \t\r\n"), []byte("#EXTM3U")) {
+		return "application/vnd.apple.mpegurl"
+	}
+	if len(start) > 188 && start[0] == 0x47 && start[188] == 0x47 {
+		return "video/mp2t"
+	}
+	return ""
+}
+
+// readCloser reads from a reader that wraps the body of a response and closes the body itself.
+type readCloser struct {
+	io.Reader
+	io.Closer
 }
 
 func parseM3U8(stream *ThisStream) (err error) {

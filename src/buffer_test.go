@@ -226,3 +226,28 @@ func TestParseM3U8Errors(t *testing.T) {
 		}
 	}
 }
+
+func TestSniffStreamType(t *testing.T) {
+	var ts = make([]byte, 189)
+	ts[0], ts[188] = 0x47, 0x47
+	var notTS = make([]byte, 189)
+	notTS[0] = 0x47
+
+	tests := map[string]struct {
+		start []byte
+		want  string
+	}{
+		"playlist":          {start: []byte("#EXTM3U\n#EXT-X-VERSION:3\n"), want: "application/vnd.apple.mpegurl"},
+		"playlist with BOM": {start: []byte("\uFEFF#EXTM3U\n"), want: "application/vnd.apple.mpegurl"},
+		"leading newline":   {start: []byte("\r\n#EXTM3U\n"), want: "application/vnd.apple.mpegurl"},
+		"MPEG-TS":           {start: ts, want: "video/mp2t"},
+		"one sync byte":     {start: notTS, want: ""},
+		"short":             {start: []byte{0x47}, want: ""},
+		"HTML":              {start: []byte("<html><body>Not found</body></html>"), want: ""},
+	}
+	for name, tt := range tests {
+		if got := sniffStreamType(tt.start); got != tt.want {
+			t.Errorf("%s: sniffStreamType = %q, want %q", name, got, tt.want)
+		}
+	}
+}
