@@ -30,8 +30,8 @@ func ShowSystemInfo() {
 	)
 	fmt.Printf("Folder (config):     %s\n", System.Folder.Config)
 
-	fmt.Printf("Streams:             %d / %d\n", len(Data.Streams.Active), len(Data.Streams.All))
-	fmt.Printf("Filter:              %d\n", len(Data.Filter))
+	fmt.Printf("Streams:             %d / %d\n", len(streamsDB.Get().Active), len(streamsDB.Get().All))
+	fmt.Printf("Filter:              %d\n", len(streamsDB.Get().Filters))
 	fmt.Printf("XEPG Chanels:        %d\n", int(Data.XEPG.XEPGCount))
 
 	fmt.Println()

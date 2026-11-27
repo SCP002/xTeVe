@@ -4,6 +4,7 @@ import (
 	"xteve/src/internal/config"
 	"xteve/src/internal/imgcache"
 	"xteve/src/internal/logger"
+	"xteve/src/internal/playlist"
 	"xteve/src/internal/system"
 )
 
@@ -33,28 +34,6 @@ type DataStruct struct {
 		}
 	}
 
-	Filter []Filter
-
-	Playlist struct {
-		M3U struct {
-			Groups struct {
-				Text  []string
-				Value []string
-			}
-		}
-	}
-
-	StreamPreviewUI struct {
-		Active   []string
-		Inactive []string
-	}
-
-	Streams struct {
-		Active   []any
-		All      []any
-		Inactive []any
-	}
-
 	XMLTV struct {
 		Files   []string
 		Mapping map[string]any
@@ -67,13 +46,7 @@ type DataStruct struct {
 }
 
 // Filter : Used for the Filter Rules
-type Filter struct {
-	CaseSensitive   bool
-	PreserveMapping bool
-	Rule            string
-	Type            string
-	StartingChannel string
-}
+type Filter = playlist.Filter
 
 // XEPGChannelStruct : XEPG Structure
 type XEPGChannelStruct struct {
@@ -127,19 +100,7 @@ type M3UChannelStructXEPG struct {
 }
 
 // FilterStruct : Filter Structure
-type FilterStruct struct {
-	Active          bool   `json:"active"`
-	CaseSensitive   bool   `json:"caseSensitive"`
-	PreserveMapping bool   `json:"preserveMapping"`
-	Description     string `json:"description"`
-	Exclude         string `json:"exclude"`
-	Filter          string `json:"filter"`
-	Include         string `json:"include"`
-	Name            string `json:"name"`
-	Rule            string `json:"rule,omitempty"`
-	Type            string `json:"type"`
-	StartingChannel string `json:"startingChannel"`
-}
+type FilterStruct = playlist.FilterSettings
 
 // StreamingURLS : Information on all Streaming URL's
 type StreamingURLS struct {

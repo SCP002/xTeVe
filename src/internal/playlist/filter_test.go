@@ -1,26 +1,23 @@
-package src
+package playlist
 
 import (
 	"reflect"
 	"testing"
 )
 
-// setFilters replaces Settings.Filter and builds Data.Filter from it.
-func setFilters(t *testing.T, filters ...map[string]any) {
+// rules builds the filter rules from filter settings.
+func rules(t *testing.T, filters ...map[string]any) []Filter {
 	t.Helper()
 
-	var oldData = Data.Filter
-	t.Cleanup(func() { Data.Filter = oldData })
-
-	setSettings(t, func(s *SettingsStruct) {
-		s.Filter = make(map[int64]any)
-		for i, f := range filters {
-			s.Filter[int64(i)] = f
-		}
-	})
-	if err := createFilterRules(); err != nil {
+	var settings = make(map[int64]any)
+	for i, f := range filters {
+		settings[int64(i)] = f
+	}
+	var r, err = Rules(settings)
+	if err != nil {
 		t.Fatal(err)
 	}
+	return r
 }
 
 func groupFilter(group, include, exclude string) map[string]any {
@@ -45,7 +42,7 @@ func testStream(group, name string) map[string]string {
 }
 
 func TestCreateFilterRules(t *testing.T) {
-	setFilters(t,
+	var filters = rules(t,
 		groupFilter("News", "HD", "SD"),
 		map[string]any{"type": "custom-filter", "filter": "Sport", "caseSensitive": true},
 	)
@@ -55,16 +52,16 @@ func TestCreateFilterRules(t *testing.T) {
 		{Type: "custom-filter", Rule: "Sport", CaseSensitive: true},
 	}
 	// Settings.Filter is a map, so the order of the rules is not fixed
-	if len(Data.Filter) != len(want) {
-		t.Fatalf("Data.Filter = %+v", Data.Filter)
+	if len(filters) != len(want) {
+		t.Fatalf("filters = %+v", filters)
 	}
 	for _, w := range want {
 		var found bool
-		for _, f := range Data.Filter {
+		for _, f := range filters {
 			found = found || reflect.DeepEqual(f, w)
 		}
 		if !found {
-			t.Errorf("Data.Filter = %+v, missing %+v", Data.Filter, w)
+			t.Errorf("filters = %+v, missing %+v", filters, w)
 		}
 	}
 }
@@ -92,19 +89,19 @@ func TestFilterThisStreamGroup(t *testing.T) {
 		{name: "trailing comma in include", include: "FHD,", stream: testStream("News", "BBC HD"), want: false},
 	}
 	for _, tt := range tests {
-		setFilters(t, groupFilter("News", tt.include, tt.exclude))
+		var filters = rules(t, groupFilter("News", tt.include, tt.exclude))
 
-		if got := filterThisStream(tt.stream); got != tt.want {
-			t.Errorf("%s: filterThisStream = %v, want %v (rule %q)", tt.name, got, tt.want, Data.Filter[0].Rule)
+		if got := Accept(tt.stream, filters); got != tt.want {
+			t.Errorf("%s: filterThisStream = %v, want %v (rule %q)", tt.name, got, tt.want, filters[0].Rule)
 		}
 	}
 }
 
 func TestFilterThisStreamGroupMarksStream(t *testing.T) {
-	setFilters(t, groupFilter("News", "", ""))
+	var filters = rules(t, groupFilter("News", "", ""))
 
 	var stream = testStream("News", "BBC")
-	if !filterThisStream(stream) {
+	if !Accept(stream, filters) {
 		t.Fatal("stream was not accepted")
 	}
 	if stream["_preserve-mapping"] != "true" || stream["_starting-channel"] != "1000" {
@@ -128,16 +125,18 @@ func TestFilterThisStreamCustom(t *testing.T) {
 		{name: "with include", rule: "News {One}", stream: testStream("News", "BBC One"), want: true},
 	}
 	for _, tt := range tests {
-		setFilters(t, map[string]any{"type": "custom-filter", "filter": tt.rule, "caseSensitive": tt.caseSensitive})
+		var filters = rules(t, map[string]any{
+			"type": "custom-filter", "filter": tt.rule, "caseSensitive": tt.caseSensitive,
+		})
 
-		if got := filterThisStream(tt.stream); got != tt.want {
+		if got := Accept(tt.stream, filters); got != tt.want {
 			t.Errorf("%s: filterThisStream = %v, want %v", tt.name, got, tt.want)
 		}
 	}
 }
 
 func TestFilterThisStreamSeveralFilters(t *testing.T) {
-	setFilters(t, groupFilter("News", "", ""), groupFilter("Sport", "HD", ""))
+	var filters = rules(t, groupFilter("News", "", ""), groupFilter("Sport", "HD", ""))
 
 	tests := []struct {
 		stream map[string]string
@@ -149,7 +148,7 @@ func TestFilterThisStreamSeveralFilters(t *testing.T) {
 		{stream: testStream("Movies", "HBO"), want: false},
 	}
 	for _, tt := range tests {
-		if got := filterThisStream(tt.stream); got != tt.want {
+		if got := Accept(tt.stream, filters); got != tt.want {
 			t.Errorf("%v: filterThisStream = %v, want %v", tt.stream, got, tt.want)
 		}
 	}
@@ -160,18 +159,18 @@ func TestFilterThisStreamOrderIndependent(t *testing.T) {
 	var custom = map[string]any{"type": "custom-filter", "filter": "BBC"}
 
 	for _, order := range [][]map[string]any{{news, custom}, {custom, news}} {
-		// Fix the order of Data.Filter instead of relying on map iteration
-		setFilters(t, order[0])
-		var first = Data.Filter
-		setFilters(t, order[1])
-		Data.Filter = append(first, Data.Filter...)
+		// Fix the order of filters instead of relying on map iteration
+		var filters = rules(t, order[0])
+		var first = filters
+		filters = rules(t, order[1])
+		filters = append(first, filters...)
 
 		var stream = testStream("News", "BBC SD")
-		if !filterThisStream(stream) {
-			t.Errorf("order %v: stream excluded by one filter was not accepted by the other", Data.Filter)
+		if !Accept(stream, filters) {
+			t.Errorf("order %v: stream excluded by one filter was not accepted by the other", filters)
 		}
 		if _, ok := stream["_preserve-mapping"]; ok {
-			t.Errorf("order %v: stream got the marks of the group filter that excluded it", Data.Filter)
+			t.Errorf("order %v: stream got the marks of the group filter that excluded it", filters)
 		}
 	}
 }

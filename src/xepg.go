@@ -328,8 +328,8 @@ func createXEPGDatabase() (err error) {
 		xepgChannelsValuesMap[channelHash] = append(xepgChannelsValuesMap[channelHash], channel)
 	}
 
-	var m3uChannels = make([]M3UChannelStructXEPG, len(Data.Streams.Active))
-	for i, dsa := range Data.Streams.Active {
+	var m3uChannels = make([]M3UChannelStructXEPG, len(streamsDB.Get().Active))
+	for i, dsa := range streamsDB.Get().Active {
 		err = json.Unmarshal([]byte(mapToJSON(dsa)), &m3uChannels[i])
 		if err != nil {
 			return
@@ -721,7 +721,7 @@ func createXMLTVFile() (err error) {
 		}
 	}
 
-	if len(Data.XMLTV.Files) == 0 && len(Data.Streams.Active) == 0 {
+	if len(Data.XMLTV.Files) == 0 && len(streamsDB.Get().Active) == 0 {
 		Data.XEPG.Channels = make(map[string]any)
 		return
 	}
@@ -1162,7 +1162,7 @@ func cleanupXEPG() {
 
 	showInfo("XEPG Channels:" + fmt.Sprintf("%d", Data.XEPG.XEPGCount))
 
-	if len(Data.Streams.Active) > 0 && Data.XEPG.XEPGCount == 0 {
+	if len(streamsDB.Get().Active) > 0 && Data.XEPG.XEPGCount == 0 {
 		showWarning(2005)
 	}
 }

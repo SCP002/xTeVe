@@ -928,8 +928,8 @@ func API(w http.ResponseWriter, r *http.Request) {
 	case "status":
 		response.VersionXteve = System.Version
 		response.VersionAPI = System.APIVersion
-		response.StreamsActive = int64(len(Data.Streams.Active))
-		response.StreamsAll = int64(len(Data.Streams.All))
+		response.StreamsActive = int64(len(streamsDB.Get().Active))
+		response.StreamsAll = int64(len(streamsDB.Get().All))
 		response.StreamsXepg = int64(Data.XEPG.XEPGCount)
 		response.EpgSource = config.Get().EpgSource
 		response.URLDvr = System.Domain()
@@ -1007,7 +1007,7 @@ func setDefaultResponseData(response ResponseStruct, data bool) (defaults Respon
 	defaults.ClientInfo.EpgSource = config.Get().EpgSource
 	defaults.ClientInfo.DVR, defaults.ClientInfo.M3U, defaults.ClientInfo.XML = clientAddresses()
 	defaults.ClientInfo.OS = System.OS
-	defaults.ClientInfo.Streams = fmt.Sprintf("%d / %d", len(Data.Streams.Active), len(Data.Streams.All))
+	defaults.ClientInfo.Streams = fmt.Sprintf("%d / %d", len(streamsDB.Get().Active), len(streamsDB.Get().All))
 	defaults.ClientInfo.UUID = config.Get().UUID
 	var log = logger.Default().Log()
 	defaults.ClientInfo.Errors = log.Errors
@@ -1034,7 +1034,7 @@ func setDefaultResponseData(response ResponseStruct, data bool) (defaults Respon
 
 			var XEPG = make(map[string]any)
 
-			if len(Data.Streams.Active) > 0 {
+			if len(streamsDB.Get().Active) > 0 {
 				XEPG["epgMapping"] = Data.XEPG.Channels
 				XEPG["xmltvMap"] = Data.XMLTV.Mapping
 			} else {
@@ -1047,10 +1047,11 @@ func setDefaultResponseData(response ResponseStruct, data bool) (defaults Respon
 
 		defaults.Settings = *config.Get()
 
-		defaults.Data.Playlist.M3U.Groups.Text = Data.Playlist.M3U.Groups.Text
-		defaults.Data.Playlist.M3U.Groups.Value = Data.Playlist.M3U.Groups.Value
-		defaults.Data.StreamPreviewUI.Active = Data.StreamPreviewUI.Active
-		defaults.Data.StreamPreviewUI.Inactive = Data.StreamPreviewUI.Inactive
+		var streams = streamsDB.Get()
+		defaults.Data.Playlist.M3U.Groups.Text = streams.GroupTexts()
+		defaults.Data.Playlist.M3U.Groups.Value = streams.GroupValues()
+		defaults.Data.StreamPreviewUI.Active = streams.PreviewActive
+		defaults.Data.StreamPreviewUI.Inactive = streams.PreviewInactive
 	}
 
 	return

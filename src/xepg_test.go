@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
+	"xteve/src/internal/playlist"
 )
 
 func TestShiftXMLTVTime(t *testing.T) {
@@ -38,10 +39,11 @@ func TestShiftXMLTVTime(t *testing.T) {
 func xepgTest(t *testing.T, db []XEPGChannelStruct, streams ...map[string]string) {
 	t.Helper()
 
-	var oldFile, oldStreams, oldCache = System.File.XEPG, Data.Streams.Active, Data.Cache.Streams.Active
+	var oldFile, oldStreams, oldCache = System.File.XEPG, streamsDB.Get(), Data.Cache.Streams.Active
 	var oldChannels, oldMapping = Data.XEPG.Channels, Data.XMLTV.Mapping
 	t.Cleanup(func() {
-		System.File.XEPG, Data.Streams.Active, Data.Cache.Streams.Active = oldFile, oldStreams, oldCache
+		System.File.XEPG, Data.Cache.Streams.Active = oldFile, oldCache
+		streamsDB.Set(oldStreams)
 		Data.XEPG.Channels, Data.XMLTV.Mapping = oldChannels, oldMapping
 	})
 
@@ -60,10 +62,7 @@ func xepgTest(t *testing.T, db []XEPGChannelStruct, streams ...map[string]string
 		t.Fatal(err)
 	}
 
-	Data.Streams.Active = nil
-	for _, s := range streams {
-		Data.Streams.Active = append(Data.Streams.Active, s)
-	}
+	streamsDB.Set(&playlist.Snapshot{Active: streams})
 	Data.XMLTV.Mapping = make(map[string]any)
 }
 

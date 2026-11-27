@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sort"
 	"testing"
+	"xteve/src/internal/playlist"
 
 	"github.com/samber/lo"
 )
@@ -21,10 +22,11 @@ func TestGuideNumberLess(t *testing.T) {
 }
 
 func TestGetLineupPMSDuplicateNames(t *testing.T) {
-	var oldFiles, oldStreams = System.File, Data.Streams.Active
+	var oldFiles, oldStreams = System.File, streamsDB.Get()
 	var oldURLs = Data.Cache.StreamingURLS
 	t.Cleanup(func() {
-		System.File, Data.Streams.Active = oldFiles, oldStreams
+		System.File = oldFiles
+		streamsDB.Set(oldStreams)
 		Data.Cache.StreamingURLS = oldURLs
 	})
 
@@ -37,12 +39,12 @@ func TestGetLineupPMSDuplicateNames(t *testing.T) {
 	}
 	setSettings(t, func(s *SettingsStruct) { s.EpgSource = "PMS" })
 	Data.Cache.StreamingURLS = make(map[string]StreamInfo)
-	Data.Streams.Active = []any{
+	streamsDB.Set(&playlist.Snapshot{Active: []playlist.Stream{
 		m3uStream("News", "A"),
 		m3uStream("Kids", "A"),
 		m3uStream("News", "B"),
 		m3uStream("News (2)", "C"), // a real channel with the name of a generated key
-	}
+	}})
 
 	var guideNumbers = func() []string {
 		content, err := getLineup()

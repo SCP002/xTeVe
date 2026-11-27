@@ -7,7 +7,6 @@ import (
 	"maps"
 	"os"
 	"path"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +14,7 @@ import (
 	"xteve/src/internal/authentication"
 	"xteve/src/internal/config"
 	"xteve/src/internal/imgcache"
+	"xteve/src/internal/playlist"
 )
 
 // Change Settings (WebUI)
@@ -642,222 +642,50 @@ func saveWizard(request RequestStruct) (nextStep int, err error) {
 	return
 }
 
-// Create Filter Rules
-func createFilterRules() (err error) {
-	Data.Filter = nil
-
-	for _, f := range config.Get().Filter {
-		var dataFilter Filter
-		var filter FilterStruct
-
-		var exclude, include string
-
-		err = json.Unmarshal([]byte(mapToJSON(f)), &filter)
-		if err != nil {
-			return
-		}
-
-		switch filter.Type {
-		case "custom-filter":
-			dataFilter.CaseSensitive = filter.CaseSensitive
-			dataFilter.Rule = filter.Filter
-			dataFilter.Type = filter.Type
-
-			Data.Filter = append(Data.Filter, dataFilter)
-
-		case "group-title":
-			if len(filter.Include) > 0 {
-				include = fmt.Sprintf(" {%s}", filter.Include)
-			}
-
-			if len(filter.Exclude) > 0 {
-				exclude = fmt.Sprintf(" !{%s}", filter.Exclude)
-			}
-
-			dataFilter.CaseSensitive = filter.CaseSensitive
-			dataFilter.PreserveMapping = filter.PreserveMapping
-			dataFilter.StartingChannel = filter.StartingChannel
-			dataFilter.Rule = fmt.Sprintf("%s%s%s", filter.Filter, include, exclude)
-			dataFilter.Type = filter.Type
-
-			Data.Filter = append(Data.Filter, dataFilter)
-		}
-	}
-
-	return
-}
+// streamsDB is the current list of streams.
+var streamsDB playlist.Store
 
 // Create a Database for the DVR System
 func buildDatabaseDVR() (err error) {
 	System.ScanInProgress.Store(true)
+	defer System.ScanInProgress.Store(false)
 
-	Data.Streams.All = make([]any, 0)
-	Data.Streams.Active = make([]any, 0)
-	Data.Streams.Inactive = make([]any, 0)
-	Data.Playlist.M3U.Groups.Text = []string{}
-	Data.Playlist.M3U.Groups.Value = []string{}
-	Data.StreamPreviewUI.Active = []string{}
-	Data.StreamPreviewUI.Inactive = []string{}
-
-	var availableFileTypes = []string{"m3u", "hdhr"}
-
-	var urlValuesMap = make(map[string]string)
-	var tmpGroupsM3U = make(map[string]int64)
-
-	err = createFilterRules()
-	if err != nil {
-		return
-	}
-
-	for _, fileType := range availableFileTypes {
-		var playlistFile = getLocalProviderFiles(fileType)
-
-		for _, i := range playlistFile {
-			var channels []any
-			var groupTitle, tvgID, uuid = 0, 0, 0
-			var keys = []string{"group-title", "tvg-id", "uuid"}
-			var compatibility = make(map[string]int)
-
-			var id = strings.TrimSuffix(getFilenameFromPath(i), path.Ext(getFilenameFromPath(i)))
-			var playlistName = getProviderParameter(id, fileType, "name")
-
-			channels, parseErr := parsePlaylist(i, fileType)
-			if parseErr != nil {
-				// The playlist is skipped, the others are still used
-				ShowError(fmt.Errorf("%s: %w", playlistName, parseErr), 1005)
-				continue
-			}
-
-			// Analyze Streams
-			for _, stream := range channels {
-				var s = stream.(map[string]string)
-				s["_file.m3u.path"] = i
-				s["_file.m3u.name"] = playlistName
-				s["_file.m3u.id"] = id
-
-				if config.Get().DisallowURLDuplicates {
-					if _, haveURL := urlValuesMap[s["url"]]; haveURL {
-						showInfo(
-							"Streams:" + fmt.Sprintf(
-								"Found duplicated URL %v, ignoring the channel %v",
-								s["url"],
-								s["name"],
-							),
-						)
-						continue
-					} else {
-						urlValuesMap[s["url"]] = s["_values"]
-					}
-				}
-
-				// Calculate Compatibility
-				for _, key := range keys {
-					switch key {
-					case "uuid":
-						if value, ok := s["_uuid.key"]; ok {
-							if len(value) > 0 {
-								uuid++
-							}
-						}
-
-					case "group-title":
-						if value, ok := s[key]; ok {
-							if len(value) > 0 {
-								tmpGroupsM3U[value]++
-
-								groupTitle++
-							}
-						}
-
-					case "tvg-id":
-						if value, ok := s[key]; ok {
-							if len(value) > 0 {
-								tvgID++
-							}
-						}
-					}
-				}
-
-				Data.Streams.All = append(Data.Streams.All, stream)
-
-				// New Filter from Version 1.3.0
-				var preview string
-				var status = filterThisStream(stream)
-
-				if name, ok := s["name"]; ok {
-					var group string
-
-					if v, ok := s["group-title"]; ok {
-						group = v
-					}
-
-					preview = fmt.Sprintf("%s [%s]", name, group)
-				}
-
-				switch status {
-				case true:
-					Data.StreamPreviewUI.Active = append(Data.StreamPreviewUI.Active, preview)
-					Data.Streams.Active = append(Data.Streams.Active, stream)
-
-				case false:
-					Data.StreamPreviewUI.Inactive = append(Data.StreamPreviewUI.Inactive, preview)
-					Data.Streams.Inactive = append(Data.Streams.Inactive, stream)
-				}
-			}
-
-			if tvgID == 0 {
-				compatibility["tvg.id"] = 0
-			} else {
-				compatibility["tvg.id"] = int(tvgID * 100 / len(channels))
-			}
-
-			if groupTitle == 0 {
-				compatibility["group.title"] = 0
-			} else {
-				compatibility["group.title"] = int(groupTitle * 100 / len(channels))
-			}
-
-			if uuid == 0 {
-				compatibility["stream.id"] = 0
-			} else {
-				compatibility["stream.id"] = int(uuid * 100 / len(channels))
-			}
-
-			compatibility["streams"] = len(channels)
-
-			setProviderCompatibility(id, fileType, compatibility)
+	var settings = config.Get()
+	var sources []playlist.Source
+	for _, fileType := range []string{"m3u", "hdhr"} {
+		for _, file := range getLocalProviderFiles(fileType) {
+			var id = strings.TrimSuffix(getFilenameFromPath(file), path.Ext(getFilenameFromPath(file)))
+			sources = append(sources, playlist.Source{
+				ID:   id,
+				Type: fileType,
+				Name: getProviderParameter(id, fileType, "name"),
+				Path: file,
+			})
 		}
 	}
 
-	for group, count := range tmpGroupsM3U {
-		var text = fmt.Sprintf("%s (%d)", group, count)
-		var value = group
-		Data.Playlist.M3U.Groups.Text = append(Data.Playlist.M3U.Groups.Text, text)
-		Data.Playlist.M3U.Groups.Value = append(Data.Playlist.M3U.Groups.Value, value)
+	snapshot, compatibilities, err := playlist.Build(sources, playlist.Options{
+		Filters:               settings.Filter,
+		DisallowURLDuplicates: settings.DisallowURLDuplicates,
+	})
+	if err != nil {
+		return
+	}
+	streamsDB.Set(snapshot)
+
+	for _, source := range sources {
+		if compatibility, ok := compatibilities[source.ID]; ok {
+			setProviderCompatibility(source.ID, source.Type, compatibility)
+		}
 	}
 
-	sort.Strings(Data.Playlist.M3U.Groups.Text)
-	sort.Strings(Data.Playlist.M3U.Groups.Value)
-
-	if len(Data.Streams.Active) == 0 && len(config.Get().Filter) == 0 {
-		Data.Streams.Active = Data.Streams.All
-		Data.Streams.Inactive = make([]any, 0)
-
-		Data.StreamPreviewUI.Active = Data.StreamPreviewUI.Inactive
-		Data.StreamPreviewUI.Inactive = []string{}
-	}
-
-	if len(Data.Streams.Active) > System.PlexChannelLimit {
+	if len(snapshot.Active) > System.PlexChannelLimit {
 		showWarning(2000)
 	}
 
-	System.ScanInProgress.Store(false)
-	showInfo(fmt.Sprintf("All streams:%d", len(Data.Streams.All)))
-	showInfo(fmt.Sprintf("Active streams:%d", len(Data.Streams.Active)))
-	showInfo(fmt.Sprintf("Filter:%d", len(Data.Filter)))
-
-	sort.Strings(Data.StreamPreviewUI.Active)
-	sort.Strings(Data.StreamPreviewUI.Inactive)
+	showInfo(fmt.Sprintf("All streams:%d", len(snapshot.All)))
+	showInfo(fmt.Sprintf("Active streams:%d", len(snapshot.Active)))
+	showInfo(fmt.Sprintf("Filter:%d", len(snapshot.Filters)))
 
 	return
 }

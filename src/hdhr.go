@@ -10,30 +10,6 @@ import (
 	"xteve/src/internal/config"
 )
 
-func makeInteraceFromHDHR(content []byte, playlistName, id string) (channels []any, err error) {
-	var hdhrData []any
-
-	err = json.Unmarshal(content, &hdhrData)
-	if err == nil {
-		for _, d := range hdhrData {
-			var channel = make(map[string]string)
-			var data = d.(map[string]any)
-
-			channel["group-title"] = playlistName
-			channel["name"] = data["GuideName"].(string)
-			channel["tvg-id"] = data["GuideName"].(string)
-			channel["url"] = data["URL"].(string)
-			channel["ID-"+id] = data["GuideNumber"].(string)
-			channel["_uuid.key"] = "ID-" + id
-			channel["_values"] = playlistName + " " + channel["name"]
-
-			channels = append(channels, channel)
-		}
-	}
-
-	return
-}
-
 func getCapability() (xmlContent []byte, err error) {
 	var capability Capability
 	var buffer bytes.Buffer
@@ -108,7 +84,7 @@ func getLineup() (jsonContent []byte, err error) {
 		// so on, so that each of them has its own ID and the first one keeps the ID stored for the plain name.
 		var pmsKeys = make(map[string]bool)
 
-		for i, dsa := range Data.Streams.Active {
+		for i, dsa := range streamsDB.Get().Active {
 			var m3uChannel M3UChannelStructXEPG
 
 			err = json.Unmarshal([]byte(mapToJSON(dsa)), &m3uChannel)
