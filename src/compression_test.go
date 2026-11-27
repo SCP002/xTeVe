@@ -78,9 +78,9 @@ func TestExtractZIPRejectsPathTraversal(t *testing.T) {
 func backupTest(t *testing.T) map[string]string {
 	t.Helper()
 
-	var oldFolder, oldTemp, oldTLS = System.Folder, System.TempFolder(), Settings.TLSMode
+	var oldFolder, oldTemp = System.Folder, System.TempFolder()
 	t.Cleanup(func() {
-		System.Folder, Settings.TLSMode = oldFolder, oldTLS
+		System.Folder = oldFolder
 		System.SetTempFolder(oldTemp)
 	})
 
@@ -91,7 +91,7 @@ func backupTest(t *testing.T) map[string]string {
 	System.Folder.ImagesUpload = System.Folder.Data + "images" + sep
 	System.Folder.Backup = System.Folder.Config + "backup" + sep
 	System.SetTempFolder(t.TempDir() + sep)
-	Settings.TLSMode = true
+	setSettings(t, func(s *SettingsStruct) { s.TLSMode = true })
 
 	var files = map[string]string{
 		"data/M1.m3u":               "#EXTM3U",
@@ -182,9 +182,7 @@ func TestBackupRoundTrip(t *testing.T) {
 
 func TestAutoBackupRoundTrip(t *testing.T) {
 	var files = backupTest(t)
-	var oldPath, oldKeep = Settings.BackupPath, Settings.BackupKeep
-	t.Cleanup(func() { Settings.BackupPath, Settings.BackupKeep = oldPath, oldKeep })
-	Settings.BackupPath, Settings.BackupKeep = "", 2
+	setSettings(t, func(s *SettingsStruct) { s.BackupPath, s.BackupKeep = "", 2 })
 
 	// The auto backup contains only the uploaded images of the data folder
 	for name := range files {
@@ -220,7 +218,7 @@ func TestAutoBackupRoundTrip(t *testing.T) {
 
 func TestBackupWithoutTLS(t *testing.T) {
 	var files = backupTest(t)
-	Settings.TLSMode = false
+	setSettings(t, func(s *SettingsStruct) { s.TLSMode = false })
 	for name := range files {
 		if strings.HasPrefix(name, "certificates/") {
 			delete(files, name)

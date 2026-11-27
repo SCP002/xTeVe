@@ -40,16 +40,16 @@ func xepgTest(t *testing.T, db []XEPGChannelStruct, streams ...map[string]string
 
 	var oldFile, oldStreams, oldCache = System.File.XEPG, Data.Streams.Active, Data.Cache.Streams.Active
 	var oldChannels, oldMapping = Data.XEPG.Channels, Data.XMLTV.Mapping
-	var oldSettings = Settings
 	t.Cleanup(func() {
 		System.File.XEPG, Data.Streams.Active, Data.Cache.Streams.Active = oldFile, oldStreams, oldCache
 		Data.XEPG.Channels, Data.XMLTV.Mapping = oldChannels, oldMapping
-		Settings = oldSettings
 	})
 
-	Settings.MappingFirstChannel = 1000
-	Settings.DefaultMissingEPG = "-"
-	Settings.EnableMappedChannels = false
+	setSettings(t, func(s *SettingsStruct) {
+		s.MappingFirstChannel = 1000
+		s.DefaultMissingEPG = "-"
+		s.EnableMappedChannels = false
+	})
 
 	System.File.XEPG = filepath.Join(t.TempDir(), "xepg.json")
 	var channels = make(map[string]any)
@@ -342,8 +342,10 @@ func TestMappingDefaults(t *testing.T) {
 	if err := createXEPGDatabase(); err != nil {
 		t.Fatal(err)
 	}
-	Settings.DefaultMissingEPG = "60_Minutes"
-	Settings.EnableMappedChannels = true
+	setSettings(t, func(s *SettingsStruct) {
+		s.DefaultMissingEPG = "60_Minutes"
+		s.EnableMappedChannels = true
+	})
 	Data.XMLTV.Mapping = map[string]any{"a.xml": map[string]any{"bbc": xmltvChannel("bbc", "", "BBC")}}
 
 	if err := mapping(); err != nil {

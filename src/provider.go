@@ -4,11 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
+	"xteve/src/internal/config"
 	m3u "xteve/src/internal/m3u-parser"
 )
 
@@ -24,18 +27,9 @@ func getProviderData(fileType, fileID string) (err error) {
 	var fileExtension, serverFileName string
 	var body = make([]byte, 0)
 	var newProvider bool
-	var dataMap = make(map[string]any)
 
-	var saveDateFromProvider = func(fileSource, serverFileName, id string, body []byte) (err error) {
-		var data = make(map[string]any)
-
-		if value, ok := dataMap[id].(map[string]any); ok {
-			data = value
-		} else {
-			data["id.provider"] = id
-			dataMap[id] = data
-		}
-
+	// saveDateFromProvider checks and saves a downloaded file and completes data, the copy of the provider entry
+	var saveDateFromProvider = func(data map[string]any, fileSource, serverFileName, id string, body []byte) (err error) {
 		// Default keys for the Provider Data
 		var keys = []string{
 			"name", "description", "type", "file." + System.AppName, "file.source", "tuner", "last.update",
@@ -118,7 +112,7 @@ func getProviderData(fileType, fileID string) (err error) {
 
 		if err == nil {
 			data["last.update"] = time.Now().Format("2006-01-02 15:04:05")
-			data["counter.download"] = data["counter.download"].(float64) + 1
+			data["counter.download"] = toFloat(data["counter.download"]) + 1
 		}
 
 		return
@@ -126,21 +120,22 @@ func getProviderData(fileType, fileID string) (err error) {
 
 	switch fileType {
 	case "m3u":
-		dataMap = Settings.Files.M3U
 		fileExtension = ".m3u"
 
 	case "hdhr":
-		dataMap = Settings.Files.HDHR
 		fileExtension = ".json"
 
 	case "xmltv":
-		dataMap = Settings.Files.XMLTV
 		fileExtension = ".xml"
 	}
 
-	for dataID, d := range dataMap {
-		var data = d.(map[string]any)
-		var fileSource = data["file.source"].(string)
+	// The downloads work on copies of the provider entries, without holding the settings, and the results are
+	// merged into the current settings afterwards
+	var files = providerFilesOf(config.Get(), fileType)
+
+	for _, dataID := range slices.Sorted(maps.Keys(files)) {
+		var data = jsonToMap(mapToJSON(files[dataID]))
+		var fileSource, _ = data["file.source"].(string)
 		newProvider = false
 
 		if _, ok := data["new"]; ok {
@@ -180,7 +175,7 @@ func getProviderData(fileType, fileID string) (err error) {
 		}
 
 		if err == nil {
-			err = saveDateFromProvider(fileSource, serverFileName, dataID, body)
+			err = saveDateFromProvider(data, fileSource, serverFileName, dataID, body)
 			if err == nil {
 				showInfo("Save File:" + fileSource + " [ID: " + dataID + "]")
 			}
@@ -200,11 +195,8 @@ func getProviderData(fileType, fileID string) (err error) {
 				}
 
 				// Increase Error Counter by 1
-				if value, ok := dataMap[dataID].(map[string]any); ok {
-					var data = value
-					data["counter.error"] = data["counter.error"].(float64) + 1
-					data["counter.download"] = data["counter.download"].(float64) + 1
-				}
+				data["counter.error"] = toFloat(data["counter.error"]) + 1
+				data["counter.download"] = toFloat(data["counter.download"]) + 1
 			} else {
 				return downloadErr
 			}
@@ -212,32 +204,20 @@ func getProviderData(fileType, fileID string) (err error) {
 
 		// Calculate the Margin of Error
 		if !newProvider {
-			if value, ok := dataMap[dataID].(map[string]any); ok {
-				var data = value
-
-				if data["counter.error"].(float64) == 0 {
-					data["provider.availability"] = 100
-				} else {
-					data["provider.availability"] = int(
-						data["counter.error"].(float64)*100/data["counter.download"].(float64)*-1 + 100,
-					)
-				}
+			if toFloat(data["counter.error"]) == 0 {
+				data["provider.availability"] = 100
+			} else {
+				data["provider.availability"] = int(
+					toFloat(data["counter.error"])*100/toFloat(data["counter.download"])*-1 + 100,
+				)
 			}
 		}
 
-		switch fileType {
-		case "m3u":
-			Settings.Files.M3U = dataMap
-
-		case "hdhr":
-			Settings.Files.HDHR = dataMap
-
-		case "xmltv":
-			Settings.Files.XMLTV = dataMap
+		if fileType == "xmltv" {
 			delete(Data.Cache.XMLTV, System.Folder.Data+dataID+fileExtension)
 		}
 
-		if err := saveSettings(Settings); err != nil {
+		if err := mergeProviderFile(fileType, dataID, data); err != nil {
 			errs = append(errs, err)
 		}
 
@@ -245,6 +225,39 @@ func getProviderData(fileType, fileID string) (err error) {
 	}
 
 	return errors.Join(errs...)
+}
+
+// mergeProviderFile writes the keys of data, a downloaded copy of a provider entry, into the current settings. A
+// provider removed in the meantime is not added again, and the compatibility, which setProviderCompatibility keeps
+// up to date while the file is checked, is not replaced by the older one of the copy.
+func mergeProviderFile(fileType, dataID string, data map[string]any) error {
+	return config.Update(func(s *SettingsStruct) error {
+		var entry, ok = providerFiles(s, fileType)[dataID].(map[string]any)
+		if !ok {
+			return nil
+		}
+
+		for key, value := range data {
+			if _, has := entry[key]; has && key == "compatibility" {
+				continue
+			}
+			entry[key] = value
+		}
+		delete(entry, "new")
+
+		return nil
+	})
+}
+
+// toFloat returns a number of a provider entry, which is float64 after JSON and int when set in code.
+func toFloat(v any) float64 {
+	switch v := v.(type) {
+	case float64:
+		return v
+	case int:
+		return float64(v)
+	}
+	return 0
 }
 
 // getProviderName returns the provider name for error messages, or its ID if it has no name yet.
@@ -261,12 +274,17 @@ func downloadFileFromServer(providerURL string) (filename string, body []byte, e
 		return
 	}
 
-	resp, err := http.Get(providerURL)
+	req, err := http.NewRequest(http.MethodGet, providerURL, nil)
 	if err != nil {
 		return
 	}
+	req.Header.Set("User-Agent", config.Get().UserAgent)
 
-	resp.Header.Set("User-Agent", Settings.UserAgent)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return
+	}
+	defer closeOrLog(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		err = fmt.Errorf("%d: %s %s", resp.StatusCode, http.StatusText(resp.StatusCode), providerURL)

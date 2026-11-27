@@ -21,10 +21,10 @@ func TestGuideNumberLess(t *testing.T) {
 }
 
 func TestGetLineupPMSDuplicateNames(t *testing.T) {
-	var oldSettings, oldFiles, oldStreams = Settings, System.File, Data.Streams.Active
+	var oldFiles, oldStreams = System.File, Data.Streams.Active
 	var oldURLs = Data.Cache.StreamingURLS
 	t.Cleanup(func() {
-		Settings, System.File, Data.Streams.Active = oldSettings, oldFiles, oldStreams
+		System.File, Data.Streams.Active = oldFiles, oldStreams
 		Data.Cache.StreamingURLS = oldURLs
 	})
 
@@ -35,7 +35,7 @@ func TestGetLineupPMSDuplicateNames(t *testing.T) {
 	if err := saveMapToJSONFile(System.File.PMS, map[string]string{"Kids": "id-0"}); err != nil {
 		t.Fatal(err)
 	}
-	Settings.EpgSource = "PMS"
+	setSettings(t, func(s *SettingsStruct) { s.EpgSource = "PMS" })
 	Data.Cache.StreamingURLS = make(map[string]StreamInfo)
 	Data.Streams.Active = []any{
 		m3uStream("News", "A"),

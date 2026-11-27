@@ -9,13 +9,15 @@ import (
 func setFilters(t *testing.T, filters ...map[string]any) {
 	t.Helper()
 
-	var oldSettings, oldData = Settings.Filter, Data.Filter
-	t.Cleanup(func() { Settings.Filter, Data.Filter = oldSettings, oldData })
+	var oldData = Data.Filter
+	t.Cleanup(func() { Data.Filter = oldData })
 
-	Settings.Filter = make(map[int64]any)
-	for i, f := range filters {
-		Settings.Filter[int64(i)] = f
-	}
+	setSettings(t, func(s *SettingsStruct) {
+		s.Filter = make(map[int64]any)
+		for i, f := range filters {
+			s.Filter[int64(i)] = f
+		}
+	})
 	if err := createFilterRules(); err != nil {
 		t.Fatal(err)
 	}

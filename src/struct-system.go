@@ -1,6 +1,7 @@
 package src
 
 import (
+	"xteve/src/internal/config"
 	"xteve/src/internal/imgcache"
 	"xteve/src/internal/logger"
 	"xteve/src/internal/system"
@@ -158,63 +159,7 @@ type StreamInfo struct {
 type Notification = logger.Notification
 
 // SettingsStruct : Content of settings.json
-type SettingsStruct struct {
-	API                   bool     `json:"api"`
-	AuthenticationAPI     bool     `json:"authentication.api"`
-	AuthenticationM3U     bool     `json:"authentication.m3u"`
-	AuthenticationPMS     bool     `json:"authentication.pms"`
-	AuthenticationWEB     bool     `json:"authentication.web"`
-	AuthenticationXML     bool     `json:"authentication.xml"`
-	BackupKeep            int      `json:"backup.keep"`
-	BackupPath            string   `json:"backup.path"`
-	Branch                string   `json:"git.branch,omitempty"`
-	Buffer                string   `json:"buffer"`
-	BufferSize            int      `json:"buffer.size.kb"`
-	BufferTimeout         float64  `json:"buffer.timeout"`
-	CacheImages           bool     `json:"cache.images"`
-	ClearXMLTVCache       bool     `json:"clearXMLTVCache"`
-	DefaultMissingEPG     string   `json:"defaultMissingEPG"`
-	DisallowURLDuplicates bool     `json:"disallowURLDuplicates"`
-	EnableMappedChannels  bool     `json:"enableMappedChannels"`
-	EpgSource             string   `json:"epgSource"`
-	FFmpegOptions         string   `json:"ffmpeg.options"`
-	FFmpegPath            string   `json:"ffmpeg.path"`
-	VLCOptions            string   `json:"vlc.options"`
-	VLCPath               string   `json:"vlc.path"`
-	FileM3U               []string `json:"file,omitempty"` // In the Wizard, the M3U is saved in a Slice
-	// Old Storage System of the provider XML File Slice (Required for the conversion to the new one)
-	FileXMLTV []string `json:"xmltv,omitempty"`
-
-	Files struct {
-		HDHR  map[string]any `json:"hdhr"`
-		M3U   map[string]any `json:"m3u"`
-		XMLTV map[string]any `json:"xmltv"`
-	} `json:"files"`
-
-	FilesUpdate bool          `json:"files.update"`
-	Filter      map[int64]any `json:"filter"`
-	// IP chosen in web client. Used to form m3u and xml files.
-	HostIP                    string   `json:"hostIP"`
-	Key                       string   `json:"key,omitempty"`
-	Language                  string   `json:"language"`
-	LogEntriesRAM             int      `json:"log.entries.ram"`
-	M3U8AdaptiveBandwidthMBPS int      `json:"m3u8.adaptive.bandwidth.mbps"`
-	MappingFirstChannel       float64  `json:"mapping.first.channel"`
-	Port                      string   `json:"port"`
-	SSDP                      bool     `json:"ssdp"`
-	StoreBufferInRAM          bool     `json:"storeBufferInRAM"`
-	TempPath                  string   `json:"temp.path"`
-	TLSMode                   bool     `json:"tlsMode"`
-	Tuner                     int      `json:"tuner"`
-	Update                    []string `json:"update"`
-	UpdateURL                 string   `json:"update.url,omitempty"`
-	UserAgent                 string   `json:"user.agent"`
-	UUID                      string   `json:"uuid"`
-	UDPxy                     string   `json:"udpxy"`
-	Version                   string   `json:"version"`
-	XepgReplaceMissingImages  bool     `json:"xepg.replace.missing.images"`
-	XteveAutoUpdate           bool     `json:"xteveAutoUpdate"`
-}
+type SettingsStruct = config.Settings
 
 // LanguageUI : Language for the WebUI
 type LanguageUI struct {

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"xteve/src/internal/config"
 )
 
 func xTeVeAutoBackup() (err error) {
@@ -19,8 +20,8 @@ func xTeVeAutoBackup() (err error) {
 	var debug string
 
 	var backupFolder = System.Folder.Backup
-	if len(Settings.BackupPath) > 0 {
-		backupFolder = Settings.BackupPath
+	if len(config.Get().BackupPath) > 0 {
+		backupFolder = config.Get().BackupPath
 	}
 
 	showInfo("Backup Path:" + backupFolder)
@@ -44,8 +45,8 @@ func xTeVeAutoBackup() (err error) {
 
 	// Keep BackupKeep - 1 old backups, the new one makes it BackupKeep
 	var end int
-	if Settings.BackupKeep > 0 {
-		end = Settings.BackupKeep - 1
+	if config.Get().BackupKeep > 0 {
+		end = config.Get().BackupKeep - 1
 	}
 
 	for i := 0; i < len(oldBackupFiles)-end; i++ {
@@ -54,7 +55,7 @@ func xTeVeAutoBackup() (err error) {
 		showDebug(debug, 1)
 	}
 
-	if Settings.BackupKeep == 0 {
+	if config.Get().BackupKeep == 0 {
 		return
 	}
 
@@ -66,7 +67,7 @@ func xTeVeAutoBackup() (err error) {
 	}
 
 	sourceFiles = append(sourceFiles, System.Folder.ImagesUpload)
-	if Settings.TLSMode {
+	if config.Get().TLSMode {
 		sourceFiles = append(sourceFiles, System.Folder.Certificates)
 	}
 
@@ -97,7 +98,7 @@ func xteveBackup() (archive string, err error) {
 	}
 
 	sourceFiles = append(sourceFiles, System.Folder.Data)
-	if Settings.TLSMode {
+	if config.Get().TLSMode {
 		sourceFiles = append(sourceFiles, System.Folder.Certificates)
 	}
 
@@ -179,7 +180,7 @@ func xteveRestore(archive string) (newWebURL string, err error) {
 		err = errors.New("invalid backup: settings.json has no port")
 		return
 	}
-	oldPort = Settings.Port
+	oldPort = config.Get().Port
 
 	if newPort == oldPort {
 		if _, err = loadSettings(); err != nil {

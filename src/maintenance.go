@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"time"
+	"xteve/src/internal/config"
 )
 
 // InitMaintenance : Initialize maintenance process
@@ -21,7 +22,7 @@ func maintenance() {
 
 		// Update the playlist and XMLTV files
 		if !System.ScanInProgress.Load() {
-			for _, schedule := range Settings.Update {
+			for _, schedule := range config.Get().Update {
 				if schedule == t.Format("1504") {
 					showInfo("Update:" + schedule)
 
@@ -39,7 +40,7 @@ func maintenance() {
 						ShowError(err, 0)
 					}
 
-					if Settings.EpgSource == "XEPG" {
+					if config.Get().EpgSource == "XEPG" {
 						if err := getProviderData("xmltv", ""); err != nil {
 							ShowError(err, 0)
 						}
@@ -51,7 +52,7 @@ func maintenance() {
 						ShowError(err, 000)
 					}
 
-					if !Settings.CacheImages && !System.ImageCachingInProgress.Load() {
+					if !config.Get().CacheImages && !System.ImageCachingInProgress.Load() {
 						if err := removeChildItems(System.Folder.ImagesCache); err != nil {
 							ShowError(err, 0)
 						}

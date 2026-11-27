@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"xteve/src/internal/config"
 	"xteve/src/internal/imgcache"
 
 	"github.com/samber/lo"
@@ -53,13 +54,13 @@ func buildXEPG(background bool) {
 	Data.Cache.Images, err = imgcache.New(
 		System.Folder.ImagesCache,
 		fmt.Sprintf("%s://%s/images/", System.Protocol(), System.Domain()),
-		Settings.CacheImages,
+		config.Get().CacheImages,
 	)
 	if err != nil {
 		ShowError(err, 0)
 	}
 
-	if Settings.EpgSource == "XEPG" {
+	if config.Get().EpgSource == "XEPG" {
 		switch background {
 		case true:
 			go func() {
@@ -78,7 +79,7 @@ func buildXEPG(background bool) {
 
 				showInfo("XEPG:" + "Ready to use")
 
-				if Settings.CacheImages && System.ImageCachingInProgress.CompareAndSwap(false, true) {
+				if config.Get().CacheImages && System.ImageCachingInProgress.CompareAndSwap(false, true) {
 					go func() {
 						showInfo(fmt.Sprintf("Image Caching:Images are cached (%d)", len(Data.Cache.Images.Queue)))
 
@@ -101,7 +102,7 @@ func buildXEPG(background bool) {
 
 				System.ScanInProgress.Store(false)
 
-				if Settings.ClearXMLTVCache {
+				if config.Get().ClearXMLTVCache {
 					clearXMLTVCache()
 				}
 			}()
@@ -122,7 +123,7 @@ func buildXEPG(background bool) {
 				}
 				createM3UFile()
 
-				if Settings.CacheImages && System.ImageCachingInProgress.CompareAndSwap(false, true) {
+				if config.Get().CacheImages && System.ImageCachingInProgress.CompareAndSwap(false, true) {
 					go func() {
 						showInfo(fmt.Sprintf("Image Caching:Images are cached (%d)", len(Data.Cache.Images.Queue)))
 
@@ -147,7 +148,7 @@ func buildXEPG(background bool) {
 
 				System.ScanInProgress.Store(false)
 
-				if Settings.ClearXMLTVCache {
+				if config.Get().ClearXMLTVCache {
 					clearXMLTVCache()
 				}
 			}()
@@ -253,7 +254,7 @@ func createXEPGDatabase() (err error) {
 	// getFreeChannelNumber returns the first free number starting from the
 	// first valid one of startingChannels, or from the default first channel
 	var getFreeChannelNumber = func(startingChannels ...string) (xChannelID string) {
-		var firstFreeNumber = Settings.MappingFirstChannel
+		var firstFreeNumber = config.Get().MappingFirstChannel
 		for _, s := range startingChannels {
 			if n, err := strconv.ParseFloat(s, 64); err == nil && n > 0 {
 				firstFreeNumber = n
@@ -623,9 +624,9 @@ func mapping() (err error) {
 				var tvgID = xepgChannel.TvgID
 
 				// Set default for new Channel
-				if Settings.DefaultMissingEPG != "-" {
+				if config.Get().DefaultMissingEPG != "-" {
 					xepgChannel.XmltvFile = "xTeVe Dummy"
-					xepgChannel.XMapping = Settings.DefaultMissingEPG
+					xepgChannel.XMapping = config.Get().DefaultMissingEPG
 				} else {
 					xepgChannel.XmltvFile = "-"
 					xepgChannel.XMapping = "-"
@@ -648,7 +649,7 @@ func mapping() (err error) {
 			}
 		}
 
-		if Settings.EnableMappedChannels && (xepgChannel.XmltvFile != "-" || xepgChannel.XMapping != "-") {
+		if config.Get().EnableMappedChannels && (xepgChannel.XmltvFile != "-" || xepgChannel.XMapping != "-") {
 			xepgChannel.XActive = true
 		}
 
@@ -975,7 +976,7 @@ func createDummyProgram(xepgChannel XEPGChannelStruct) (dummyXMLTV XMLTV) {
 				epg.Desc = append(epg.Desc, &Desc{Value: xepgChannel.XDescription, Lang: "en"})
 			}
 
-			if Settings.XepgReplaceMissingImages {
+			if config.Get().XepgReplaceMissingImages {
 				poster.Src = imgc.Image.GetURL(xepgChannel.TvgLogo)
 				epg.Poster = append(epg.Poster, poster)
 			}
@@ -1023,7 +1024,7 @@ func getPoster(program *Program, xmltvProgram *Program) {
 		program.Poster = append(program.Poster, poster)
 	}
 
-	if Settings.XepgReplaceMissingImages {
+	if config.Get().XepgReplaceMissingImages {
 		if len(xmltvProgram.Poster) == 0 {
 			var poster Poster
 			poster.Src = imgc.Image.GetURL(poster.Src)
@@ -1123,11 +1124,11 @@ func createM3UFile() {
 func cleanupXEPG() {
 	var sourceIDs []string
 
-	for source := range Settings.Files.M3U {
+	for source := range config.Get().Files.M3U {
 		sourceIDs = append(sourceIDs, source)
 	}
 
-	for source := range Settings.Files.HDHR {
+	for source := range config.Get().Files.HDHR {
 		sourceIDs = append(sourceIDs, source)
 	}
 

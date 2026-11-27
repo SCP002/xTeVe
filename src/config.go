@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"xteve/src/internal/config"
 	"xteve/src/internal/logger"
 
 	"github.com/avfs/avfs"
@@ -13,9 +14,6 @@ import (
 
 // System : Contains all System Information
 var System SystemStruct
-
-// Settings : Content of settings.json
-var Settings SettingsStruct
 
 // Data : All data is stored here. (Lineup, XMLTV)
 var Data DataStruct
@@ -39,6 +37,8 @@ var Lock = sync.RWMutex{}
 func Init() (err error) {
 	var debug string
 
+	config.Default().SetSaver(completeAndWriteSettings)
+
 	logger.Default().SetName(System.Name)
 	logger.Default().SetDebugLevel(System.Flag.Debug)
 	logger.Default().SetQuiet(System.Flag.Info)
@@ -48,7 +48,7 @@ func Init() (err error) {
 	System.ARCH = runtime.GOARCH
 	System.OS = runtime.GOOS
 	// Until the web server starts, the protocol follows the setting
-	System.SetTLS(Settings.TLSMode)
+	System.SetTLS(config.Get().TLSMode)
 	System.PlexChannelLimit = 480
 	System.Compatibility = "1.4.4"
 
@@ -183,7 +183,7 @@ func Init() (err error) {
 	}
 
 	// Set Branch
-	System.Branch = Settings.Branch
+	System.Branch = config.Get().Branch
 
 	if System.Dev {
 		System.Branch = "Development"
@@ -197,10 +197,10 @@ func Init() (err error) {
 	showInfo(fmt.Sprintf("Git Branch:%s [%s]", System.Branch, System.GitHub.User))
 
 	// Set Domain Names
-	System.SetTLS(Settings.TLSMode)
-	setGlobalDomain(fmt.Sprintf("%s:%s", Settings.HostIP, Settings.Port))
+	System.SetTLS(config.Get().TLSMode)
+	setGlobalDomain(fmt.Sprintf("%s:%s", config.Get().HostIP, config.Get().Port))
 
-	System.URLBase = fmt.Sprintf("%s://%s:%s", System.Protocol(), Settings.HostIP, Settings.Port)
+	System.URLBase = fmt.Sprintf("%s://%s:%s", System.Protocol(), config.Get().HostIP, config.Get().Port)
 
 	// Create HTML Files, with dev == true the local HTML Files are used
 	if System.Dev {
@@ -230,13 +230,13 @@ func StartSystem(updateProviderFiles bool) (err error) {
 	}
 
 	// Output System Information in the Console
-	showInfo(fmt.Sprintf("UUID:%s", Settings.UUID))
-	showInfo(fmt.Sprintf("Tuner (Plex / Emby):%d", Settings.Tuner))
-	showInfo(fmt.Sprintf("EPG Source:%s", Settings.EpgSource))
+	showInfo(fmt.Sprintf("UUID:%s", config.Get().UUID))
+	showInfo(fmt.Sprintf("Tuner (Plex / Emby):%d", config.Get().Tuner))
+	showInfo(fmt.Sprintf("EPG Source:%s", config.Get().EpgSource))
 	showInfo(fmt.Sprintf("Plex Channel Limit:%d", System.PlexChannelLimit))
 
 	// Update Provider Data
-	if len(Settings.Files.M3U) > 0 && Settings.FilesUpdate || updateProviderFiles {
+	if len(config.Get().Files.M3U) > 0 && config.Get().FilesUpdate || updateProviderFiles {
 		err = xTeVeAutoBackup()
 		if err != nil {
 			ShowError(err, 1090)
@@ -249,7 +249,7 @@ func StartSystem(updateProviderFiles bool) (err error) {
 			ShowError(err, 0)
 		}
 
-		if Settings.EpgSource == "XEPG" {
+		if config.Get().EpgSource == "XEPG" {
 			if err := getProviderData("xmltv", ""); err != nil {
 				ShowError(err, 0)
 			}

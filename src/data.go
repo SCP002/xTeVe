@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path"
 	"sort"
@@ -12,13 +13,16 @@ import (
 	"time"
 
 	"xteve/src/internal/authentication"
+	"xteve/src/internal/config"
 	"xteve/src/internal/imgcache"
 )
 
 // Change Settings (WebUI)
 func updateServerSettings(request RequestStruct) (settings SettingsStruct, err error) {
-	var oldSettings = jsonToMap(mapToJSON(Settings))
+	var oldSettings = jsonToMap(mapToJSON(config.Get()))
 	var newSettings = jsonToMap(mapToJSON(request.Settings))
+	// The keys that change, applied to the current settings below
+	var changed = make(map[string]any)
 	var reloadData = false
 	var cacheImages = false
 	var createXEPGFiles = false
@@ -41,7 +45,7 @@ func updateServerSettings(request RequestStruct) (settings SettingsStruct, err e
 					v = strings.ReplaceAll(v.(string), " ", "")
 
 					if _, err := time.Parse("1504", v.(string)); err != nil {
-						return Settings, withCode(err, 1012)
+						return *config.Get(), withCode(err, 1012)
 					}
 
 					newUpdateTimes = append(newUpdateTimes, v.(string))
@@ -97,7 +101,7 @@ func updateServerSettings(request RequestStruct) (settings SettingsStruct, err e
 				}
 			}
 
-			oldSettings[key] = value
+			changed[key] = value
 
 			switch fmt.Sprintf("%T", value) {
 			case "bool":
@@ -121,45 +125,44 @@ func updateServerSettings(request RequestStruct) (settings SettingsStruct, err e
 	}
 
 	// Update Settings
-	err = json.Unmarshal([]byte(mapToJSON(oldSettings)), &Settings)
-	if err != nil {
-		return
-	}
-
-	if !Settings.AuthenticationWEB {
-		Settings.AuthenticationAPI = false
-		Settings.AuthenticationM3U = false
-		Settings.AuthenticationPMS = false
-		Settings.AuthenticationWEB = false
-		Settings.AuthenticationXML = false
-	}
-
-	// Check Buffer Settings
-	if len(Settings.FFmpegOptions) == 0 {
-		Settings.FFmpegOptions = System.FFmpeg.DefaultOptions
-	}
-
-	if len(Settings.VLCOptions) == 0 {
-		Settings.VLCOptions = System.VLC.DefaultOptions
-	}
-
-	switch Settings.Buffer {
-	case "ffmpeg":
-		if len(Settings.FFmpegPath) == 0 {
-			err = errors.New(getErrMsg(2020))
-			return
+	err = config.Update(func(s *SettingsStruct) error {
+		if err := json.Unmarshal([]byte(mapToJSON(changed)), s); err != nil {
+			return err
 		}
 
-	case "vlc":
-		if len(Settings.VLCPath) == 0 {
-			err = errors.New(getErrMsg(2021))
-			return
+		if !s.AuthenticationWEB {
+			s.AuthenticationAPI = false
+			s.AuthenticationM3U = false
+			s.AuthenticationPMS = false
+			s.AuthenticationWEB = false
+			s.AuthenticationXML = false
 		}
-	}
 
-	err = saveSettings(Settings)
+		// Check Buffer Settings
+		if len(s.FFmpegOptions) == 0 {
+			s.FFmpegOptions = System.FFmpeg.DefaultOptions
+		}
+
+		if len(s.VLCOptions) == 0 {
+			s.VLCOptions = System.VLC.DefaultOptions
+		}
+
+		switch s.Buffer {
+		case "ffmpeg":
+			if len(s.FFmpegPath) == 0 {
+				return errors.New(getErrMsg(2020))
+			}
+
+		case "vlc":
+			if len(s.VLCPath) == 0 {
+				return errors.New(getErrMsg(2021))
+			}
+		}
+
+		return nil
+	})
 	if err == nil {
-		settings = Settings
+		settings = *config.Get()
 
 		if reloadData {
 			err = buildDatabaseDVR()
@@ -171,17 +174,17 @@ func updateServerSettings(request RequestStruct) (settings SettingsStruct, err e
 		}
 
 		if cacheImages {
-			if Settings.EpgSource == "XEPG" && !System.ImageCachingInProgress.Load() {
+			if config.Get().EpgSource == "XEPG" && !System.ImageCachingInProgress.Load() {
 				Data.Cache.Images, err = imgcache.New(
 					System.Folder.ImagesCache,
 					fmt.Sprintf("%s://%s/images/", System.Protocol(), System.Domain()),
-					Settings.CacheImages,
+					config.Get().CacheImages,
 				)
 				if err != nil {
 					ShowError(err, 0)
 				}
 
-				switch Settings.CacheImages {
+				switch config.Get().CacheImages {
 				case false:
 					if err := createXMLTVFile(); err != nil {
 						ShowError(err, 0)
@@ -226,77 +229,69 @@ func updateServerSettings(request RequestStruct) (settings SettingsStruct, err e
 
 // Save Provider Data (WebUI)
 func saveFiles(request RequestStruct, fileType string) (err error) {
-	var filesMap = make(map[string]any)
 	var newData = make(map[string]any)
 	var indicator string
-	var reloadData = false
 
 	switch fileType {
 	case "m3u":
-		filesMap = Settings.Files.M3U
 		newData = request.Files.M3U
 		indicator = "M"
 
 	case "hdhr":
-		filesMap = Settings.Files.HDHR
 		newData = request.Files.HDHR
 		indicator = "H"
 
 	case "xmltv":
-		filesMap = Settings.Files.XMLTV
 		newData = request.Files.XMLTV
 		indicator = "X"
 	}
 
-	if len(filesMap) == 0 {
-		filesMap = make(map[string]any)
-	}
+	for dataID, d := range newData {
+		var data, ok = d.(map[string]any)
+		if !ok {
+			return fmt.Errorf("invalid provider data: %v", d)
+		}
 
-	for dataID, data := range newData {
-		if dataID == "-" {
-			// New Provider File
+		var reloadData = false
+		var isNew = dataID == "-"
+		if isNew {
 			dataID = indicator + randomString(19)
-			data.(map[string]any)["new"] = true
-			filesMap[dataID] = data
-		} else {
-			// Existing Provider File
-			for key, value := range data.(map[string]any) {
-				var oldData = filesMap[dataID].(map[string]any)
-				oldData[key] = value
+		}
+
+		err = config.Update(func(s *SettingsStruct) error {
+			var files = providerFiles(s, fileType)
+
+			if isNew {
+				// New Provider File, getProviderData downloads it and removes "new"
+				var entry = maps.Clone(data)
+				entry["new"] = true
+				files[dataID] = entry
+				return nil
 			}
+
+			// Existing Provider File
+			var entry, ok = files[dataID].(map[string]any)
+			if !ok {
+				return fmt.Errorf("unknown provider: %s", dataID)
+			}
+			maps.Copy(entry, data)
+			return nil
+		})
+		if err != nil {
+			return
 		}
 
-		switch fileType {
-		case "m3u":
-			Settings.Files.M3U = filesMap
-
-		case "hdhr":
-			Settings.Files.HDHR = filesMap
-
-		case "xmltv":
-			Settings.Files.XMLTV = filesMap
-		}
-
-		// New Provider File
-		if _, ok := data.(map[string]any)["new"]; ok {
+		if isNew {
 			reloadData = true
-			err = getProviderData(fileType, dataID)
-			delete(data.(map[string]any), "new")
-
-			if err != nil {
-				delete(filesMap, dataID)
+			if err = getProviderData(fileType, dataID); err != nil {
+				removeProviderFile(fileType, dataID)
 				return
 			}
 		}
 
-		if _, ok := data.(map[string]any)["delete"]; ok {
+		if _, ok := data["delete"]; ok {
 			deleteLocalProviderFiles(dataID, fileType)
 			reloadData = true
-		}
-
-		err = saveSettings(Settings)
-		if err != nil {
-			return
 		}
 
 		if reloadData {
@@ -307,15 +302,20 @@ func saveFiles(request RequestStruct, fileType string) (err error) {
 
 			buildXEPG(false)
 		}
-
-		if settings, err := loadSettings(); err != nil {
-			ShowError(err, 0)
-		} else {
-			Settings = settings
-		}
 	}
 
 	return
+}
+
+// removeProviderFile removes a provider from the settings.
+func removeProviderFile(fileType, dataID string) {
+	var err = config.Update(func(s *SettingsStruct) error {
+		delete(providerFiles(s, fileType), dataID)
+		return nil
+	})
+	if err != nil {
+		ShowError(err, 0)
+	}
 }
 
 // Update Provider Data manually (WebUI)
@@ -349,25 +349,21 @@ func updateFile(request RequestStruct, fileType string) (err error) {
 
 // Delete Provider Data (WebUI)
 func deleteLocalProviderFiles(dataID, fileType string) {
-	var removeData = make(map[string]any)
 	var fileExtension string
 
 	switch fileType {
 	case "m3u":
-		removeData = Settings.Files.M3U
 		fileExtension = ".m3u"
 
 	case "hdhr":
-		removeData = Settings.Files.HDHR
 		fileExtension = ".json"
 
 	case "xmltv":
-		removeData = Settings.Files.XMLTV
 		fileExtension = ".xml"
 	}
 
-	if _, ok := removeData[dataID]; ok {
-		delete(removeData, dataID)
+	if _, ok := providerFilesOf(config.Get(), fileType)[dataID]; ok {
+		removeProviderFile(fileType, dataID)
 		removeAllOrLog(System.Folder.Data + dataID + fileExtension)
 	}
 }
@@ -377,65 +373,59 @@ func saveFilter(request RequestStruct) (settings SettingsStruct, err error) {
 	var filterMap map[int64]any
 	var newData map[int64]any
 	var defaultFilter FilterStruct
-	var newFilter = false
 
 	defaultFilter.Active = true
 	defaultFilter.CaseSensitive = false
 	defaultFilter.PreserveMapping = true
-	defaultFilter.StartingChannel = strconv.FormatFloat(Settings.MappingFirstChannel, 'f', -1, 64) // 1000
+	defaultFilter.StartingChannel = strconv.FormatFloat(config.Get().MappingFirstChannel, 'f', -1, 64) // 1000
 
-	filterMap = Settings.Filter
 	newData = request.Filter
 
-	var createNewID = func() (id int64) {
-	newID:
-		if _, ok := filterMap[id]; ok {
-			id++
-			goto newID
+	err = config.Update(func(s *SettingsStruct) error {
+		if s.Filter == nil {
+			s.Filter = make(map[int64]any)
+		}
+		filterMap = s.Filter
+
+		var createNewID = func() (id int64) {
+			for {
+				if _, ok := filterMap[id]; !ok {
+					return id
+				}
+				id++
+			}
 		}
 
-		return id
-	}
+		for dataID, data := range newData {
+			if dataID == -1 {
+				// New Filter
+				dataID = createNewID()
+				filterMap[dataID] = jsonToMap(mapToJSON(defaultFilter))
+			}
 
-	for dataID, data := range newData {
-		if dataID == -1 {
-			// New Filter
-			newFilter = true
-			dataID = createNewID()
-			filterMap[dataID] = jsonToMap(mapToJSON(defaultFilter))
-		}
-
-		// Update / delete filters
-		for key, value := range data.(map[string]any) {
 			// Clear Filters
 			if _, ok := data.(map[string]any)["delete"]; ok {
 				delete(filterMap, dataID)
-				break
+				continue
 			}
 
-			if filter, ok := data.(map[string]any)["filter"].(string); ok {
-				if len(filter) == 0 {
-					err = errors.New(getErrMsg(1014))
-					if newFilter {
-						delete(filterMap, dataID)
-					}
-
-					return
-				}
+			// Update filters, nothing is saved if one of them is invalid
+			if filter, ok := data.(map[string]any)["filter"].(string); ok && len(filter) == 0 {
+				return errors.New(getErrMsg(1014))
 			}
 
 			if oldData, ok := filterMap[dataID].(map[string]any); ok {
-				oldData[key] = value
+				maps.Copy(oldData, data.(map[string]any))
 			}
 		}
-	}
 
-	err = saveSettings(Settings)
+		return nil
+	})
 	if err != nil {
 		return
 	}
 
-	settings = Settings
+	settings = *config.Get()
 
 	err = buildDatabaseDVR()
 	if err != nil {
@@ -454,7 +444,7 @@ func saveXEpgMapping(request RequestStruct) (err error) {
 	Data.Cache.Images, err = imgcache.New(
 		System.Folder.ImagesCache,
 		fmt.Sprintf("%s://%s/images/", System.Protocol(), System.Domain()),
-		Settings.CacheImages,
+		config.Get().CacheImages,
 	)
 	if err != nil {
 		ShowError(err, 0)
@@ -575,80 +565,78 @@ func saveWizard(request RequestStruct) (nextStep int, err error) {
 	for key, value := range wizard {
 		switch key {
 		case "tuner":
-			Settings.Tuner = int(value.(float64))
 			nextStep = 1
+			err = config.Update(func(s *SettingsStruct) error {
+				s.Tuner = int(value.(float64))
+				return nil
+			})
 
 		case "epgSource":
-			Settings.EpgSource = value.(string)
 			nextStep = 2
+			err = config.Update(func(s *SettingsStruct) error {
+				s.EpgSource = value.(string)
+				return nil
+			})
 
 		case "m3u", "xmltv":
-			var filesMap = make(map[string]any)
 			var data = make(map[string]any)
-			var indicator, dataID string
+			var indicator string
 
 			data["type"] = key
 			data["new"] = true
+			data["file.source"] = value.(string)
 
 			switch key {
 			case "m3u":
-				filesMap = Settings.Files.M3U
 				data["name"] = "M3U"
 				indicator = "M"
 
 			case "xmltv":
-				filesMap = Settings.Files.XMLTV
 				data["name"] = "XMLTV"
 				indicator = "X"
 			}
 
-			dataID = indicator + randomString(19)
-			data["file.source"] = value.(string)
+			var dataID = indicator + randomString(19)
 
-			filesMap[dataID] = data
+			err = config.Update(func(s *SettingsStruct) error {
+				providerFiles(s, key)[dataID] = data
+				return nil
+			})
+			if err != nil {
+				return
+			}
+
+			err = getProviderData(key, dataID)
+			if err != nil {
+				removeProviderFile(key, dataID)
+				return
+			}
 
 			switch key {
 			case "m3u":
-				Settings.Files.M3U = filesMap
 				nextStep = 3
-
-				err = getProviderData(key, dataID)
-
-				if err != nil {
-					delete(filesMap, dataID)
-					return
-				}
 
 				err = buildDatabaseDVR()
 				if err != nil {
-					delete(filesMap, dataID)
+					removeProviderFile(key, dataID)
 					return
 				}
 
-				if Settings.EpgSource == "PMS" {
+				if config.Get().EpgSource == "PMS" {
 					nextStep = 10
 				}
 
 			case "xmltv":
-				Settings.Files.XMLTV = filesMap
 				nextStep = 10
-
-				err = getProviderData(key, dataID)
-
-				if err != nil {
-					delete(filesMap, dataID)
-					return
-				}
 
 				buildXEPG(false)
 				System.ScanInProgress.Store(false)
 			}
 		}
-	}
 
-	err = saveSettings(Settings)
-	if err != nil {
-		return
+		if err != nil {
+			return
+		}
 	}
 
 	return
@@ -658,7 +646,7 @@ func saveWizard(request RequestStruct) (nextStep int, err error) {
 func createFilterRules() (err error) {
 	Data.Filter = nil
 
-	for _, f := range Settings.Filter {
+	for _, f := range config.Get().Filter {
 		var dataFilter Filter
 		var filter FilterStruct
 
@@ -747,7 +735,7 @@ func buildDatabaseDVR() (err error) {
 				s["_file.m3u.name"] = playlistName
 				s["_file.m3u.id"] = id
 
-				if Settings.DisallowURLDuplicates {
+				if config.Get().DisallowURLDuplicates {
 					if _, haveURL := urlValuesMap[s["url"]]; haveURL {
 						showInfo(
 							"Streams:" + fmt.Sprintf(
@@ -851,7 +839,7 @@ func buildDatabaseDVR() (err error) {
 	sort.Strings(Data.Playlist.M3U.Groups.Text)
 	sort.Strings(Data.Playlist.M3U.Groups.Value)
 
-	if len(Data.Streams.Active) == 0 && len(Settings.Filter) == 0 {
+	if len(Data.Streams.Active) == 0 && len(config.Get().Filter) == 0 {
 		Data.Streams.Active = Data.Streams.All
 		Data.Streams.Inactive = make([]any, 0)
 
@@ -877,23 +865,19 @@ func buildDatabaseDVR() (err error) {
 // Load Storage Location of all local Provider Files, always for one File Type (M3U, XMLTV etc.)
 func getLocalProviderFiles(fileType string) (localFiles []string) {
 	var fileExtension string
-	var dataMap = make(map[string]any)
 
 	switch fileType {
 	case "m3u":
 		fileExtension = ".m3u"
-		dataMap = Settings.Files.M3U
 
 	case "hdhr":
 		fileExtension = ".json"
-		dataMap = Settings.Files.HDHR
 
 	case "xmltv":
 		fileExtension = ".xml"
-		dataMap = Settings.Files.XMLTV
 	}
 
-	for dataID := range dataMap {
+	for dataID := range providerFilesOf(config.Get(), fileType) {
 		localFiles = append(localFiles, System.Folder.Data+dataID+fileExtension)
 	}
 
@@ -902,26 +886,14 @@ func getLocalProviderFiles(fileType string) (localFiles []string) {
 
 // Output Provider Parameters based on the Key
 func getProviderParameter(id, fileType, key string) (s string) {
-	var dataMap = make(map[string]any)
-
-	switch fileType {
-	case "m3u":
-		dataMap = Settings.Files.M3U
-
-	case "hdhr":
-		dataMap = Settings.Files.HDHR
-
-	case "xmltv":
-		dataMap = Settings.Files.XMLTV
-	}
-
-	if data, ok := dataMap[id].(map[string]any); ok {
-		if v, ok := data[key].(string); ok {
+	if data, ok := providerFilesOf(config.Get(), fileType)[id].(map[string]any); ok {
+		switch v := data[key].(type) {
+		case string:
 			s = v
-		}
-
-		if v, ok := data[key].(float64); ok {
+		case float64:
 			s = strconv.Itoa(int(v))
+		case int:
+			s = strconv.Itoa(v)
 		}
 	}
 
@@ -930,33 +902,13 @@ func getProviderParameter(id, fileType, key string) (s string) {
 
 // Update Provider Statistics Compatibility
 func setProviderCompatibility(id, fileType string, compatibility map[string]int) {
-	var dataMap = make(map[string]any)
-
-	switch fileType {
-	case "m3u":
-		dataMap = Settings.Files.M3U
-
-	case "hdhr":
-		dataMap = Settings.Files.HDHR
-
-	case "xmltv":
-		dataMap = Settings.Files.XMLTV
-	}
-
-	if data, ok := dataMap[id].(map[string]any); ok {
-		data["compatibility"] = compatibility
-
-		switch fileType {
-		case "m3u":
-			Settings.Files.M3U = dataMap
-		case "hdhr":
-			Settings.Files.HDHR = dataMap
-		case "xmltv":
-			Settings.Files.XMLTV = dataMap
+	var err = config.Update(func(s *SettingsStruct) error {
+		if data, ok := providerFiles(s, fileType)[id].(map[string]any); ok {
+			data["compatibility"] = compatibility
 		}
-
-		if err := saveSettings(Settings); err != nil {
-			ShowError(err, 0)
-		}
+		return nil
+	})
+	if err != nil {
+		ShowError(err, 0)
 	}
 }

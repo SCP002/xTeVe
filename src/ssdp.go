@@ -7,17 +7,18 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	"xteve/src/internal/config"
 
 	"github.com/koron/go-ssdp"
 )
 
 // SSDP : SSPD / DLNA Server
 func SSDP() (err error) {
-	if !Settings.SSDP || System.Flag.Info {
+	if !config.Get().SSDP || System.Flag.Info {
 		return
 	}
 
-	showInfo(fmt.Sprintf("SSDP / DLNA:%t", Settings.SSDP))
+	showInfo(fmt.Sprintf("SSDP / DLNA:%t", config.Get().SSDP))
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
@@ -30,7 +31,7 @@ func SSDP() (err error) {
 	ad, err := ssdp.Advertise(
 		"upnp:rootdevice", // send as "ST"
 		fmt.Sprintf("uuid:%s::upnp:rootdevice", deviceID()), // send as "USN"
-		fmt.Sprintf("%s/device.xml", System.URLBase),             // send as "LOCATION"
+		fmt.Sprintf("%s/device.xml", System.URLBase),        // send as "LOCATION"
 		System.AppName, // send as "SERVER"
 		1800)           // send as "maxAge" in "CACHE-CONTROL"
 

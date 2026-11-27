@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"xteve/src/internal/config"
 )
 
 func makeInteraceFromHDHR(content []byte, playlistName, id string) (channels []any, err error) {
@@ -76,7 +77,7 @@ func getDiscover() (jsonContent []byte, err error) {
 	discover.LineupURL = fmt.Sprintf("%s://%s/lineup.json", System.Protocol(), System.Domain())
 	discover.Manufacturer = "Golang"
 	discover.ModelNumber = System.Version
-	discover.TunerCount = Settings.Tuner
+	discover.TunerCount = config.Get().Tuner
 
 	jsonContent, err = json.MarshalIndent(discover, "", "  ")
 
@@ -101,7 +102,7 @@ func getLineupStatus() (jsonContent []byte, err error) {
 func getLineup() (jsonContent []byte, err error) {
 	var lineup Lineup
 
-	switch Settings.EpgSource {
+	switch config.Get().EpgSource {
 	case "PMS":
 		// PMS IDs are stored by channel name. Channels with the same name get the keys "Name (2)", "Name (3)" and
 		// so on, so that each of them has its own ID and the first one keeps the ID stored for the plain name.

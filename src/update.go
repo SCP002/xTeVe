@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 
+	"xteve/src/internal/config"
 	up2date "xteve/src/internal/up2date/client"
 
 	"reflect"
@@ -71,7 +72,7 @@ func BinaryUpdate() (err error) {
 
 	// Update from your own Server
 	default:
-		updater.URL = Settings.UpdateURL
+		updater.URL = config.Get().UpdateURL
 
 		if len(updater.URL) == 0 {
 			showInfo(
@@ -103,7 +104,7 @@ func BinaryUpdate() (err error) {
 
 	// Check Version Number
 	if updater.Response.Version > currentVersion && updater.Response.Status {
-		if Settings.XteveAutoUpdate {
+		if config.Get().XteveAutoUpdate {
 			// Perform update
 			var fileType, url string
 
@@ -116,7 +117,7 @@ func BinaryUpdate() (err error) {
 
 			// Update from your own Server
 			default:
-				showInfo(fmt.Sprintf("Update Server:%s", Settings.UpdateURL))
+				showInfo(fmt.Sprintf("Update Server:%s", config.Get().UpdateURL))
 			}
 
 			showInfo(fmt.Sprintf("Start Update:Branch: %s", updater.Branch))

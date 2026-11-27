@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"xteve/src/internal/authentication"
+	"xteve/src/internal/config"
 )
 
 func activatedSystemAuthentication() (err error) {
@@ -111,7 +112,7 @@ func urlAuth(r *http.Request, requestType string) (err error) {
 	switch requestType {
 	case "m3u":
 		level = "authentication.m3u"
-		if Settings.AuthenticationM3U {
+		if config.Get().AuthenticationM3U {
 			token, err = authentication.UserAuthentication(username, password)
 			if err != nil {
 				return
@@ -121,7 +122,7 @@ func urlAuth(r *http.Request, requestType string) (err error) {
 
 	case "xml":
 		level = "authentication.xml"
-		if Settings.AuthenticationXML {
+		if config.Get().AuthenticationXML {
 			token, err = authentication.UserAuthentication(username, password)
 			if err != nil {
 				return

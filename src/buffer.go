@@ -23,6 +23,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"xteve/src/internal/config"
 
 	"github.com/avfs/avfs/vfs/memfs"
 	"github.com/avfs/avfs/vfs/osfs"
@@ -47,7 +48,7 @@ func createStreamID(stream map[int]ThisStream) (streamID int) {
 }
 
 func bufferingStream(playlistID, streamingURL, channelName string, w http.ResponseWriter, r *http.Request) {
-	time.Sleep(time.Duration(Settings.BufferTimeout) * time.Millisecond)
+	time.Sleep(time.Duration(config.Get().BufferTimeout) * time.Millisecond)
 
 	var playlist Playlist
 	var client ThisClient
@@ -209,7 +210,7 @@ func bufferingStream(playlistID, streamingURL, channelName string, w http.Respon
 		playlist.Streams[streamID] = stream
 		BufferInformation.Store(playlistID, playlist)
 
-		switch Settings.Buffer {
+		switch config.Get().Buffer {
 		case "xteve":
 			go connectToStreamingServer(streamID, playlistID)
 		case "ffmpeg", "vlc":
@@ -510,9 +511,9 @@ func connectToStreamingServer(streamID int, playlistID string) {
 		var tmpFolder = playlist.Streams[streamID].Folder
 		var m3u8Segments []string
 		var bandwidth BandwidthCalculation
-		var networkBandwidth = Settings.M3U8AdaptiveBandwidthMBPS * 1e+6
+		var networkBandwidth = config.Get().M3U8AdaptiveBandwidthMBPS * 1e+6
 		// Size of the Buffer
-		var bufferSize = Settings.BufferSize
+		var bufferSize = config.Get().BufferSize
 		var buffer = make([]byte, 1024*bufferSize*2)
 
 		var defaultSegment = func() {
@@ -621,7 +622,7 @@ func connectToStreamingServer(streamID int, playlistID string) {
 				clientConnection(stream)
 				return
 			}
-			req.Header.Set("User-Agent", Settings.UserAgent)
+			req.Header.Set("User-Agent", config.Get().UserAgent)
 			req.Header.Set("Connection", "close")
 			req.Header.Set("Accept", "*/*")
 			debugRequest(req)
@@ -1255,7 +1256,7 @@ func thirdPartyBuffer(streamID int, playlistID string) {
 		var playlist = p.(Playlist)
 		var debug, path, options, bufferType string
 		var tmpSegment = 1
-		var bufferSize = Settings.BufferSize * 1024
+		var bufferSize = config.Get().BufferSize * 1024
 		var stream = playlist.Streams[streamID]
 		var buf bytes.Buffer
 		var fileSize = 0
@@ -1266,16 +1267,16 @@ func thirdPartyBuffer(streamID int, playlistID string) {
 
 		stream.Status = false
 
-		bufferType = strings.ToUpper(Settings.Buffer)
+		bufferType = strings.ToUpper(config.Get().Buffer)
 
-		switch Settings.Buffer {
+		switch config.Get().Buffer {
 		case "ffmpeg":
-			path = Settings.FFmpegPath
-			options = Settings.FFmpegOptions
+			path = config.Get().FFmpegPath
+			options = config.Get().FFmpegOptions
 
 		case "vlc":
-			path = Settings.VLCPath
-			options = Settings.VLCOptions
+			path = config.Get().VLCPath
+			options = config.Get().VLCOptions
 
 		default:
 			return
@@ -1334,8 +1335,8 @@ func thirdPartyBuffer(streamID int, playlistID string) {
 			case "FFMPEG":
 				a = strings.ReplaceAll(a, "[URL]", url)
 				if i == 0 {
-					if len(Settings.UserAgent) != 0 {
-						args = []string{"-user_agent", Settings.UserAgent}
+					if len(config.Get().UserAgent) != 0 {
+						args = []string{"-user_agent", config.Get().UserAgent}
 					}
 				}
 
@@ -1346,8 +1347,8 @@ func thirdPartyBuffer(streamID int, playlistID string) {
 					a = strings.ReplaceAll(a, "[URL]", url)
 					args = append(args, a)
 
-					if len(Settings.UserAgent) != 0 {
-						args = append(args, fmt.Sprintf(":http-user-agent=%s", Settings.UserAgent))
+					if len(config.Get().UserAgent) != 0 {
+						args = append(args, fmt.Sprintf(":http-user-agent=%s", config.Get().UserAgent))
 					}
 				} else {
 					args = append(args, a)
@@ -1538,9 +1539,9 @@ func thirdPartyBuffer(streamID int, playlistID string) {
 }
 
 func getTuner(id, playlistType string) (tuner int) {
-	switch Settings.Buffer {
+	switch config.Get().Buffer {
 	case "-":
-		tuner = Settings.Tuner
+		tuner = config.Get().Tuner
 
 	case "xteve", "ffmpeg", "vlc":
 		i, err := strconv.Atoi(getProviderParameter(id, playlistType, "tuner"))

@@ -3,6 +3,7 @@ package src
 import (
 	"fmt"
 	"strings"
+	"xteve/src/internal/config"
 )
 
 // ShowSystemInfo : View System Information
@@ -50,32 +51,32 @@ func ShowSystemInfo() {
 	fmt.Println("---")
 
 	fmt.Println("Settings [General]")
-	fmt.Printf("xTeVe Update:        %t\n", Settings.XteveAutoUpdate)
-	fmt.Printf("UUID:                %s\n", Settings.UUID)
-	fmt.Printf("Tuner (Plex / Emby): %d\n", Settings.Tuner)
-	fmt.Printf("EPG Source:          %s\n", Settings.EpgSource)
+	fmt.Printf("xTeVe Update:        %t\n", config.Get().XteveAutoUpdate)
+	fmt.Printf("UUID:                %s\n", config.Get().UUID)
+	fmt.Printf("Tuner (Plex / Emby): %d\n", config.Get().Tuner)
+	fmt.Printf("EPG Source:          %s\n", config.Get().EpgSource)
 
 	fmt.Println("---")
 
 	fmt.Println("Settings [Files]")
-	fmt.Printf("Schedule:            %s\n", strings.Join(Settings.Update, ","))
-	fmt.Printf("Files Update:        %t\n", Settings.FilesUpdate)
-	fmt.Printf("Folder (tmp):        %s\n", Settings.TempPath)
-	fmt.Printf("Image Chaching:      %t\n", Settings.CacheImages)
-	fmt.Printf("Replace EPG Image:   %t\n", Settings.XepgReplaceMissingImages)
+	fmt.Printf("Schedule:            %s\n", strings.Join(config.Get().Update, ","))
+	fmt.Printf("Files Update:        %t\n", config.Get().FilesUpdate)
+	fmt.Printf("Folder (tmp):        %s\n", config.Get().TempPath)
+	fmt.Printf("Image Chaching:      %t\n", config.Get().CacheImages)
+	fmt.Printf("Replace EPG Image:   %t\n", config.Get().XepgReplaceMissingImages)
 
 	fmt.Println("---")
 
 	fmt.Println("Settings [Streaming]")
-	fmt.Printf("Buffer:              %s\n", Settings.Buffer)
-	fmt.Printf("UDPxy:               %s\n", Settings.UDPxy)
-	fmt.Printf("Buffer Size:         %d KB\n", Settings.BufferSize)
-	fmt.Printf("Timeout:             %d ms\n", int(Settings.BufferTimeout))
-	fmt.Printf("User Agent:          %s\n", Settings.UserAgent)
+	fmt.Printf("Buffer:              %s\n", config.Get().Buffer)
+	fmt.Printf("UDPxy:               %s\n", config.Get().UDPxy)
+	fmt.Printf("Buffer Size:         %d KB\n", config.Get().BufferSize)
+	fmt.Printf("Timeout:             %d ms\n", int(config.Get().BufferTimeout))
+	fmt.Printf("User Agent:          %s\n", config.Get().UserAgent)
 
 	fmt.Println("---")
 
 	fmt.Println("Settings [Backup]")
-	fmt.Printf("Folder (backup):     %s\n", Settings.BackupPath)
-	fmt.Printf("Backup Keep:         %d\n", Settings.BackupKeep)
+	fmt.Printf("Folder (backup):     %s\n", config.Get().BackupPath)
+	fmt.Printf("Backup Keep:         %d\n", config.Get().BackupKeep)
 }

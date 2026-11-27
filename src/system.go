@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"time"
+	"xteve/src/internal/config"
 	"xteve/src/internal/logger"
 )
 
@@ -171,11 +172,11 @@ func loadSettings() (settings SettingsStruct, err error) {
 	logger.Default().SetLimit(settings.LogEntriesRAM)
 
 	// Warning if FFmpeg was not found
-	if len(Settings.FFmpegPath) == 0 && Settings.Buffer == "ffmpeg" {
+	if len(config.Get().FFmpegPath) == 0 && config.Get().Buffer == "ffmpeg" {
 		showWarning(2020)
 	}
 
-	if len(Settings.VLCPath) == 0 && Settings.Buffer == "vlc" {
+	if len(config.Get().VLCPath) == 0 && config.Get().Buffer == "vlc" {
 		showWarning(2021)
 	}
 
@@ -183,7 +184,12 @@ func loadSettings() (settings SettingsStruct, err error) {
 }
 
 // Save Settings (xTeVe)
-func saveSettings(settings SettingsStruct) (err error) {
+// saveSettings saves settings and publishes them as the current settings, replacing the current ones.
+func saveSettings(settings SettingsStruct) error { return config.Default().Set(&settings) }
+
+// completeAndWriteSettings fills in defaults and writes the settings to settings.json. It is the saver of the
+// settings store (config.Store.SetSaver), so it runs for every change of the settings.
+func completeAndWriteSettings(settings *SettingsStruct) error {
 	if settings.BackupKeep == 0 {
 		settings.BackupKeep = 10
 	}
@@ -197,20 +203,12 @@ func saveSettings(settings SettingsStruct) (err error) {
 	}
 
 	if System.Dev {
-		Settings.UUID = "2019-01-DEV-xTeVe!"
+		settings.UUID = "2019-01-DEV-xTeVe!"
 	}
 
 	System.SetTempFolder(getValidTempDir(settings.TempPath + settings.UUID))
 
-	err = writeByteToFile(System.File.Settings, []byte(mapToJSON(settings)))
-	if err != nil {
-		return
-	}
-
-	Settings = settings
-
-
-	return
+	return writeByteToFile(System.File.Settings, []byte(mapToJSON(settings)))
 }
 
 // Enable access via the Domain
@@ -220,9 +218,9 @@ func setGlobalDomain(domain string) { System.SetDomain(domain) }
 func clientAddresses() (dvr, m3u, xml string) {
 	var domain, protocol = System.Domain(), System.Protocol()
 
-	if Settings.EpgSource != "XEPG" {
+	if config.Get().EpgSource != "XEPG" {
 		dvr = domain
-		if Settings.AuthenticationPMS {
+		if config.Get().AuthenticationPMS {
 			dvr = "username:password@" + domain
 		}
 		return dvr, getErrMsg(2106), getErrMsg(2106)
@@ -232,14 +230,14 @@ func clientAddresses() (dvr, m3u, xml string) {
 	m3u = protocol + "://" + domain + "/m3u/xteve.m3u     (Specific groups: [http://...?group-title=foo,bar])"
 	xml = protocol + "://" + domain + "/xmltv/xteve.xml"
 
-	if Settings.AuthenticationPMS {
+	if config.Get().AuthenticationPMS {
 		dvr = "username:password@" + domain
 	}
-	if Settings.AuthenticationM3U {
+	if config.Get().AuthenticationM3U {
 		m3u = protocol + "://" + domain +
 			"/m3u/xteve.m3u?username=xxx&password=yyy<br>(Specific groups: [http://...&group-title=foo,bar])"
 	}
-	if Settings.AuthenticationXML {
+	if config.Get().AuthenticationXML {
 		xml = protocol + "://" + domain + "/xmltv/xteve.xml?username=xxx&password=yyy"
 	}
 
@@ -255,10 +253,10 @@ func createUUID() (uuid string) {
 // deviceID returns the unique device ID for Plex. It changes with the number of tuners, so that Plex sees a new
 // device.
 func deviceID() string {
-	if Settings.Tuner == 1 {
-		return Settings.UUID
+	if config.Get().Tuner == 1 {
+		return config.Get().UUID
 	}
-	return fmt.Sprintf("%s:%d", Settings.UUID, Settings.Tuner)
+	return fmt.Sprintf("%s:%d", config.Get().UUID, config.Get().Tuner)
 }
 
 // Convert Provider Streaming URL to xTeVe Streaming URL

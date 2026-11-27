@@ -17,6 +17,7 @@ import (
 	"runtime"
 	"strings"
 	"text/template"
+	"xteve/src/internal/config"
 
 	"github.com/avfs/avfs"
 	"github.com/samber/lo"
@@ -338,20 +339,32 @@ func resolveHostIP() (err error) {
 		}
 	}
 
+	var hostIP = config.Get().HostIP
+
 	// If IP previously set in settings (including the default, empty) is not available anymore
-	if !lo.Contains(System.IPAddressesV4Host, Settings.HostIP) {
-		Settings.HostIP = System.IPAddressesV4Host[0]
+	if !lo.Contains(System.IPAddressesV4Host, hostIP) && len(System.IPAddressesV4Host) > 0 {
+		hostIP = System.IPAddressesV4Host[0]
 	}
 
-	if len(Settings.HostIP) == 0 {
+	if len(hostIP) == 0 {
 		switch len(System.IPAddressesV4) {
 		case 0:
 			if len(System.IPAddressesV6) > 0 {
-				Settings.HostIP = System.IPAddressesV6[0]
+				hostIP = System.IPAddressesV6[0]
 			}
 
 		default:
-			Settings.HostIP = System.IPAddressesV4[0]
+			hostIP = System.IPAddressesV4[0]
+		}
+	}
+
+	if hostIP != config.Get().HostIP {
+		err = config.Update(func(s *SettingsStruct) error {
+			s.HostIP = hostIP
+			return nil
+		})
+		if err != nil {
+			return
 		}
 	}
 

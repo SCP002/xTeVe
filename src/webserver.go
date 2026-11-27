@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"xteve/src/internal/authentication"
+	"xteve/src/internal/config"
 	"xteve/src/internal/logger"
 
 	"github.com/gorilla/websocket"
@@ -49,13 +50,13 @@ func StartWebserver() (err error) {
 	for {
 		showInfo("Web server:" + "Starting")
 
-		showInfo("DVR IP:" + Settings.HostIP + ":" + Settings.Port)
+		showInfo("DVR IP:" + config.Get().HostIP + ":" + config.Get().Port)
 
 		var ips = len(System.IPAddressesV4) + len(System.IPAddressesV6) - 1
 		switch ips {
 		case 0:
 			showHighlight(
-				fmt.Sprintf("Web Interface:%s://%s:%s/web/", System.Protocol(), Settings.HostIP, Settings.Port),
+				fmt.Sprintf("Web Interface:%s://%s:%s/web/", System.Protocol(), config.Get().HostIP, config.Get().Port),
 			)
 
 		case 1:
@@ -63,8 +64,8 @@ func StartWebserver() (err error) {
 				fmt.Sprintf(
 					"Web Interface:%s://%s:%s/web/ | xTeVe is also available via the other %d IP.",
 					System.Protocol(),
-					Settings.HostIP,
-					Settings.Port,
+					config.Get().HostIP,
+					config.Get().Port,
 					ips,
 				),
 			)
@@ -74,14 +75,14 @@ func StartWebserver() (err error) {
 				fmt.Sprintf(
 					"Web Interface:%s://%s:%s/web/ | xTeVe is also available via the other %d IP's.",
 					System.Protocol(),
-					Settings.HostIP,
-					Settings.Port,
+					config.Get().HostIP,
+					config.Get().Port,
 					len(System.IPAddressesV4)+len(System.IPAddressesV6)-1,
 				),
 			)
 		}
 
-		var port = Settings.Port
+		var port = config.Get().Port
 		server := http.Server{Addr: ":" + port}
 
 		// A server that cannot run stops xTeVe instead of leaving it without a web server
@@ -90,7 +91,7 @@ func StartWebserver() (err error) {
 		go func() {
 			var err error
 
-			if Settings.TLSMode {
+			if config.Get().TLSMode {
 				if !allFilesExist(System.File.ServerCertPrivKey, System.File.ServerCert) {
 					if err = genCertFiles(); err != nil {
 						ShowError(err, 7000)
@@ -156,7 +157,7 @@ func Index(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
 	case "/lineup.json":
-		if Settings.AuthenticationPMS {
+		if config.Get().AuthenticationPMS {
 			_, err := basicAuth(r, "authentication.pms")
 			if err != nil {
 				ShowError(err, 000)
@@ -200,13 +201,17 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 
 	// If an UDPxy host is set, and the stream URL is multicast (i.e. starts with 'udp://@'),
 	// then streamInfo.URL needs to be rewritten to point to UDPxy.
-	if Settings.UDPxy != "" && strings.HasPrefix(streamInfo.URL, "udp://@") {
-		streamInfo.URL = fmt.Sprintf("http://%s/udp/%s/", Settings.UDPxy, strings.TrimPrefix(streamInfo.URL, "udp://@"))
+	if config.Get().UDPxy != "" && strings.HasPrefix(streamInfo.URL, "udp://@") {
+		streamInfo.URL = fmt.Sprintf(
+			"http://%s/udp/%s/",
+			config.Get().UDPxy,
+			strings.TrimPrefix(streamInfo.URL, "udp://@"),
+		)
 	}
 
-	switch Settings.Buffer {
+	switch config.Get().Buffer {
 	case "-":
-		showInfo(fmt.Sprintf("Buffer:false [%s]", Settings.Buffer))
+		showInfo(fmt.Sprintf("Buffer:false [%s]", config.Get().Buffer))
 
 	case "xteve":
 		if strings.Contains(streamInfo.URL, "rtsp://") || strings.Contains(streamInfo.URL, "rtp://") {
@@ -220,21 +225,21 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		showInfo(fmt.Sprintf("Buffer:true [%s]", Settings.Buffer))
+		showInfo(fmt.Sprintf("Buffer:true [%s]", config.Get().Buffer))
 
 	default:
-		showInfo(fmt.Sprintf("Buffer:true [%s]", Settings.Buffer))
+		showInfo(fmt.Sprintf("Buffer:true [%s]", config.Get().Buffer))
 	}
 
-	if Settings.Buffer != "-" {
-		showInfo(fmt.Sprintf("Buffer Size:%d KB", Settings.BufferSize))
+	if config.Get().Buffer != "-" {
+		showInfo(fmt.Sprintf("Buffer Size:%d KB", config.Get().BufferSize))
 	}
 
 	showInfo(fmt.Sprintf("Channel Name:%s", streamInfo.Name))
 	showInfo(fmt.Sprintf("Client User-Agent:%s", r.Header.Get("User-Agent")))
 
 	// Check whether the Buffer should be used
-	switch Settings.Buffer {
+	switch config.Get().Buffer {
 	case "-":
 		showInfo("Streaming URL:" + streamInfo.URL)
 		http.Redirect(w, r, streamInfo.URL, http.StatusFound)
@@ -375,7 +380,7 @@ func WS(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !System.ConfigurationWizard.Load() {
-			switch Settings.AuthenticationWEB {
+			switch config.Get().AuthenticationWEB {
 			// Token Authentication
 			case true:
 				var token string
@@ -425,21 +430,21 @@ func WS(w http.ResponseWriter, r *http.Request) {
 
 		// Save Data
 		case "saveSettings":
-			var authenticationUpdate = Settings.AuthenticationWEB
-			var previousTLSMode = Settings.TLSMode
-			var previousHostIP = Settings.HostIP
-			var previousStoreBufferInRAM = Settings.StoreBufferInRAM
-			var previousClearXMLTVCache = Settings.ClearXMLTVCache
+			var authenticationUpdate = config.Get().AuthenticationWEB
+			var previousTLSMode = config.Get().TLSMode
+			var previousHostIP = config.Get().HostIP
+			var previousStoreBufferInRAM = config.Get().StoreBufferInRAM
+			var previousClearXMLTVCache = config.Get().ClearXMLTVCache
 
 			response.Settings, err = updateServerSettings(request)
 			if err == nil {
 				response.OpenMenu = strconv.Itoa(lo.IndexOf(System.WEB.Menu, "settings"))
 
-				if Settings.AuthenticationWEB && !authenticationUpdate {
+				if config.Get().AuthenticationWEB && !authenticationUpdate {
 					response.Reload = true
 				}
 
-				if Settings.TLSMode != previousTLSMode {
+				if config.Get().TLSMode != previousTLSMode {
 					showInfo("Web server:" + "Toggling TLS mode")
 
 					reinitialize()
@@ -448,8 +453,8 @@ func WS(w http.ResponseWriter, r *http.Request) {
 					restartWebserver <- true
 				}
 
-				if Settings.HostIP != previousHostIP {
-					showInfo("Web server:" + fmt.Sprintf("Changing host IP to %s", Settings.HostIP))
+				if config.Get().HostIP != previousHostIP {
+					showInfo("Web server:" + fmt.Sprintf("Changing host IP to %s", config.Get().HostIP))
 
 					reinitialize()
 
@@ -457,11 +462,11 @@ func WS(w http.ResponseWriter, r *http.Request) {
 					restartWebserver <- true
 				}
 
-				if Settings.StoreBufferInRAM != previousStoreBufferInRAM {
-					initBufferVFS(Settings.StoreBufferInRAM)
+				if config.Get().StoreBufferInRAM != previousStoreBufferInRAM {
+					initBufferVFS(config.Get().StoreBufferInRAM)
 				}
 
-				if Settings.ClearXMLTVCache && !previousClearXMLTVCache {
+				if config.Get().ClearXMLTVCache && !previousClearXMLTVCache {
 					clearXMLTVCache()
 				}
 			}
@@ -592,7 +597,7 @@ func WS(w http.ResponseWriter, r *http.Request) {
 			ShowError(err, 0)
 			response.Status = false
 			response.Error = userMessage(err)
-			response.Settings = Settings
+			response.Settings = *config.Get()
 		}
 
 		response = setDefaultResponseData(response, true)
@@ -621,7 +626,7 @@ func Web(w http.ResponseWriter, r *http.Request) {
 	setGlobalDomain(r.Host)
 
 	if System.Dev {
-		lang, err = loadJSONFileToMap(fmt.Sprintf("html/lang/%s.json", Settings.Language))
+		lang, err = loadJSONFileToMap(fmt.Sprintf("html/lang/%s.json", config.Get().Language))
 		if err != nil {
 			ShowError(err, 000)
 		}
@@ -642,7 +647,7 @@ func Web(w http.ResponseWriter, r *http.Request) {
 
 	if getFilenameFromPath(requestFile) == "html" {
 		if !System.ScanInProgress.Load() {
-			if len(Settings.Files.M3U) == 0 && len(Settings.Files.HDHR) == 0 {
+			if len(config.Get().Files.M3U) == 0 && len(config.Get().Files.HDHR) == 0 {
 				System.ConfigurationWizard.Store(true)
 			}
 		}
@@ -650,7 +655,16 @@ func Web(w http.ResponseWriter, r *http.Request) {
 		switch System.ConfigurationWizard.Load() {
 		case true:
 			file = requestFile + "configuration.html"
-			Settings.AuthenticationWEB = false
+			// The first setup runs without authentication
+			if config.Get().AuthenticationWEB {
+				err = config.Update(func(s *SettingsStruct) error {
+					s.AuthenticationWEB = false
+					return nil
+				})
+				if err != nil {
+					ShowError(err, 0)
+				}
+			}
 
 		case false:
 			file = requestFile + "index.html"
@@ -660,7 +674,7 @@ func Web(w http.ResponseWriter, r *http.Request) {
 			file = requestFile + "maintenance.html"
 		}
 
-		switch Settings.AuthenticationWEB {
+		switch config.Get().AuthenticationWEB {
 		case true:
 			var username, password, confirm string
 			switch r.Method {
@@ -743,7 +757,7 @@ func Web(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			if len(allUserData) == 0 && Settings.AuthenticationWEB {
+			if len(allUserData) == 0 && config.Get().AuthenticationWEB {
 				file = requestFile + "create-first-user.html"
 			}
 		}
@@ -849,7 +863,7 @@ func API(w http.ResponseWriter, r *http.Request) {
 
 	response.Status = true
 
-	if !Settings.API {
+	if !config.Get().API {
 		httpStatusError(w, 423)
 		return
 	}
@@ -874,7 +888,7 @@ func API(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("content-type", "application/json")
 
-	if Settings.AuthenticationAPI {
+	if config.Get().AuthenticationAPI {
 		var token string
 		switch len(request.Token) {
 		case 0:
@@ -917,7 +931,7 @@ func API(w http.ResponseWriter, r *http.Request) {
 		response.StreamsActive = int64(len(Data.Streams.Active))
 		response.StreamsAll = int64(len(Data.Streams.All))
 		response.StreamsXepg = int64(Data.XEPG.XEPGCount)
-		response.EpgSource = Settings.EpgSource
+		response.EpgSource = config.Get().EpgSource
 		response.URLDvr = System.Domain()
 		response.URLM3U = System.Protocol() + "://" + System.Domain() + "/m3u/xteve.m3u"
 		response.URLXepg = System.Protocol() + "://" + System.Domain() + "/xmltv/xteve.xml"
@@ -990,16 +1004,16 @@ func setDefaultResponseData(response ResponseStruct, data bool) (defaults Respon
 
 	// Always transfer the following Data to the Client
 	defaults.ClientInfo.ARCH = System.ARCH
-	defaults.ClientInfo.EpgSource = Settings.EpgSource
+	defaults.ClientInfo.EpgSource = config.Get().EpgSource
 	defaults.ClientInfo.DVR, defaults.ClientInfo.M3U, defaults.ClientInfo.XML = clientAddresses()
 	defaults.ClientInfo.OS = System.OS
 	defaults.ClientInfo.Streams = fmt.Sprintf("%d / %d", len(Data.Streams.Active), len(Data.Streams.All))
-	defaults.ClientInfo.UUID = Settings.UUID
+	defaults.ClientInfo.UUID = config.Get().UUID
 	var log = logger.Default().Log()
 	defaults.ClientInfo.Errors = log.Errors
 	defaults.ClientInfo.Warnings = log.Warnings
 	defaults.IPAddressesV4Host = System.IPAddressesV4Host
-	defaults.Settings.HostIP = Settings.HostIP
+	defaults.Settings.HostIP = config.Get().HostIP
 	defaults.Notification = logger.Default().Notifications()
 	defaults.Log = log
 
@@ -1015,7 +1029,7 @@ func setDefaultResponseData(response ResponseStruct, data bool) (defaults Respon
 			ShowError(err, 0)
 		}
 
-		if Settings.EpgSource == "XEPG" {
+		if config.Get().EpgSource == "XEPG" {
 			defaults.ClientInfo.XEPGCount = Data.XEPG.XEPGCount
 
 			var XEPG = make(map[string]any)
@@ -1031,7 +1045,7 @@ func setDefaultResponseData(response ResponseStruct, data bool) (defaults Respon
 			defaults.XEPG = XEPG
 		}
 
-		defaults.Settings = Settings
+		defaults.Settings = *config.Get()
 
 		defaults.Data.Playlist.M3U.Groups.Text = Data.Playlist.M3U.Groups.Text
 		defaults.Data.Playlist.M3U.Groups.Value = Data.Playlist.M3U.Groups.Value
