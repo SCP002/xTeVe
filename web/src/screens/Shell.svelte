@@ -21,6 +21,7 @@
   import NotYet from '../pages/NotYet.svelte'
   import Overview from '../pages/Overview.svelte'
   import Playlists from '../pages/Playlists.svelte'
+  import UsersPage from '../pages/Users.svelte'
   import Xmltv from '../pages/Xmltv.svelte'
 
   const menu: { page: Page; title: string; icon: Component }[] = [
@@ -40,6 +41,7 @@
     filters: Filters,
     xmltv: Xmltv,
     mapping: Mapping,
+    users: UsersPage,
     log: Log,
   }
 
