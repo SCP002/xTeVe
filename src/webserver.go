@@ -25,18 +25,17 @@ import (
 var webAlerts = make(chan string, 3)
 var restartWebserver = make(chan bool, 1)
 
-// StartWebserver : Start the Webserver
-// wsUpgrader upgrades web UI connections to WebSocket.
-//
-// Origin is not checked and handshake errors are reported by the caller,
-// matching the behavior of the deprecated websocket.Upgrade function.
+// wsUpgrader opens the WebSocket of the web UI. The default origin check of gorilla/websocket is used: a browser
+// may connect only from a page of the same host, so that another web page the user opens can not change the
+// settings. Clients without an Origin header (not browsers) are accepted. Handshake errors are reported by the
+// caller.
 var wsUpgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	CheckOrigin:     func(r *http.Request) bool { return true },
 	Error:           func(w http.ResponseWriter, r *http.Request, status int, reason error) {},
 }
 
+// StartWebserver starts the web server.
 func StartWebserver() (err error) {
 	http.HandleFunc("/", Index)
 	http.HandleFunc("/stream/", Stream)
