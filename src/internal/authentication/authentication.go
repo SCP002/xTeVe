@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"crypto/hmac"
 	"crypto/rand"
@@ -42,7 +43,7 @@ type Cookie struct {
 }
 
 // Init : databasePath = Path to authentication.json
-func Init(databasePath string, validity int) (err error) {
+func initDatabase(databasePath string, validity int) (err error) {
 	database = filepath.Dir(databasePath) + string(os.PathSeparator) + databaseFile
 
 	// Check if the database already exists
@@ -68,7 +69,7 @@ func Init(databasePath string, validity int) (err error) {
 }
 
 // CreateDefaultUser = created efault user
-func CreateDefaultUser(username, password string) (err error) {
+func createDefaultUser(username, password string) (err error) {
 	err = checkInit()
 	if err != nil {
 		return
@@ -91,7 +92,7 @@ func CreateDefaultUser(username, password string) (err error) {
 }
 
 // CreateNewUser : create new user
-func CreateNewUser(username, password string) (userID string, err error) {
+func createNewUser(username, password string) (userID string, err error) {
 	err = checkInit()
 	if err != nil {
 		return
@@ -128,7 +129,7 @@ func CreateNewUser(username, password string) (userID string, err error) {
 }
 
 // UserAuthentication : user authentication
-func UserAuthentication(username, password string) (token string, err error) {
+func userAuthentication(username, password string) (token string, err error) {
 	err = checkInit()
 	if err != nil {
 		return
@@ -163,7 +164,7 @@ func UserAuthentication(username, password string) (token string, err error) {
 }
 
 // CheckTheValidityOfTheToken : check token
-func CheckTheValidityOfTheToken(token string) (newToken string, err error) {
+func checkTheValidityOfTheToken(token string) (newToken string, err error) {
 	err = checkInit()
 	if err != nil {
 		return
@@ -190,7 +191,7 @@ func CheckTheValidityOfTheToken(token string) (newToken string, err error) {
 }
 
 // GetUserID : get user ID
-func GetUserID(token string) (userID string, err error) {
+func getUserID(token string) (userID string, err error) {
 	err = checkInit()
 	if err != nil {
 		return
@@ -213,7 +214,7 @@ func GetUserID(token string) (userID string, err error) {
 }
 
 // WriteUserData : save user date
-func WriteUserData(userID string, userData map[string]any) (err error) {
+func writeUserData(userID string, userData map[string]any) (err error) {
 	err = checkInit()
 	if err != nil {
 		return
@@ -232,7 +233,7 @@ func WriteUserData(userID string, userData map[string]any) (err error) {
 }
 
 // ReadUserData : load user date
-func ReadUserData(userID string) (userData map[string]any, err error) {
+func readUserData(userID string) (userData map[string]any, err error) {
 	err = checkInit()
 	if err != nil {
 		return
@@ -251,7 +252,7 @@ func ReadUserData(userID string) (userData map[string]any, err error) {
 }
 
 // RemoveUser : remove user
-func RemoveUser(userID string) (err error) {
+func removeUser(userID string) (err error) {
 	err = checkInit()
 	if err != nil {
 		return
@@ -270,8 +271,8 @@ func RemoveUser(userID string) (err error) {
 }
 
 // SetDefaultUserData : set default user data
-func SetDefaultUserData(defaults map[string]any) (err error) {
-	allUserData, err := GetAllUserData()
+func setDefaultUserData(defaults map[string]any) (err error) {
+	allUserData, err := getAllUserData()
 
 	for _, d := range allUserData {
 		var data = d.(map[string]any)["data"].(map[string]any)
@@ -284,13 +285,13 @@ func SetDefaultUserData(defaults map[string]any) (err error) {
 				data[k] = v
 			}
 		}
-		err = WriteUserData(userID, data)
+		err = writeUserData(userID, data)
 	}
 	return
 }
 
 // ChangeCredentials : change credentials
-func ChangeCredentials(userID, username, password string) (err error) {
+func changeCredentials(userID, username, password string) (err error) {
 	err = checkInit()
 	if err != nil {
 		return
@@ -316,7 +317,7 @@ func ChangeCredentials(userID, username, password string) (err error) {
 }
 
 // GetAllUserData : get all user data
-func GetAllUserData() (allUserData map[string]any, err error) {
+func getAllUserData() (allUserData map[string]any, err error) {
 	err = checkInit()
 	if err != nil {
 		return
@@ -482,4 +483,109 @@ func SetCookieToken(w http.ResponseWriter, token string) {
 	expiration := time.Now().Add(time.Minute * time.Duration(tokenValidity))
 	cookie := http.Cookie{Name: "Token", Value: token, Expires: expiration}
 	http.SetCookie(w, &cookie)
+}
+
+// mu guards the database and the tokens: every exported function that uses them holds it.
+var mu sync.Mutex
+
+// Init : see initDatabase.
+func Init(databasePath string, validity int) (err error) {
+	mu.Lock()
+	defer mu.Unlock()
+	return initDatabase(databasePath, validity)
+}
+
+// CreateDefaultUser : see createDefaultUser.
+func CreateDefaultUser(username, password string) (err error) {
+	mu.Lock()
+	defer mu.Unlock()
+	return createDefaultUser(username, password)
+}
+
+// CreateNewUser : see createNewUser.
+func CreateNewUser(username, password string) (userID string, err error) {
+	mu.Lock()
+	defer mu.Unlock()
+	return createNewUser(username, password)
+}
+
+// UserAuthentication : see userAuthentication.
+func UserAuthentication(username, password string) (token string, err error) {
+	mu.Lock()
+	defer mu.Unlock()
+	return userAuthentication(username, password)
+}
+
+// CheckTheValidityOfTheToken : see checkTheValidityOfTheToken.
+func CheckTheValidityOfTheToken(token string) (newToken string, err error) {
+	mu.Lock()
+	defer mu.Unlock()
+	return checkTheValidityOfTheToken(token)
+}
+
+// GetUserID : see getUserID.
+func GetUserID(token string) (userID string, err error) {
+	mu.Lock()
+	defer mu.Unlock()
+	return getUserID(token)
+}
+
+// WriteUserData : see writeUserData.
+func WriteUserData(userID string, userData map[string]any) (err error) {
+	mu.Lock()
+	defer mu.Unlock()
+	return writeUserData(userID, userData)
+}
+
+// ReadUserData : see readUserData. It returns a copy.
+func ReadUserData(userID string) (userData map[string]any, err error) {
+	mu.Lock()
+	defer mu.Unlock()
+	userData, err = readUserData(userID)
+	return copyMap(userData), err
+}
+
+// RemoveUser : see removeUser.
+func RemoveUser(userID string) (err error) {
+	mu.Lock()
+	defer mu.Unlock()
+	return removeUser(userID)
+}
+
+// SetDefaultUserData : see setDefaultUserData.
+func SetDefaultUserData(defaults map[string]any) (err error) {
+	mu.Lock()
+	defer mu.Unlock()
+	return setDefaultUserData(defaults)
+}
+
+// ChangeCredentials : see changeCredentials.
+func ChangeCredentials(userID, username, password string) (err error) {
+	mu.Lock()
+	defer mu.Unlock()
+	return changeCredentials(userID, username, password)
+}
+
+// GetAllUserData : see getAllUserData. It returns a copy.
+func GetAllUserData() (allUserData map[string]any, err error) {
+	mu.Lock()
+	defer mu.Unlock()
+	allUserData, err = getAllUserData()
+	return copyMap(allUserData), err
+}
+
+// copyMap returns a deep copy of a map of the database.
+func copyMap(m map[string]any) map[string]any {
+	if m == nil {
+		return nil
+	}
+	var c = make(map[string]any, len(m))
+	for k, v := range m {
+		if inner, ok := v.(map[string]any); ok {
+			c[k] = copyMap(inner)
+		} else {
+			c[k] = v
+		}
+	}
+	return c
 }
