@@ -21,3 +21,10 @@ golines --base-formatter gofmt -m 120 -w "${go_files[@]}" || exit $?
 
 printf '\nApplying auto-fixes and reporting remaining issues\n'
 golangci-lint run --fix --issues-exit-code=0 ./...
+
+if [[ -d web/node_modules/prettier ]]; then
+	printf '\nFormatting the web UI\n'
+	(cd web && npx prettier --write --log-level warn .) || exit $?
+else
+	printf '\nSkipping the web UI: run "npm ci" in web/ first\n'
+fi

@@ -43,6 +43,8 @@ func StartWebserver() (err error) {
 	http.HandleFunc("/m3u/", xTeVe)
 	http.HandleFunc("/data/", WS)
 	http.HandleFunc("/web/", Web)
+	http.HandleFunc("/ui/", UI)
+	http.HandleFunc("/ui/api/", UIAPI)
 	http.HandleFunc("/download/", Download)
 	http.HandleFunc("/api/", API)
 	http.HandleFunc("/images/", Images)
@@ -694,7 +696,8 @@ func Web(w http.ResponseWriter, r *http.Request) {
 				if len(confirm) > 0 {
 					var token, err = createFirstUserForAuthentication(username, password)
 					if err != nil {
-						httpStatusError(w, 429)
+						// A user exists already, or the name or password are not accepted
+						http.Error(w, userMessage(err), http.StatusBadRequest)
 						return
 					}
 					// Redirect so that the Data is deleted from the Browser.

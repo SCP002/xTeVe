@@ -9,6 +9,7 @@ import (
 	"embed"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -22,6 +23,11 @@ import (
 //
 //go:embed html
 var webFiles embed.FS
+
+// uiFiles is the new web UI: the build of Vite in web/dist/app, or only the placeholder if it was not built.
+//
+//go:embed all:web/dist
+var uiFiles embed.FS
 
 // GitHubStruct : GitHub Account. The Updates are published via this Account
 type GitHubStruct struct {
@@ -141,8 +147,14 @@ func main() {
 	// In developer mode the web UI is read from the local html folder, so that changes show without a new build
 	if *dev {
 		src.SetWebFiles(os.DirFS("."))
+		src.SetUIFiles(os.DirFS("web/dist"))
 	} else {
 		src.SetWebFiles(webFiles)
+		var ui, err = fs.Sub(uiFiles, "web/dist")
+		if err != nil {
+			panic(err)
+		}
+		src.SetUIFiles(ui)
 	}
 
 	// Display System Information

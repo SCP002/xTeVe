@@ -6,6 +6,11 @@ version="v2.5.0"
 cgo_enabled=0
 
 command -v go > /dev/null || { echo "go not found in PATH" >&2; exit 1; }
+command -v npm > /dev/null || { echo "npm not found in PATH, it builds the web UI" >&2; exit 1; }
+
+# The web UI is embedded into the binaries
+echo "Building the web UI"
+(cd web && npm ci && npm run build) || exit 1
 
 mkdir -p "$build_path"
 

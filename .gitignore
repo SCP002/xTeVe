@@ -15,4 +15,4 @@ Thumbs.db
 
 # Web UI: dependencies and the build output of Vite
 /web/node_modules/
-/web/dist/
+/web/dist/app/
