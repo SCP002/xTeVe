@@ -236,18 +236,16 @@ func (m *Manager) cacheImages(b *build) {
 		m.cfg.System.ImageCachingInProgress.Store(true)
 		defer m.cfg.System.ImageCachingInProgress.Store(false)
 
-		b.images.RLock()
-		var queued = len(b.images.Queue)
-		b.images.RUnlock()
-		logger.Info(fmt.Sprintf("Image Caching:Images are cached (%d)", queued))
+		logger.Info(fmt.Sprintf("Image Caching:Images are cached (%d)", b.images.Queued()))
 
-		if err := b.images.Image.Caching(); err != nil {
+		var downloaded, err = b.images.Download()
+		if err != nil {
 			errcode.Report(err, 0)
 		}
-		if err := b.images.Image.Remove(); err != nil {
+		if err := b.images.Remove(); err != nil {
 			errcode.Report(err, 0)
 		}
-		logger.Info("Image Caching:Done")
+		logger.Info(fmt.Sprintf("Image Caching:Done (%d downloaded)", downloaded))
 
 		m.WriteFiles()
 	}()
@@ -312,7 +310,7 @@ func ImageURL(images *imgcache.Cache, src string) string {
 	if images == nil {
 		return src
 	}
-	return images.Image.GetURL(src)
+	return images.GetURL(src)
 }
 
 func (m *Manager) xmltvName(id string) string {
