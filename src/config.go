@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strings"
 	"xteve/src/internal/config"
+	"xteve/src/internal/errcode"
 	"xteve/src/internal/logger"
 )
 
@@ -122,6 +123,13 @@ func Init() (err error) {
 	if err != nil {
 		return withCode(err, 1071)
 	}
+
+	errcode.SetApp(errcode.App{
+		Name:             System.Name,
+		Compatibility:    System.Compatibility,
+		SettingsFile:     System.File.Settings,
+		PlexChannelLimit: System.PlexChannelLimit,
+	})
 
 	// Perform conditional Update Changes
 	err = conditionalUpdateChanges()

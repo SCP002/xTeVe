@@ -7,8 +7,6 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
-	"unicode"
-	"unicode/utf8"
 	"xteve/src/internal/errcode"
 )
 
@@ -64,14 +62,7 @@ func writeResponse(w http.ResponseWriter, data []byte) bool {
 //
 // Go error strings start with a lowercase letter, so the first letter is
 // capitalized for display.
-func userMessage(err error) string {
-	var msg = err.Error()
-	r, size := utf8.DecodeRuneInString(msg)
-	if r == utf8.RuneError {
-		return msg
-	}
-	return string(unicode.ToUpper(r)) + msg[size:]
-}
+func userMessage(err error) string { return errcode.UserMessage(err) }
 
 // withCode attaches an xTeVe error code (see getErrMsg) to err, see errcode.With.
 func withCode(err error, code int) error { return errcode.With(err, code) }
