@@ -63,7 +63,6 @@ type Settings struct {
 	TLSMode                   bool     `json:"tlsMode"`
 	Tuner                     int      `json:"tuner"`
 	Update                    []string `json:"update"`
-	UpdateURL                 string   `json:"update.url,omitempty"`
 	UserAgent                 string   `json:"user.agent"`
 	UUID                      string   `json:"uuid"`
 	UDPxy                     string   `json:"udpxy"`

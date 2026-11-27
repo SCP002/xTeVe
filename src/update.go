@@ -1,151 +1,62 @@
 package src
 
 import (
-	"encoding/json"
+	"context"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
 
 	"xteve/src/internal/config"
-	up2date "xteve/src/internal/up2date/client"
+	"xteve/src/internal/updater"
 
 	"reflect"
 )
 
-// BinaryUpdate : Binary update process. Git Branch master and beta is loaded from GitHub.
+// BinaryUpdate updates xTeVe from the GitHub releases and restarts it, if a newer release exists and automatic
+// updates are enabled. The "beta" branch also uses pre-releases.
 func BinaryUpdate() (err error) {
 	if !System.GitHub.Update {
 		showWarning(2099)
 		return
 	}
 
-	var debug string
-
-	var updater = &up2date.Updater
-	updater.Name = System.Update.Name
-	updater.Branch = System.Branch
-
-	up2date.Init()
-
-	switch System.Branch {
-	// Update from GitHub
-	case "master", "beta":
-		var gitInfo = fmt.Sprintf("%s/%s/info.json?raw=true", System.Update.Git, System.Branch)
-		var zipFile = fmt.Sprintf(
-			"%s/%s/%s_%s_%s.zip?raw=true", System.Update.Git, System.Branch, System.AppName, System.OS, System.ARCH,
-		)
-		var body []byte
-
-		var git GitStruct
-
-		resp, err := http.Get(gitInfo)
-		if err != nil {
-			return withCode(err, 6003)
-		}
-		defer closeOrLog(resp.Body)
-
-		if resp.StatusCode != http.StatusOK {
-			if resp.StatusCode == 404 {
-				return withCode(fmt.Errorf("update server: %s (%s)", http.StatusText(resp.StatusCode), gitInfo), 6003)
-			}
-
-			err = fmt.Errorf("%d: %s (%s)", resp.StatusCode, http.StatusText(resp.StatusCode), gitInfo)
-
-			return err
-		}
-
-		body, err = io.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-
-		err = json.Unmarshal(body, &git)
-		if err != nil {
-			return err
-		}
-
-		updater.Response.Status = true
-		updater.Response.UpdateZIP = zipFile
-		updater.Response.Version = git.Version
-		updater.Response.Filename = git.Filename
-
-	// Update from your own Server
-	default:
-		updater.URL = config.Get().UpdateURL
-
-		if len(updater.URL) == 0 {
-			showInfo(
-				fmt.Sprintf(
-					"Update URL:No server URL specified, update will not be performed. Branch: %s",
-					System.Branch,
-				),
-			)
-			return
-		}
-
-		showInfo("Update URL:" + updater.URL)
-
-		// Load version information from the Server
-		err = up2date.GetVersion()
-		if err != nil {
-			debug = err.Error()
-			showDebug(debug, 1)
-
-			return nil
-		}
-
-		if len(updater.Response.Reason) > 0 {
-			return withCode(fmt.Errorf("update server: %s", updater.Response.Reason), 6002)
-		}
+	var ctx = context.Background()
+	var source = updater.Source{
+		Owner:      System.GitHub.User,
+		Repo:       System.GitHub.Repo,
+		Prerelease: System.Branch == "beta",
 	}
 
-	var currentVersion = System.Version
-
-	// Check Version Number
-	if updater.Response.Version > currentVersion && updater.Response.Status {
-		if config.Get().XteveAutoUpdate {
-			// Perform update
-			var fileType, url string
-
-			showInfo(fmt.Sprintf("Update Available:Version: %s", updater.Response.Version))
-
-			switch System.Branch {
-			// Update from GitHub
-			case "master", "beta":
-				showInfo("Update Server:GitHub")
-
-			// Update from your own Server
-			default:
-				showInfo(fmt.Sprintf("Update Server:%s", config.Get().UpdateURL))
-			}
-
-			showInfo(fmt.Sprintf("Start Update:Branch: %s", updater.Branch))
-
-			// Download the new version as a BIN File
-			if len(updater.Response.UpdateBIN) > 0 {
-				url = updater.Response.UpdateBIN
-				fileType = "bin"
-			}
-
-			// Download the new version as a ZIP File
-			if len(updater.Response.UpdateZIP) > 0 {
-				url = updater.Response.UpdateZIP
-				fileType = "zip"
-			}
-
-			if len(url) > 0 {
-				if err = up2date.DoUpdate(fileType, updater.Response.Filename); err != nil {
-					return withCode(err, 6002)
-				}
-			}
-		} else {
-			// Display update exception
-			showWarning(6004)
-		}
+	release, err := source.Latest(ctx, System.Name)
+	if err != nil {
+		return withCode(err, 6003)
 	}
 
-	return nil
+	if !updater.Newer(release, System.Version) {
+		showDebug(fmt.Sprintf("Update:%s is up to date (latest release %s)", System.Version, release.Version), 1)
+		return
+	}
+
+	showInfo(fmt.Sprintf("Update Available:Version: %s", release.Version))
+
+	if !config.Get().XteveAutoUpdate {
+		showWarning(6004)
+		return
+	}
+
+	// In a container or a package the binary belongs to root: the image or package is updated instead
+	if err = source.CanApply(); err != nil {
+		showInfo(fmt.Sprintf("Update:The binary can not be replaced (%s), update the image or package instead", err))
+		return nil
+	}
+
+	showInfo(fmt.Sprintf("Start Update:%s/%s %s", System.GitHub.User, System.GitHub.Repo, release.Version))
+
+	if err = source.Apply(ctx, release); err != nil {
+		return withCode(err, 6002)
+	}
+
+	showInfo("Update:Restarting with the new version")
+	return withCode(updater.Restart(), 6002)
 }
 
 func conditionalUpdateChanges() (err error) {

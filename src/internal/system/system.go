@@ -90,11 +90,6 @@ type Info struct {
 		User   string
 	}
 
-	Update struct {
-		Git  string
-		Name string
-	}
-
 	WEB struct {
 		Menu []string
 	}

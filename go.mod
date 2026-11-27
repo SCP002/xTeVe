@@ -4,10 +4,12 @@ go 1.27.3
 
 require (
 	github.com/avfs/avfs v0.35.0
+	github.com/fynelabs/selfupdate v0.2.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/koron/go-ssdp v0.9.2
 	github.com/samber/lo v1.53.0
 	github.com/stretchr/testify v1.12.1
+	golang.org/x/mod v0.43.0
 )
 
 require (

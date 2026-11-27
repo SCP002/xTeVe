@@ -19,3 +19,6 @@ for target in $(go tool dist list); do
     echo "Building for $os / $arch"
     CGO_ENABLED=$cgo_enabled GOOS=$os GOARCH=$arch go build -trimpath -ldflags "-s -w -X ${project_name}/version.Version=${version}" -o "${build_path}/${project_name}-${os}-${arch}${ext}" .
 done
+
+# Checksums for the built-in updater, which only uses binaries listed here
+(cd "$build_path" && sha256sum -- * > SHA256SUMS)

@@ -12,12 +12,6 @@ import (
 // SystemStruct : Contains all System Information
 type SystemStruct = system.Info
 
-// GitStruct : Update information from GitHub
-type GitStruct struct {
-	Filename string `json:"filename"`
-	Version  string `json:"version"`
-}
-
 // Filter : Used for the Filter Rules
 type Filter = playlist.Filter
 

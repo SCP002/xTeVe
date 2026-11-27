@@ -139,13 +139,17 @@ docker stop xteve
 
 ---
 
-### xTeVe Beta branch
+### Updates and the beta branch
 
-New features and bug fixes are only available in beta branch. Only after successful testing are they are merged into the master branch.
+xTeVe updates itself from the [GitHub releases](https://github.com/SCP002/xTeVe/releases) at start and once a day,
+if the automatic update is enabled in the settings. The binary of the platform is checked against the `SHA256SUMS`
+of the release before it replaces the running one, then xTeVe restarts. In Docker update the image instead.
+
+The master branch uses stable releases only, the beta branch also pre-releases.
 
 **It is not recommended to use the beta version in a production system.**  
 
-With the command line argument `branch` the Git Branch can be changed. xTeVe must be started via the terminal.  
+With the command line argument `branch` the branch can be changed. xTeVe must be started via the terminal.  
 
 #### Switch from master to beta branch
 
@@ -169,7 +173,7 @@ xteve -branch master
 ...
 ```
 
-When the branch is changed, an update is only performed if there is a new version and the update function is activated in the settings.  
+When the branch is changed, an update is only performed if there is a newer release and the update function is activated in the settings.  
 
 ---
 
@@ -237,7 +241,8 @@ The [release workflow](.github/workflows/release.yml) checks that the tag matche
 
 ## Forks
 
-When creating a fork, the xTeVe GitHub account must be changed from the source code or the update function disabled.
+When creating a fork, the GitHub account must be changed in the source code or the update function disabled, otherwise
+the fork updates itself to the releases of this repository.
 
 xteve.go:
 
@@ -247,5 +252,5 @@ var GitHub = GitHubStruct{Branch: "master", User: "SCP002", Repo: "xTeVe", Updat
 // Branch: GitHub Branch
 // User:   GitHub Username
 // Repo:   GitHub Repository
-// Update: Automatic updates from the GitHub repository [true|false]
+// Update: Updates from the GitHub releases of the repository [true|false]
 ```

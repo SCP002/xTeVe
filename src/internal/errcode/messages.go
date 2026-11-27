@@ -227,15 +227,13 @@ func Message(errCode int) (errMsg string) {
 	case 5000:
 		errMsg = "Invalid API command"
 
-	// Update Server
-	case 6001:
-		errMsg = "Ivalid key"
+	// Updates from the GitHub releases
 	case 6002:
 		errMsg = "Update failed"
 	case 6003:
-		errMsg = "Update server not available"
+		errMsg = "Release information not available"
 	case 6004:
-		errMsg = "xTeVe update available"
+		errMsg = "A new version is available, automatic updates are disabled in the settings"
 
 	// Certificates
 	case 7000:

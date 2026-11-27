@@ -40,8 +40,6 @@ func Init() (err error) {
 	System.VLC.DefaultOptions = "-I dummy [URL] --sout #std{mux=ts,access=file,dst=-}"
 
 	// Variables for the Update Process
-	System.Update.Git = fmt.Sprintf("https://github.com/%s/%s/blob", System.GitHub.User, System.GitHub.Repo)
-	System.Update.Name = "xteve_2"
 
 	// Define folder paths
 	if len(System.Folder.Config) == 0 {
