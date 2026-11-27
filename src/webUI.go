@@ -2,7 +2,7 @@
 
 package src
 
-var webUI = make(map[string]any)
+var webUI = make(map[string]string)
 
 func loadHTMLMap() {
 

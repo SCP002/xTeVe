@@ -2,6 +2,7 @@ package src
 
 import (
 	"cmp"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"xteve/src/internal/config"
+	"xteve/src/internal/hdhr"
 	m3u "xteve/src/internal/m3u-parser"
 )
 
@@ -153,10 +155,12 @@ func saveProviderFile(p *config.Provider, id, fileType string, body []byte) (err
 	showInfo("Check File:" + p.FileSource)
 	switch fileType {
 	case "m3u":
-		_, err = m3u.MakeInterfaceFromM3U(body)
+		_, err = m3u.Parse(body)
 
 	case "hdhr":
-		_, err = jsonToInterface(string(body))
+		// The lineup of an HDHomeRun tuner
+		var lineup []hdhr.LineupStream
+		err = json.Unmarshal(body, &lineup)
 
 	case "xmltv":
 		err = checkXMLCompatibility(id, body)

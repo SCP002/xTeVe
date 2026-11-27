@@ -133,7 +133,7 @@ type ResponseStruct struct {
 	Token             string                               `json:"token,omitempty"`
 	Users             map[string]authentication.PublicUser `json:"users,omitempty"`
 	Wizard            int                                  `json:"wizard"`
-	XEPG              map[string]any                       `json:"xepg"`
+	XEPG              *XEPGResponse                        `json:"xepg"`
 
 	Notification map[string]Notification `json:"notification,omitempty"`
 }
@@ -164,3 +164,9 @@ type APIResponseStruct struct {
 
 // WebScreenLogStruct : Logs are saved in RAM and made available for the Web Interface
 type WebScreenLogStruct = logger.Log
+
+// XEPGResponse is the XEPG database and the mapping menu for the web UI.
+type XEPGResponse struct {
+	EpgMapping epg.Channels `json:"epgMapping"`
+	XmltvMap   epg.Mapping  `json:"xmltvMap"`
+}

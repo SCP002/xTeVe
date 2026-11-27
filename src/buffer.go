@@ -46,7 +46,7 @@ func bufferPlaylist(playlistID string) (name string, tuners int) {
 
 // streamLimitVideo returns the video sent to clients when all tuners of a playlist are in use.
 func streamLimitVideo() []byte {
-	if value, ok := webUI["html/video/stream-limit.ts"].(string); ok {
+	if value, ok := webUI["html/video/stream-limit.ts"]; ok {
 		return []byte(GetHTMLString(value))
 	}
 	return nil

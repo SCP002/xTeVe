@@ -212,11 +212,6 @@ func jsonToMap(content string) map[string]any {
 	return (tmpMap)
 }
 
-func jsonToInterface(content string) (tmpMap any, err error) {
-	err = json.Unmarshal([]byte(content), &tmpMap)
-	return
-}
-
 func saveMapToJSONFile(file string, tmpMap any) error {
 	var filename = getPlatformFile(file)
 	jsonString, err := json.MarshalIndent(tmpMap, "", "  ")

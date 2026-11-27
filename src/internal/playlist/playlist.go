@@ -188,17 +188,7 @@ func parseSource(source Source) ([]Stream, error) {
 
 	switch source.Type {
 	case "m3u":
-		var channels, err = m3u.MakeInterfaceFromM3U(content)
-		if err != nil {
-			return nil, err
-		}
-		var streams = make([]Stream, 0, len(channels))
-		for _, c := range channels {
-			if s, ok := c.(map[string]string); ok {
-				streams = append(streams, s)
-			}
-		}
-		return streams, nil
+		return m3u.Parse(content)
 
 	case "hdhr":
 		return parseHDHR(content, source.Name, source.ID)

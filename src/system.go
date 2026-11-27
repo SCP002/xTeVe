@@ -74,71 +74,52 @@ func createSystemFiles() (err error) {
 }
 
 // Load Settings and set Default Values (xTeVe)
+// defaultSettings returns the settings used for the keys that settings.json does not have.
+func defaultSettings() SettingsStruct {
+	var settings = SettingsStruct{
+		BackupKeep:               10,
+		BackupPath:               System.Folder.Backup,
+		BufferSize:               1024,
+		BufferTimeout:            500,
+		Buffer:                   "-",
+		DefaultMissingEPG:        "-",
+		EpgSource:                "PMS",
+		FFmpegOptions:            System.FFmpeg.DefaultOptions,
+		FilesUpdate:              true,
+		Filter:                   map[int64]config.FilterSettings{},
+		Branch:                   System.Branch,
+		Language:                 "en",
+		LogEntriesRAM:            500,
+		MappingFirstChannel:      1000,
+		Port:                     "34400",
+		SSDP:                     true,
+		TempPath:                 System.TempFolder(),
+		Tuner:                    1,
+		Update:                   []string{"0000"},
+		UserAgent:                System.Name,
+		UUID:                     createUUID(),
+		Version:                  System.DBVersion,
+		VLCOptions:               System.VLC.DefaultOptions,
+		XepgReplaceMissingImages: true,
+		XteveAutoUpdate:          true,
+		// The host IP is set by resolveHostIP
+	}
+	settings.M3U8AdaptiveBandwidthMBPS = 10
+	settings.Files.HDHR = config.Providers{}
+	settings.Files.M3U = config.Providers{}
+	settings.Files.XMLTV = config.Providers{}
+	return settings
+}
+
 func loadSettings() (settings SettingsStruct, err error) {
-	settingsMap, err := loadJSONFileToMap(System.File.Settings)
+	content, err := readByteFromFile(System.File.Settings)
 	if err != nil {
 		return
 	}
 
-	// Set Deafult Values
-	var defaults = make(map[string]any)
-	var dataMap = make(map[string]any)
-
-	dataMap["xmltv"] = make(map[string]any)
-	dataMap["m3u"] = make(map[string]any)
-	dataMap["hdhr"] = make(map[string]any)
-
-	defaults["api"] = false
-	defaults["authentication.api"] = false
-	defaults["authentication.m3u"] = false
-	defaults["authentication.pms"] = false
-	defaults["authentication.web"] = false
-	defaults["authentication.xml"] = false
-	defaults["backup.keep"] = 10
-	defaults["backup.path"] = System.Folder.Backup
-	defaults["buffer.size.kb"] = 1024
-	defaults["buffer.timeout"] = 500
-	defaults["buffer"] = "-"
-	defaults["cache.images"] = false
-	defaults["clearXMLTVCache"] = false
-	defaults["defaultMissingEPG"] = "-"
-	defaults["disallowURLDuplicates"] = false
-	defaults["enableMappedChannels"] = false
-	defaults["epgSource"] = "PMS"
-	defaults["ffmpeg.options"] = System.FFmpeg.DefaultOptions
-	defaults["files.update"] = true
-	defaults["files"] = dataMap
-	defaults["filter"] = make(map[string]any)
-	defaults["git.branch"] = System.Branch
-	defaults["hostIP"] = "" // Will be set in resolveHostIP()
-	defaults["language"] = "en"
-	defaults["log.entries.ram"] = 500
-	defaults["m3u8.adaptive.bandwidth.mbps"] = 10
-	defaults["mapping.first.channel"] = 1000
-	defaults["port"] = "34400"
-	defaults["ssdp"] = true
-	defaults["storeBufferInRAM"] = false
-	defaults["temp.path"] = System.TempFolder()
-	defaults["tlsMode"] = false
-	defaults["tuner"] = 1
-	defaults["udpxy"] = ""
-	defaults["update"] = []string{"0000"}
-	defaults["user.agent"] = System.Name
-	defaults["uuid"] = createUUID()
-	defaults["version"] = System.DBVersion
-	defaults["vlc.options"] = System.VLC.DefaultOptions
-	defaults["xepg.replace.missing.images"] = true
-	defaults["xteveAutoUpdate"] = true
-
-	// Set Default Values
-	for key, value := range defaults {
-		if _, ok := settingsMap[key]; !ok {
-			settingsMap[key] = value
-		}
-	}
-
-	err = json.Unmarshal([]byte(mapToJSON(settingsMap)), &settings)
-	if err != nil {
+	// The keys of settings.json replace the defaults
+	settings = defaultSettings()
+	if err = json.Unmarshal(content, &settings); err != nil {
 		return
 	}
 

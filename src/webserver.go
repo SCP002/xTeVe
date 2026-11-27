@@ -13,6 +13,7 @@ import (
 
 	"xteve/src/internal/authentication"
 	"xteve/src/internal/config"
+	"xteve/src/internal/epg"
 	"xteve/src/internal/logger"
 
 	"github.com/gorilla/websocket"
@@ -633,7 +634,7 @@ func Web(w http.ResponseWriter, r *http.Request) {
 	} else {
 		var languageFile = "html/lang/en.json"
 
-		if value, ok := webUI[languageFile].(string); ok {
+		if value, ok := webUI[languageFile]; ok {
 			content = GetHTMLString(value)
 			lang = jsonToMap(content)
 		}
@@ -765,7 +766,7 @@ func Web(w http.ResponseWriter, r *http.Request) {
 		requestFile = file
 	}
 
-	if value, ok := webUI[requestFile].(string); ok {
+	if value, ok := webUI[requestFile]; ok {
 		content = GetHTMLString(value)
 		contentType = getContentType(requestFile)
 
@@ -1032,18 +1033,12 @@ func setDefaultResponseData(response ResponseStruct, data bool) (defaults Respon
 		if config.Get().EpgSource == "XEPG" {
 			defaults.ClientInfo.XEPGCount = xepgDB.Get().Count
 
-			var XEPG = make(map[string]any)
-
+			// Without streams the web UI gets empty lists
+			defaults.XEPG = &XEPGResponse{EpgMapping: epg.Channels{}, XmltvMap: epg.Mapping{}}
 			if len(streamsDB.Get().Active) > 0 {
 				var xepg = xepgDB.Get()
-				XEPG["epgMapping"] = xepg.Channels
-				XEPG["xmltvMap"] = xepg.Mapping
-			} else {
-				XEPG["epgMapping"] = make(map[string]any)
-				XEPG["xmltvMap"] = make(map[string]any)
+				defaults.XEPG = &XEPGResponse{EpgMapping: xepg.Channels, XmltvMap: xepg.Mapping}
 			}
-
-			defaults.XEPG = XEPG
 		}
 
 		defaults.Settings = *config.Get()

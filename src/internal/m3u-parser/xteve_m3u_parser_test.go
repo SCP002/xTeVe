@@ -20,17 +20,16 @@ type M3UStream struct {
 	UUIDValue  string `json:"_uuid.value,omitempty"`
 }
 
-func TestMakeInterfaceFromM3U(t *testing.T) {
+func TestParse(t *testing.T) {
 	// Read playlist
 	file := "test_playlist_1.m3u"
 	content, err := os.ReadFile(file)
 	assert.NoError(t, err, "Should read playlist")
 
-	// Parse playlist into []any
-	rawStreams, err := MakeInterfaceFromM3U(content)
+	rawStreams, err := Parse(content)
 	assert.NoError(t, err, "Should parse playlist")
 
-	// Build []M3UStream from []any
+	// Build []M3UStream from the streams
 	streams := []M3UStream{}
 
 	for _, rawStream := range rawStreams {

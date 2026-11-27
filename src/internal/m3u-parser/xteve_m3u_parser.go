@@ -15,8 +15,9 @@ var exceptForParameterRx = regexp.MustCompile(`[a-z-A-Z=]*(".*?")`)
 var exceptForChannelNameRx = regexp.MustCompile(`,([^\n]*|,[^\r]*)`)
 var extGrpRx = regexp.MustCompile(`#EXTGRP: *(.*)`)
 
-// MakeInterfaceFromM3U :
-func MakeInterfaceFromM3U(byteStream []byte) (allChannels []any, err error) {
+// Parse parses an extended M3U playlist into its streams: the attributes of each #EXTINF line ("tvg-id",
+// "group-title", ...), "name" and "url", and the keys added by xTeVe ("_values", "_uuid.key", "_uuid.value").
+func Parse(byteStream []byte) (allChannels []map[string]string, err error) {
 	var content = string(byteStream)
 	var channelName string
 	var uuids []string
