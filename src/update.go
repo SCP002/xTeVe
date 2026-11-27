@@ -177,7 +177,7 @@ checkVersion:
 			}
 
 			// New filter (WebUI). Old Filter Settings are converted
-			if oldFilter, ok := settingsMap["filter"].([]interface{}); ok {
+			if oldFilter, ok := settingsMap["filter"].([]any); ok {
 				var newFilterMap = convertToNewFilter(oldFilter)
 				settingsMap["filter"] = newFilterMap
 
@@ -223,7 +223,7 @@ checkVersion:
 			// Database verison <= 2.1.1 has broken XEPG mapping
 
 			// Clear XEPG mapping
-			Data.XEPG.Channels = make(map[string]interface{})
+			Data.XEPG.Channels = make(map[string]any)
 			Data.XEPG.XEPGCount = 0
 			Data.Cache.Streams = struct{ Active []string }{}
 
@@ -258,8 +258,8 @@ checkVersion:
 	return
 }
 
-func convertToNewFilter(oldFilter []interface{}) (newFilterMap map[int]interface{}) {
-	newFilterMap = make(map[int]interface{})
+func convertToNewFilter(oldFilter []any) (newFilterMap map[int]any) {
+	newFilterMap = make(map[int]any)
 
 	switch reflect.TypeOf(oldFilter).Kind() {
 	case reflect.Slice:
@@ -287,7 +287,7 @@ func setValueForUUID() (err error) {
 	}
 
 	for _, c := range xepg {
-		var xepgChannel = c.(map[string]interface{})
+		var xepgChannel = c.(map[string]any)
 
 		if uuidKey, ok := xepgChannel["_uuid.key"].(string); ok {
 			if value, ok := xepgChannel[uuidKey].(string); ok {

@@ -9,14 +9,14 @@ import (
 	"strconv"
 )
 
-func makeInteraceFromHDHR(content []byte, playlistName, id string) (channels []interface{}, err error) {
-	var hdhrData []interface{}
+func makeInteraceFromHDHR(content []byte, playlistName, id string) (channels []any, err error) {
+	var hdhrData []any
 
 	err = json.Unmarshal(content, &hdhrData)
 	if err == nil {
 		for _, d := range hdhrData {
 			var channel = make(map[string]string)
-			var data = d.(map[string]interface{})
+			var data = d.(map[string]any)
 
 			channel["group-title"] = playlistName
 			channel["name"] = data["GuideName"].(string)

@@ -22,7 +22,7 @@ type ClientInfo struct {
 	OS     string `json:"os"`
 	URL    string `json:"url"`
 
-	Response ServerResponse `json:"response,omitempty"`
+	Response ServerResponse `json:"response"`
 }
 
 // ServerResponse : Response from server after client request

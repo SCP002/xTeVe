@@ -72,7 +72,7 @@ func bufferingStream(playlistID, streamingURL, channelName string, w http.Respon
 		err := checkVFSFolder(playlist.Folder, bufferVFS)
 		if err != nil {
 			ShowError(err, 000)
-			httpStatusError(w, r, 404)
+			httpStatusError(w, 404)
 			return
 		}
 
@@ -868,10 +868,8 @@ func connectToStreamingServer(streamID int, playlistID string) {
 
 						bandwidth.TimeDiff = bandwidth.Stop.Sub(bandwidth.Start).Seconds()
 
+						// Used for the next request of an HLS playlist
 						networkBandwidth = int(float64(bandwidth.Size) / bandwidth.TimeDiff * 1000)
-
-						stream.NetworkBandwidth = networkBandwidth
-						bandwidth.NetworkBandwidth = stream.NetworkBandwidth
 
 						debug = fmt.Sprintf("Buffer Status:Done (%s)", tmpFile)
 						showDebug(debug, 2)
@@ -1398,16 +1396,21 @@ func thirdPartyBuffer(streamID int, playlistID string) {
 			scanner.Split(bufio.ScanLines)
 
 			for scanner.Scan() {
-				debug = fmt.Sprintf("%s log:%s", bufferType, strings.TrimSpace(scanner.Text()))
+				var line = fmt.Sprintf("%s log:%s", bufferType, strings.TrimSpace(scanner.Text()))
 
 				select {
 				case <-streamStatus:
-					showDebug(debug, 1)
+					showDebug(line, 1)
 				default:
-					showInfo(debug)
+					showInfo(line)
 				}
 
 				time.Sleep(time.Duration(10) * time.Millisecond)
+			}
+
+			// The pipe is closed when the process is stopped, that is the normal end
+			if err := scanner.Err(); err != nil && !errors.Is(err, os.ErrClosed) {
+				showDebug(fmt.Sprintf("%s log:%s", bufferType, err), 1)
 			}
 		}()
 

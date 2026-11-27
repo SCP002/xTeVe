@@ -232,7 +232,7 @@ func removeChildItems(dir string) error {
 }
 
 // JSON
-func mapToJSON(tmpMap interface{}) string {
+func mapToJSON(tmpMap any) string {
 	jsonString, err := json.MarshalIndent(tmpMap, "", "  ")
 	if err != nil {
 		return "{}"
@@ -241,8 +241,8 @@ func mapToJSON(tmpMap interface{}) string {
 	return string(jsonString)
 }
 
-func jsonToMap(content string) map[string]interface{} {
-	var tmpMap = make(map[string]interface{})
+func jsonToMap(content string) map[string]any {
+	var tmpMap = make(map[string]any)
 	if err := json.Unmarshal([]byte(content), &tmpMap); err != nil {
 		ShowError(err, 0)
 	}
@@ -250,12 +250,12 @@ func jsonToMap(content string) map[string]interface{} {
 	return (tmpMap)
 }
 
-func jsonToInterface(content string) (tmpMap interface{}, err error) {
+func jsonToInterface(content string) (tmpMap any, err error) {
 	err = json.Unmarshal([]byte(content), &tmpMap)
 	return
 }
 
-func saveMapToJSONFile(file string, tmpMap interface{}) error {
+func saveMapToJSONFile(file string, tmpMap any) error {
 	var filename = getPlatformFile(file)
 	jsonString, err := json.MarshalIndent(tmpMap, "", "  ")
 
@@ -271,7 +271,7 @@ func saveMapToJSONFile(file string, tmpMap interface{}) error {
 	return nil
 }
 
-func loadJSONFileToMap(file string) (tmpMap map[string]interface{}, err error) {
+func loadJSONFileToMap(file string) (tmpMap map[string]any, err error) {
 	content, err := os.ReadFile(getPlatformFile(file))
 	if err == nil {
 		err = json.Unmarshal(content, &tmpMap)
@@ -378,7 +378,7 @@ func randomString(n int) string {
 	return string(bytes)
 }
 
-func parseTemplate(content string, tmpMap map[string]interface{}) (result string) {
+func parseTemplate(content string, tmpMap map[string]any) (result string) {
 	t := template.Must(template.New("template").Parse(content))
 
 	var tpl bytes.Buffer

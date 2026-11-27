@@ -15,7 +15,7 @@ import (
 )
 
 // Parse Playlists
-func parsePlaylist(filename, fileType string) (channels []interface{}, err error) {
+func parsePlaylist(filename, fileType string) (channels []any, err error) {
 	content, err := readByteFromFile(filename)
 	var id = strings.TrimSuffix(getFilenameFromPath(filename), path.Ext(getFilenameFromPath(filename)))
 	var playlistName = getProviderParameter(id, fileType, "name")
@@ -33,7 +33,7 @@ func parsePlaylist(filename, fileType string) (channels []interface{}, err error
 }
 
 // Filter Streams
-func filterThisStream(s interface{}) (status bool) {
+func filterThisStream(s any) (status bool) {
 	var stream = s.(map[string]string)
 	var regexpYES = `[{]+[^}]+[}]`
 	var regexpNO = `!+[{]+[^}]+[}]`

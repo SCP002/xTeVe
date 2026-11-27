@@ -31,58 +31,51 @@ func xTeVeAutoBackup() (err error) {
 
 	// Delete Old Backups
 	files, err := os.ReadDir(System.Folder.Backup)
+	if err != nil {
+		return err
+	}
 
-	if err == nil {
-		for _, file := range files {
-			if filepath.Ext(file.Name()) == ".zip" && strings.Contains(file.Name(), "xteve_auto_backup") {
-				oldBackupFiles = append(oldBackupFiles, file.Name())
-			}
+	for _, file := range files {
+		if filepath.Ext(file.Name()) == ".zip" && strings.Contains(file.Name(), "xteve_auto_backup") {
+			oldBackupFiles = append(oldBackupFiles, file.Name())
 		}
+	}
 
-		// Delete All Backups
-		var end int
-		switch Settings.BackupKeep {
-		case 0:
-			end = 0
-		default:
-			end = Settings.BackupKeep - 1
-		}
+	// Keep BackupKeep - 1 old backups, the new one makes it BackupKeep
+	var end int
+	if Settings.BackupKeep > 0 {
+		end = Settings.BackupKeep - 1
+	}
 
-		for i := 0; i < len(oldBackupFiles)-end; i++ {
-			removeAllOrLog(System.Folder.Backup + oldBackupFiles[i])
-			debug = fmt.Sprintf("Delete backup file:%s", oldBackupFiles[i])
-			showDebug(debug, 1)
-		}
+	for i := 0; i < len(oldBackupFiles)-end; i++ {
+		removeAllOrLog(System.Folder.Backup + oldBackupFiles[i])
+		debug = fmt.Sprintf("Delete backup file:%s", oldBackupFiles[i])
+		showDebug(debug, 1)
+	}
 
-		if Settings.BackupKeep == 0 {
-			return
-		}
-	} else {
+	if Settings.BackupKeep == 0 {
 		return
 	}
 
 	// Create a Backup
-	if err == nil {
-		target = System.Folder.Backup + archive
+	target = System.Folder.Backup + archive
 
-		for _, i := range SystemFiles {
-			sourceFiles = append(sourceFiles, System.Folder.Config+i)
-		}
-
-		sourceFiles = append(sourceFiles, System.Folder.ImagesUpload)
-		if Settings.TLSMode {
-			sourceFiles = append(sourceFiles, System.Folder.Certificates)
-		}
-
-		err = zipFiles(sourceFiles, target)
-
-		if err == nil {
-			debug = fmt.Sprintf("Create backup file:%s", target)
-			showDebug(debug, 1)
-
-			showInfo("Backup file:" + target)
-		}
+	for _, i := range SystemFiles {
+		sourceFiles = append(sourceFiles, System.Folder.Config+i)
 	}
+
+	sourceFiles = append(sourceFiles, System.Folder.ImagesUpload)
+	if Settings.TLSMode {
+		sourceFiles = append(sourceFiles, System.Folder.Certificates)
+	}
+
+	if err = zipFiles(sourceFiles, target); err != nil {
+		return
+	}
+
+	debug = fmt.Sprintf("Create backup file:%s", target)
+	showDebug(debug, 1)
+	showInfo("Backup file:" + target)
 
 	return
 }

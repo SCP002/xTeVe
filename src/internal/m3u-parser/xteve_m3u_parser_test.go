@@ -26,11 +26,11 @@ func TestMakeInterfaceFromM3U(t *testing.T) {
 	content, err := os.ReadFile(file)
 	assert.NoError(t, err, "Should read playlist")
 
-	// Parse playlist into []interface{}
+	// Parse playlist into []any
 	rawStreams, err := MakeInterfaceFromM3U(content)
 	assert.NoError(t, err, "Should parse playlist")
 
-	// Build []M3UStream from []interface{}
+	// Build []M3UStream from []any
 	streams := []M3UStream{}
 
 	for _, rawStream := range rawStreams {

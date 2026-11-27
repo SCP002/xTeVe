@@ -102,9 +102,8 @@ type ClientConnection struct {
 
 // BandwidthCalculation : Bandwidth Calculation for the Stream
 type BandwidthCalculation struct {
-	NetworkBandwidth int
-	Size             int
-	Start            time.Time
-	Stop             time.Time
-	TimeDiff         float64
+	Size     int
+	Start    time.Time
+	Stop     time.Time
+	TimeDiff float64
 }

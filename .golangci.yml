@@ -5,7 +5,13 @@ linters:
     - lll
     # Empty lines at the start and end of blocks.
     - whitespace
+    # Simplifications with newer Go features, as gopls suggests them.
+    - modernize
   settings:
+    govet:
+      enable:
+        # Conditions that are always true or false because of nil checks.
+        - nilness
     lll:
       line-length: 120
       tab-width: 4

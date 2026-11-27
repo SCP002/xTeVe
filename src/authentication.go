@@ -15,7 +15,7 @@ func activatedSystemAuthentication() (err error) {
 		return
 	}
 
-	var defaults = make(map[string]interface{})
+	var defaults = make(map[string]any)
 	defaults["authentication.web"] = false
 	defaults["authentication.pms"] = false
 	defaults["authentication.xml"] = false
@@ -41,7 +41,7 @@ func createFirstUserForAuthentication(username, password string) (token string, 
 	token, err = authentication.CheckTheValidityOfTheToken(token)
 	authenticationErr(err)
 
-	var userData = make(map[string]interface{})
+	var userData = make(map[string]any)
 	userData["username"] = username
 	userData["authentication.web"] = true
 	userData["authentication.pms"] = true

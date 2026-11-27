@@ -37,7 +37,7 @@ func updateServerSettings(request RequestStruct) (settings SettingsStruct, err e
 				// Remove spaces from the Values and check the formatting of the Time (0000 - 2359)
 				var newUpdateTimes = make([]string, 0)
 
-				for _, v := range value.([]interface{}) {
+				for _, v := range value.([]any) {
 					v = strings.ReplaceAll(v.(string), " ", "")
 
 					if _, err := time.Parse("1504", v.(string)); err != nil {
@@ -226,8 +226,8 @@ func updateServerSettings(request RequestStruct) (settings SettingsStruct, err e
 
 // Save Provider Data (WebUI)
 func saveFiles(request RequestStruct, fileType string) (err error) {
-	var filesMap = make(map[string]interface{})
-	var newData = make(map[string]interface{})
+	var filesMap = make(map[string]any)
+	var newData = make(map[string]any)
 	var indicator string
 	var reloadData = false
 
@@ -249,19 +249,19 @@ func saveFiles(request RequestStruct, fileType string) (err error) {
 	}
 
 	if len(filesMap) == 0 {
-		filesMap = make(map[string]interface{})
+		filesMap = make(map[string]any)
 	}
 
 	for dataID, data := range newData {
 		if dataID == "-" {
 			// New Provider File
 			dataID = indicator + randomString(19)
-			data.(map[string]interface{})["new"] = true
+			data.(map[string]any)["new"] = true
 			filesMap[dataID] = data
 		} else {
 			// Existing Provider File
-			for key, value := range data.(map[string]interface{}) {
-				var oldData = filesMap[dataID].(map[string]interface{})
+			for key, value := range data.(map[string]any) {
+				var oldData = filesMap[dataID].(map[string]any)
 				oldData[key] = value
 			}
 		}
@@ -278,10 +278,10 @@ func saveFiles(request RequestStruct, fileType string) (err error) {
 		}
 
 		// New Provider File
-		if _, ok := data.(map[string]interface{})["new"]; ok {
+		if _, ok := data.(map[string]any)["new"]; ok {
 			reloadData = true
 			err = getProviderData(fileType, dataID)
-			delete(data.(map[string]interface{}), "new")
+			delete(data.(map[string]any), "new")
 
 			if err != nil {
 				delete(filesMap, dataID)
@@ -289,7 +289,7 @@ func saveFiles(request RequestStruct, fileType string) (err error) {
 			}
 		}
 
-		if _, ok := data.(map[string]interface{})["delete"]; ok {
+		if _, ok := data.(map[string]any)["delete"]; ok {
 			deleteLocalProviderFiles(dataID, fileType)
 			reloadData = true
 		}
@@ -320,7 +320,7 @@ func saveFiles(request RequestStruct, fileType string) (err error) {
 
 // Update Provider Data manually (WebUI)
 func updateFile(request RequestStruct, fileType string) (err error) {
-	var updateData = make(map[string]interface{})
+	var updateData = make(map[string]any)
 
 	switch fileType {
 	case "m3u":
@@ -349,7 +349,7 @@ func updateFile(request RequestStruct, fileType string) (err error) {
 
 // Delete Provider Data (WebUI)
 func deleteLocalProviderFiles(dataID, fileType string) {
-	var removeData = make(map[string]interface{})
+	var removeData = make(map[string]any)
 	var fileExtension string
 
 	switch fileType {
@@ -374,8 +374,8 @@ func deleteLocalProviderFiles(dataID, fileType string) {
 
 // Save Filter Settings (WebUI)
 func saveFilter(request RequestStruct) (settings SettingsStruct, err error) {
-	var filterMap map[int64]interface{}
-	var newData map[int64]interface{}
+	var filterMap map[int64]any
+	var newData map[int64]any
 	var defaultFilter FilterStruct
 	var newFilter = false
 
@@ -406,14 +406,14 @@ func saveFilter(request RequestStruct) (settings SettingsStruct, err error) {
 		}
 
 		// Update / delete filters
-		for key, value := range data.(map[string]interface{}) {
+		for key, value := range data.(map[string]any) {
 			// Clear Filters
-			if _, ok := data.(map[string]interface{})["delete"]; ok {
+			if _, ok := data.(map[string]any)["delete"]; ok {
 				delete(filterMap, dataID)
 				break
 			}
 
-			if filter, ok := data.(map[string]interface{})["filter"].(string); ok {
+			if filter, ok := data.(map[string]any)["filter"].(string); ok {
 				if len(filter) == 0 {
 					err = errors.New(getErrMsg(1014))
 					if newFilter {
@@ -424,7 +424,7 @@ func saveFilter(request RequestStruct) (settings SettingsStruct, err error) {
 				}
 			}
 
-			if oldData, ok := filterMap[dataID].(map[string]interface{}); ok {
+			if oldData, ok := filterMap[dataID].(map[string]any); ok {
 				oldData[key] = value
 			}
 		}
@@ -511,7 +511,7 @@ func saveXEpgMapping(request RequestStruct) (err error) {
 func saveUserData(request RequestStruct) (err error) {
 	var userData = request.UserData
 
-	var newCredentials = func(userID string, newUserData map[string]interface{}) (err error) {
+	var newCredentials = func(userID string, newUserData map[string]any) (err error) {
 		var newUsername, newPassword string
 		if username, ok := newUserData["username"].(string); ok {
 			newUsername = username
@@ -529,7 +529,7 @@ func saveUserData(request RequestStruct) (err error) {
 	}
 
 	for userID, newUserData := range userData {
-		err = newCredentials(userID, newUserData.(map[string]interface{}))
+		err = newCredentials(userID, newUserData.(map[string]any))
 		if err != nil {
 			return
 		}
@@ -539,15 +539,15 @@ func saveUserData(request RequestStruct) (err error) {
 			return
 		}
 
-		delete(newUserData.(map[string]interface{}), "password")
-		delete(newUserData.(map[string]interface{}), "confirm")
+		delete(newUserData.(map[string]any), "password")
+		delete(newUserData.(map[string]any), "confirm")
 
-		if _, ok := newUserData.(map[string]interface{})["delete"]; ok {
+		if _, ok := newUserData.(map[string]any)["delete"]; ok {
 			if err = authentication.RemoveUser(userID); err != nil {
 				return
 			}
 		} else {
-			err = authentication.WriteUserData(userID, newUserData.(map[string]interface{}))
+			err = authentication.WriteUserData(userID, newUserData.(map[string]any))
 			if err != nil {
 				return
 			}
@@ -590,8 +590,8 @@ func saveWizard(request RequestStruct) (nextStep int, err error) {
 			nextStep = 2
 
 		case "m3u", "xmltv":
-			var filesMap = make(map[string]interface{})
-			var data = make(map[string]interface{})
+			var filesMap = make(map[string]any)
+			var data = make(map[string]any)
 			var indicator, dataID string
 
 			data["type"] = key
@@ -710,9 +710,9 @@ func createFilterRules() (err error) {
 func buildDatabaseDVR() (err error) {
 	System.ScanInProgress = 1
 
-	Data.Streams.All = make([]interface{}, 0)
-	Data.Streams.Active = make([]interface{}, 0)
-	Data.Streams.Inactive = make([]interface{}, 0)
+	Data.Streams.All = make([]any, 0)
+	Data.Streams.Active = make([]any, 0)
+	Data.Streams.Inactive = make([]any, 0)
 	Data.Playlist.M3U.Groups.Text = []string{}
 	Data.Playlist.M3U.Groups.Value = []string{}
 	Data.StreamPreviewUI.Active = []string{}
@@ -732,7 +732,7 @@ func buildDatabaseDVR() (err error) {
 		var playlistFile = getLocalProviderFiles(fileType)
 
 		for _, i := range playlistFile {
-			var channels []interface{}
+			var channels []any
 			var groupTitle, tvgID, uuid = 0, 0, 0
 			var keys = []string{"group-title", "tvg-id", "uuid"}
 			var compatibility = make(map[string]int)
@@ -860,7 +860,7 @@ func buildDatabaseDVR() (err error) {
 
 	if len(Data.Streams.Active) == 0 && len(Settings.Filter) == 0 {
 		Data.Streams.Active = Data.Streams.All
-		Data.Streams.Inactive = make([]interface{}, 0)
+		Data.Streams.Inactive = make([]any, 0)
 
 		Data.StreamPreviewUI.Active = Data.StreamPreviewUI.Inactive
 		Data.StreamPreviewUI.Inactive = []string{}
@@ -884,7 +884,7 @@ func buildDatabaseDVR() (err error) {
 // Load Storage Location of all local Provider Files, always for one File Type (M3U, XMLTV etc.)
 func getLocalProviderFiles(fileType string) (localFiles []string) {
 	var fileExtension string
-	var dataMap = make(map[string]interface{})
+	var dataMap = make(map[string]any)
 
 	switch fileType {
 	case "m3u":
@@ -909,7 +909,7 @@ func getLocalProviderFiles(fileType string) (localFiles []string) {
 
 // Output Provider Parameters based on the Key
 func getProviderParameter(id, fileType, key string) (s string) {
-	var dataMap = make(map[string]interface{})
+	var dataMap = make(map[string]any)
 
 	switch fileType {
 	case "m3u":
@@ -922,7 +922,7 @@ func getProviderParameter(id, fileType, key string) (s string) {
 		dataMap = Settings.Files.XMLTV
 	}
 
-	if data, ok := dataMap[id].(map[string]interface{}); ok {
+	if data, ok := dataMap[id].(map[string]any); ok {
 		if v, ok := data[key].(string); ok {
 			s = v
 		}
@@ -937,7 +937,7 @@ func getProviderParameter(id, fileType, key string) (s string) {
 
 // Update Provider Statistics Compatibility
 func setProviderCompatibility(id, fileType string, compatibility map[string]int) {
-	var dataMap = make(map[string]interface{})
+	var dataMap = make(map[string]any)
 
 	switch fileType {
 	case "m3u":
@@ -950,7 +950,7 @@ func setProviderCompatibility(id, fileType string, compatibility map[string]int)
 		dataMap = Settings.Files.XMLTV
 	}
 
-	if data, ok := dataMap[id].(map[string]interface{}); ok {
+	if data, ok := dataMap[id].(map[string]any); ok {
 		data["compatibility"] = compatibility
 
 		switch fileType {

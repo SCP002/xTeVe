@@ -70,8 +70,7 @@ func stopProcess(cmd *exec.Cmd) {
 	// A killed process always exits with an *exec.ExitError, so only other
 	// errors (such as failed output copying) are worth reporting.
 	if err := cmd.Wait(); err != nil {
-		var exitErr *exec.ExitError
-		if !errors.As(err, &exitErr) {
+		if _, ok := errors.AsType[*exec.ExitError](err); !ok {
 			ShowError(err, 0)
 		}
 	}
@@ -111,8 +110,7 @@ func withCode(err error, code int) error {
 
 // errorCode returns the xTeVe error code attached to err with withCode, or 0.
 func errorCode(err error) int {
-	var coded *codedError
-	if errors.As(err, &coded) {
+	if coded, ok := errors.AsType[*codedError](err); ok {
 		return coded.code
 	}
 	return 0

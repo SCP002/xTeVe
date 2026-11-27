@@ -156,7 +156,7 @@ func Index(w http.ResponseWriter, r *http.Request) {
 			_, err := basicAuth(r, "authentication.pms")
 			if err != nil {
 				ShowError(err, 000)
-				httpStatusError(w, r, 403)
+				httpStatusError(w, 403)
 				return
 			}
 		}
@@ -180,7 +180,7 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ShowError(err, 0)
-	httpStatusError(w, r, 500)
+	httpStatusError(w, 500)
 }
 
 // Stream : Web Server /stream/
@@ -190,7 +190,7 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 	streamInfo, err := getStreamInfo(path)
 	if err != nil {
 		ShowError(err, 1203)
-		httpStatusError(w, r, 404)
+		httpStatusError(w, 404)
 		return
 	}
 
@@ -261,7 +261,7 @@ func xTeVe(w http.ResponseWriter, r *http.Request) {
 		content, err = readStringFromFile(file)
 		if err != nil {
 			logUnlessNotExist(err)
-			httpStatusError(w, r, 404)
+			httpStatusError(w, 404)
 			return
 		}
 	}
@@ -291,7 +291,7 @@ func xTeVe(w http.ResponseWriter, r *http.Request) {
 	err = urlAuth(r, requestType)
 	if err != nil {
 		ShowError(err, 000)
-		httpStatusError(w, r, 403)
+		httpStatusError(w, 403)
 		return
 	}
 
@@ -301,10 +301,7 @@ func xTeVe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", contentType)
-
-	if err == nil {
-		writeResponse(w, []byte(content))
-	}
+	writeResponse(w, []byte(content))
 }
 
 // Images : Image Cache /images/
@@ -314,7 +311,7 @@ func Images(w http.ResponseWriter, r *http.Request) {
 
 	content, err := readByteFromFile(filePath)
 	if err != nil {
-		httpStatusError(w, r, 404)
+		httpStatusError(w, 404)
 		return
 	}
 
@@ -331,7 +328,7 @@ func DataImages(w http.ResponseWriter, r *http.Request) {
 
 	content, err := readByteFromFile(filePath)
 	if err != nil {
-		httpStatusError(w, r, 404)
+		httpStatusError(w, 404)
 		return
 	}
 
@@ -613,7 +610,7 @@ func WS(w http.ResponseWriter, r *http.Request) {
 
 // Web : Web Server /web/
 func Web(w http.ResponseWriter, r *http.Request) {
-	var lang = make(map[string]interface{})
+	var lang = make(map[string]any)
 	var err error
 
 	var requestFile = strings.ReplaceAll(r.URL.Path, "/web", "html")
@@ -671,7 +668,7 @@ func Web(w http.ResponseWriter, r *http.Request) {
 				allUsers, err := authentication.GetAllUserData()
 				if err != nil {
 					ShowError(err, 0)
-					httpStatusError(w, r, 500)
+					httpStatusError(w, 500)
 					return
 				}
 
@@ -686,7 +683,7 @@ func Web(w http.ResponseWriter, r *http.Request) {
 				if len(confirm) > 0 {
 					var token, err = createFirstUserForAuthentication(username, password)
 					if err != nil {
-						httpStatusError(w, r, 429)
+						httpStatusError(w, 429)
 						return
 					}
 					// Redirect so that the Data is deleted from the Browser.
@@ -742,7 +739,7 @@ func Web(w http.ResponseWriter, r *http.Request) {
 			allUserData, err := authentication.GetAllUserData()
 			if err != nil {
 				ShowError(err, 000)
-				httpStatusError(w, r, 403)
+				httpStatusError(w, 403)
 				return
 			}
 
@@ -762,7 +759,7 @@ func Web(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Disposition", "attachment; filename="+getFilenameFromPath(requestFile))
 		}
 	} else {
-		httpStatusError(w, r, 404)
+		httpStatusError(w, 404)
 		return
 	}
 
@@ -772,7 +769,7 @@ func Web(w http.ResponseWriter, r *http.Request) {
 		// Local web server Files are loaded, only for Development
 		var err error
 		if content, err = readStringFromFile(requestFile); err != nil {
-			httpStatusError(w, r, 404)
+			httpStatusError(w, 404)
 			return
 		}
 	}
@@ -853,25 +850,25 @@ func API(w http.ResponseWriter, r *http.Request) {
 	response.Status = true
 
 	if !Settings.API {
-		httpStatusError(w, r, 423)
+		httpStatusError(w, 423)
 		return
 	}
 
 	if r.Method == "GET" {
-		httpStatusError(w, r, 404)
+		httpStatusError(w, 404)
 		return
 	}
 
 	// The server closes the request body itself
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
-		httpStatusError(w, r, 400)
+		httpStatusError(w, 400)
 		return
 	}
 
 	err = json.Unmarshal(b, &request)
 	if err != nil {
-		httpStatusError(w, r, 400)
+		httpStatusError(w, 400)
 		return
 	}
 
@@ -1022,14 +1019,14 @@ func setDefaultResponseData(response ResponseStruct, data bool) (defaults Respon
 		if Settings.EpgSource == "XEPG" {
 			defaults.ClientInfo.XEPGCount = Data.XEPG.XEPGCount
 
-			var XEPG = make(map[string]interface{})
+			var XEPG = make(map[string]any)
 
 			if len(Data.Streams.Active) > 0 {
 				XEPG["epgMapping"] = Data.XEPG.Channels
 				XEPG["xmltvMap"] = Data.XMLTV.Mapping
 			} else {
-				XEPG["epgMapping"] = make(map[string]interface{})
-				XEPG["xmltvMap"] = make(map[string]interface{})
+				XEPG["epgMapping"] = make(map[string]any)
+				XEPG["xmltvMap"] = make(map[string]any)
 			}
 
 			defaults.XEPG = XEPG
@@ -1046,7 +1043,7 @@ func setDefaultResponseData(response ResponseStruct, data bool) (defaults Respon
 	return
 }
 
-func httpStatusError(w http.ResponseWriter, r *http.Request, httpStatusCode int) {
+func httpStatusError(w http.ResponseWriter, httpStatusCode int) {
 	http.Error(w, fmt.Sprintf("%s [%d]", http.StatusText(httpStatusCode), httpStatusCode), httpStatusCode)
 }
 

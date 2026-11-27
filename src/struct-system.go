@@ -154,18 +154,18 @@ type DataStruct struct {
 	}
 
 	Streams struct {
-		Active   []interface{}
-		All      []interface{}
-		Inactive []interface{}
+		Active   []any
+		All      []any
+		Inactive []any
 	}
 
 	XMLTV struct {
 		Files   []string
-		Mapping map[string]interface{}
+		Mapping map[string]any
 	}
 
 	XEPG struct {
-		Channels  map[string]interface{}
+		Channels  map[string]any
 		XEPGCount int64
 	}
 }
@@ -297,13 +297,13 @@ type SettingsStruct struct {
 	FileXMLTV []string `json:"xmltv,omitempty"`
 
 	Files struct {
-		HDHR  map[string]interface{} `json:"hdhr"`
-		M3U   map[string]interface{} `json:"m3u"`
-		XMLTV map[string]interface{} `json:"xmltv"`
+		HDHR  map[string]any `json:"hdhr"`
+		M3U   map[string]any `json:"m3u"`
+		XMLTV map[string]any `json:"xmltv"`
 	} `json:"files"`
 
-	FilesUpdate bool                  `json:"files.update"`
-	Filter      map[int64]interface{} `json:"filter"`
+	FilesUpdate bool          `json:"files.update"`
+	Filter      map[int64]any `json:"filter"`
 	// IP chosen in web client. Used to form m3u and xml files.
 	HostIP                    string   `json:"hostIP"`
 	Key                       string   `json:"key,omitempty"`

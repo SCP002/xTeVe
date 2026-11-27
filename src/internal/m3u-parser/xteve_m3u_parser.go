@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/samber/lo"
@@ -15,7 +16,7 @@ var exceptForChannelNameRx = regexp.MustCompile(`,([^\n]*|,[^\r]*)`)
 var extGrpRx = regexp.MustCompile(`#EXTGRP: *(.*)`)
 
 // MakeInterfaceFromM3U :
-func MakeInterfaceFromM3U(byteStream []byte) (allChannels []interface{}, err error) {
+func MakeInterfaceFromM3U(byteStream []byte) (allChannels []any, err error) {
 	var content = string(byteStream)
 	var channelName string
 	var uuids []string
@@ -26,11 +27,9 @@ func MakeInterfaceFromM3U(byteStream []byte) (allChannels []interface{}, err err
 		var lines = strings.Split(strings.ReplaceAll(channel, "\r\n", "\n"), "\n")
 
 		// Remove lines with # and blank lines
-		for i := len(lines) - 1; i >= 0; i-- {
-			if len(lines[i]) == 0 || lines[i][0:1] == "#" {
-				lines = append(lines[:i], lines[i+1:]...)
-			}
-		}
+		lines = slices.DeleteFunc(lines, func(line string) bool {
+			return len(line) == 0 || line[0] == '#'
+		})
 
 		if len(lines) >= 2 {
 			for _, line := range lines {

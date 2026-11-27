@@ -24,12 +24,12 @@ func getProviderData(fileType, fileID string) (err error) {
 	var fileExtension, serverFileName string
 	var body = make([]byte, 0)
 	var newProvider bool
-	var dataMap = make(map[string]interface{})
+	var dataMap = make(map[string]any)
 
 	var saveDateFromProvider = func(fileSource, serverFileName, id string, body []byte) (err error) {
-		var data = make(map[string]interface{})
+		var data = make(map[string]any)
 
-		if value, ok := dataMap[id].(map[string]interface{}); ok {
+		if value, ok := dataMap[id].(map[string]any); ok {
 			data = value
 		} else {
 			data["id.provider"] = id
@@ -71,7 +71,7 @@ func getProviderData(fileType, fileID string) (err error) {
 					}
 
 				case "compatibility":
-					data[key] = make(map[string]interface{})
+					data[key] = make(map[string]any)
 
 				case "counter.download":
 					data[key] = 0.0
@@ -139,7 +139,7 @@ func getProviderData(fileType, fileID string) (err error) {
 	}
 
 	for dataID, d := range dataMap {
-		var data = d.(map[string]interface{})
+		var data = d.(map[string]any)
 		var fileSource = data["file.source"].(string)
 		newProvider = false
 
@@ -200,7 +200,7 @@ func getProviderData(fileType, fileID string) (err error) {
 				}
 
 				// Increase Error Counter by 1
-				if value, ok := dataMap[dataID].(map[string]interface{}); ok {
+				if value, ok := dataMap[dataID].(map[string]any); ok {
 					var data = value
 					data["counter.error"] = data["counter.error"].(float64) + 1
 					data["counter.download"] = data["counter.download"].(float64) + 1
@@ -212,7 +212,7 @@ func getProviderData(fileType, fileID string) (err error) {
 
 		// Calculate the Margin of Error
 		if !newProvider {
-			if value, ok := dataMap[dataID].(map[string]interface{}); ok {
+			if value, ok := dataMap[dataID].(map[string]any); ok {
 				var data = value
 
 				if data["counter.error"].(float64) == 0 {
@@ -248,7 +248,7 @@ func getProviderData(fileType, fileID string) (err error) {
 }
 
 // getProviderName returns the provider name for error messages, or its ID if it has no name yet.
-func getProviderName(data map[string]interface{}, dataID string) string {
+func getProviderName(data map[string]any, dataID string) string {
 	if name, ok := data["name"].(string); ok && len(name) > 0 {
 		return name
 	}

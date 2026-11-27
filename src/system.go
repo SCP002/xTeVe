@@ -25,8 +25,8 @@ func showDevInfo() {
 func createSystemFolders() (err error) {
 	e := reflect.ValueOf(&System.Folder).Elem()
 
-	for i := 0; i < e.NumField(); i++ {
-		var folder = e.Field(i).Interface().(string)
+	for _, field := range e.Fields() {
+		var folder = field.Interface().(string)
 
 		err = checkFolder(folder)
 
@@ -47,7 +47,7 @@ func createSystemFiles() (err error) {
 		err = checkFile(filename)
 		if err != nil {
 			// File does not exist, will be created now
-			err = saveMapToJSONFile(filename, make(map[string]interface{}))
+			err = saveMapToJSONFile(filename, make(map[string]any))
 			if err != nil {
 				return
 			}
@@ -81,12 +81,12 @@ func loadSettings() (settings SettingsStruct, err error) {
 	}
 
 	// Set Deafult Values
-	var defaults = make(map[string]interface{})
-	var dataMap = make(map[string]interface{})
+	var defaults = make(map[string]any)
+	var dataMap = make(map[string]any)
 
-	dataMap["xmltv"] = make(map[string]interface{})
-	dataMap["m3u"] = make(map[string]interface{})
-	dataMap["hdhr"] = make(map[string]interface{})
+	dataMap["xmltv"] = make(map[string]any)
+	dataMap["m3u"] = make(map[string]any)
+	dataMap["hdhr"] = make(map[string]any)
 
 	defaults["api"] = false
 	defaults["authentication.api"] = false
@@ -108,7 +108,7 @@ func loadSettings() (settings SettingsStruct, err error) {
 	defaults["ffmpeg.options"] = System.FFmpeg.DefaultOptions
 	defaults["files.update"] = true
 	defaults["files"] = dataMap
-	defaults["filter"] = make(map[string]interface{})
+	defaults["filter"] = make(map[string]any)
 	defaults["git.branch"] = System.Branch
 	defaults["hostIP"] = "" // Will be set in resolveHostIP()
 	defaults["language"] = "en"
