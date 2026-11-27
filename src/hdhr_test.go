@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sort"
 	"testing"
+	"xteve/src/internal/hdhr"
 	"xteve/src/internal/playlist"
 
 	"github.com/samber/lo"
@@ -23,11 +24,10 @@ func TestGuideNumberLess(t *testing.T) {
 
 func TestGetLineupPMSDuplicateNames(t *testing.T) {
 	var oldFiles, oldStreams = System.File, streamsDB.Get()
-	var oldURLs = Data.Cache.StreamingURLS
 	t.Cleanup(func() {
 		System.File = oldFiles
 		streamsDB.Set(oldStreams)
-		Data.Cache.StreamingURLS = oldURLs
+		initHDHR()
 	})
 
 	var dir = t.TempDir()
@@ -38,7 +38,7 @@ func TestGetLineupPMSDuplicateNames(t *testing.T) {
 		t.Fatal(err)
 	}
 	setSettings(t, func(s *SettingsStruct) { s.EpgSource = "PMS" })
-	Data.Cache.StreamingURLS = make(map[string]StreamInfo)
+	initHDHR()
 	streamsDB.Set(&playlist.Snapshot{Active: []playlist.Stream{
 		m3uStream("News", "A"),
 		m3uStream("Kids", "A"),
@@ -51,7 +51,7 @@ func TestGetLineupPMSDuplicateNames(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		var lineup []LineupStream
+		var lineup []hdhr.LineupStream
 		if err := json.Unmarshal(content, &lineup); err != nil {
 			t.Fatal(err)
 		}

@@ -73,7 +73,7 @@ func createM3UFile() {
 		ShowError(err, 000)
 	}
 
-	if err := saveMapToJSONFile(System.File.URLS, Data.Cache.StreamingURLS); err != nil {
+	if err := streamURLs.Load().Save(); err != nil {
 		ShowError(err, 0)
 	}
 }

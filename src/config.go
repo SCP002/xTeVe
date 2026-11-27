@@ -13,9 +13,6 @@ import (
 // System : Contains all System Information
 var System SystemStruct
 
-// Data : All data is stored here. (Lineup, XMLTV)
-var Data DataStruct
-
 // SystemFiles : All System Files
 var SystemFiles = []string{"authentication.json", "pms.json", "settings.json", "xepg.json", "urls.json"}
 
@@ -123,6 +120,8 @@ func Init() (err error) {
 	if err != nil {
 		return withCode(err, 1071)
 	}
+
+	initHDHR()
 
 	errcode.SetApp(errcode.App{
 		Name:             System.Name,

@@ -1,4 +1,4 @@
-package src
+package hdhr
 
 import "encoding/xml"
 
@@ -47,7 +47,7 @@ type LineupStatus struct {
 }
 
 // Lineup : HDHR Lineup /lineup.json
-type Lineup []any
+type Lineup []LineupStream
 
 //GuideName string `json:"GuideName"`
 //GuideNumber string `json:"GuideNumber"`

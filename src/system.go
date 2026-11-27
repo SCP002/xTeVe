@@ -2,10 +2,8 @@ package src
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"reflect"
-	"strings"
 	"time"
 	"xteve/src/internal/config"
 	"xteve/src/internal/logger"
@@ -260,62 +258,13 @@ func deviceID() string {
 }
 
 // Convert Provider Streaming URL to xTeVe Streaming URL
-func createStreamingURL(
-	streamingType, playlistID, channelNumber, channelName, url string,
-) (streamingURL string, err error) {
-	var streamInfo StreamInfo
-	var serverProtocol string
-
-	if len(Data.Cache.StreamingURLS) == 0 {
-		Data.Cache.StreamingURLS = make(map[string]StreamInfo)
+func createStreamingURL(_, playlistID, channelNumber, channelName, url string) (string, error) {
+	var id, err = streamURLs.Load().Add(playlistID, channelNumber, channelName, url)
+	if err != nil {
+		return "", err
 	}
-
-	var urlID = getMD5(fmt.Sprintf("%s-%s", playlistID, url))
-
-	if s, ok := Data.Cache.StreamingURLS[urlID]; ok {
-		streamInfo = s
-	} else {
-		streamInfo.URL = url
-		streamInfo.Name = channelName
-		streamInfo.PlaylistID = playlistID
-		streamInfo.ChannelNumber = channelNumber
-		streamInfo.URLid = urlID
-
-		Data.Cache.StreamingURLS[urlID] = streamInfo
-	}
-
-	switch streamingType {
-	case "DVR":
-		serverProtocol = System.Protocol()
-
-	case "M3U":
-		serverProtocol = System.Protocol()
-	}
-
-	streamingURL = fmt.Sprintf("%s://%s/stream/%s", serverProtocol, System.Domain(), streamInfo.URLid)
-
-	return
+	return fmt.Sprintf("%s://%s/stream/%s", System.Protocol(), System.Domain(), id), nil
 }
 
-func getStreamInfo(urlID string) (streamInfo StreamInfo, err error) {
-	if len(Data.Cache.StreamingURLS) == 0 {
-		tmp, err := loadJSONFileToMap(System.File.URLS)
-		if err != nil {
-			return streamInfo, err
-		}
-
-		err = json.Unmarshal([]byte(mapToJSON(tmp)), &Data.Cache.StreamingURLS)
-		if err != nil {
-			return streamInfo, err
-		}
-	}
-
-	if s, ok := Data.Cache.StreamingURLS[urlID]; ok {
-		streamInfo = s
-		streamInfo.URL = strings.Trim(streamInfo.URL, "\r\n")
-	} else {
-		err = errors.New("streaming error")
-	}
-
-	return
-}
+// getStreamInfo returns the stream of a streaming URL handed out by xTeVe.
+func getStreamInfo(urlID string) (StreamInfo, error) { return streamURLs.Load().Get(urlID) }

@@ -2,9 +2,7 @@ package src
 
 import (
 	"bytes"
-	"crypto/md5"
 	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -365,11 +363,4 @@ func parseTemplate(content string, tmpMap map[string]any) (result string) {
 	result = tpl.String()
 
 	return
-}
-
-func getMD5(str string) string {
-	md5Hasher := md5.New()
-	md5Hasher.Write([]byte(str))
-
-	return hex.EncodeToString(md5Hasher.Sum(nil))
 }
