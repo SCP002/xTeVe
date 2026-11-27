@@ -6,10 +6,6 @@
   "overrideCommand": false,
   "shutdownAction": "stopCompose",
   "remoteUser": "root",
-  "forwardPorts": [
-    34400,
-    5173
-  ],
   "portsAttributes": {
     "34400": {
       "label": "xTeVe Web UI"

@@ -44,20 +44,53 @@
       "label": "tsc build"
     },
     {
-      "label": "Web UI: dev server",
-      "detail": "Vite at port 5173, forwarding to xTeVe at port 34400 (XTEVE=... to change)",
-      "type": "npm",
-      "script": "dev",
-      "path": "web",
+      "label": "xTeVe: run",
+      "detail": "go run . at port 34400, config in /root/.xteve",
+      "type": "shell",
+      "command": "go run . -port 34400",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
       "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Web UI: dev server",
+      "detail": "Vite at http://localhost:5173/ui/, reloads on changes, forwards to xTeVe at port 34400",
+      "type": "shell",
+      "command": "npm ci --no-audit --no-fund && npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/web"
+      },
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Web UI: build",
+      "detail": "Builds web/dist/app, embedded by the next go build",
+      "type": "shell",
+      "command": "npm run build",
+      "options": {
+        "cwd": "${workspaceFolder}/web"
+      },
       "problemMatcher": []
     },
     {
       "label": "Web UI: check",
       "detail": "svelte-check and tsc",
-      "type": "npm",
-      "script": "check",
-      "path": "web",
+      "type": "shell",
+      "command": "npm run check",
+      "options": {
+        "cwd": "${workspaceFolder}/web"
+      },
       "problemMatcher": []
     }
   ]

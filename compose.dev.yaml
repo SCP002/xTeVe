@@ -7,6 +7,10 @@ services:
     init: true
     command: sleep infinity
     working_dir: /workspace
+    # xTeVe and the Vite dev server of the web UI, reachable from the host also without VS Code
+    ports:
+      - "34400:34400"
+      - "5173:5173"
     volumes:
       - .:/workspace:cached
       - go_mod_cache:/go/pkg/mod

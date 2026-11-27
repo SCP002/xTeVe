@@ -18,14 +18,12 @@ export default defineConfig({
   },
   server: {
     host: true,
-    proxy: {
-      '/ui/api': xteve,
-      '/data': { target: xteve, ws: true },
-      '/images': xteve,
-      '/data_images': xteve,
-      '/download': xteve,
-      '/m3u': xteve,
-      '/xmltv': xteve,
-    },
+    // The Host header stays the one of the dev server, which xTeVe compares with the Origin of requests
+    proxy: Object.fromEntries(
+      ['/ui/api', '/data', '/images', '/data_images', '/download', '/m3u', '/xmltv'].map((path) => [
+        path,
+        { target: xteve, changeOrigin: false, ws: path === '/data' },
+      ]),
+    ),
   },
 })
