@@ -13,6 +13,8 @@ services:
       - go_build_cache:/root/.cache/go-build
       - claude_config:/root/.claude
       - xteve_config:/root/.xteve
+      # node_modules of the web UI in a volume: much faster than the bind mount on Windows
+      - web_node_modules:/workspace/web/node_modules
     environment:
       - CLAUDE_CONFIG_DIR=/root/.claude
     cap_add:
@@ -25,3 +27,4 @@ volumes:
   go_build_cache:
   claude_config:
   xteve_config:
+  web_node_modules:

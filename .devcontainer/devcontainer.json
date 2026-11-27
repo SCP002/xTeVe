@@ -7,11 +7,15 @@
   "shutdownAction": "stopCompose",
   "remoteUser": "root",
   "forwardPorts": [
-    34400
+    34400,
+    5173
   ],
   "portsAttributes": {
     "34400": {
       "label": "xTeVe Web UI"
+    },
+    "5173": {
+      "label": "Web UI dev server (Vite)"
     }
   },
   "customizations": {
@@ -40,11 +44,18 @@
           "GO111MODULE": "on"
         },
         "go.toolsManagement.autoUpdate": true,
-        "terminal.integrated.defaultProfile.linux": "bash"
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "[svelte][typescript][javascript][json][css]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode",
+          "editor.formatOnSave": true
+        }
       },
       "extensions": [
         "golang.go",
-        "anthropic.claude-code"
+        "anthropic.claude-code",
+        "svelte.svelte-vscode",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss"
       ]
     }
   },
