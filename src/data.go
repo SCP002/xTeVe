@@ -412,25 +412,38 @@ func saveUserData(request RequestStruct) (err error) {
 	}
 
 	for userID, form := range users {
-		if len(form.Username) > 0 {
-			if err = authentication.ChangeCredentials(userID, form.Username, form.Password); err != nil {
-				return
+		var stored, err = authentication.ReadUserData(userID)
+		if err != nil {
+			return err
+		}
+
+		if request.DeleteUser || form.Delete {
+			// The first user keeps the web UI reachable
+			if stored.DefaultUser {
+				return errors.New("the first user can not be deleted")
 			}
-		}
-
-		if request.DeleteUser {
-			return authentication.RemoveUser(userID)
-		}
-
-		if form.Delete {
 			if err = authentication.RemoveUser(userID); err != nil {
-				return
+				return err
 			}
 			continue
 		}
 
+		if form.Password != form.Confirm {
+			return errors.New("the passwords do not match")
+		}
+		if len(form.Username) > 0 {
+			if err = authentication.ChangeCredentials(userID, form.Username, form.Password); err != nil {
+				return err
+			}
+		}
+
+		// Whether a user is the first one is not up to the web UI, and the first user keeps the web UI
+		form.DefaultUser = stored.DefaultUser
+		if stored.DefaultUser {
+			form.WEB = true
+		}
 		if err = authentication.WriteUserData(userID, form.UserData); err != nil {
-			return
+			return err
 		}
 	}
 
@@ -443,12 +456,19 @@ func saveNewUser(request RequestStruct) (err error) {
 	if err = json.Unmarshal(request.UserData, &form); err != nil {
 		return
 	}
+	switch {
+	case form.Username == "" || form.Password == "":
+		return errors.New("username and password are required")
+	case form.Password != form.Confirm:
+		return errors.New("the passwords do not match")
+	}
 
 	userID, err := authentication.CreateNewUser(form.Username, form.Password)
 	if err != nil {
 		return
 	}
 
+	form.DefaultUser = false
 	return authentication.WriteUserData(userID, form.UserData)
 }
 
