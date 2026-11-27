@@ -2,6 +2,7 @@ package buffer
 
 import (
 	"testing"
+	"time"
 
 	"xteve/src/internal/errcode"
 )
@@ -177,9 +178,10 @@ func TestParseM3U8SwitchBandwidth(t *testing.T) {
 		{network: 0, want: "360"},        // unknown network speed: lowest
 		{network: 500000, want: "360"},   // slower than every variant: lowest
 		{network: 1000000, want: "360"},  // exactly the lowest
-		{network: 2500000, want: "540"},  // between two variants
-		{network: 3500000, want: "720"},  // between two variants
-		{network: 9000000, want: "1080"}, // faster than every variant: highest
+		{network: 2500000, want: "540"},  // 80% is exactly 540 (2 Mbit/s)
+		{network: 3500000, want: "540"},  // enough for 720 (3 Mbit/s), but not with 20% headroom
+		{network: 3750000, want: "720"},  // 80% is exactly 720
+		{network: 6250000, want: "1080"}, // 80% is exactly 1080, the highest
 	}
 	for _, tt := range tests {
 		var stream = newTestStream(t, masterM3U8)
@@ -247,6 +249,24 @@ func TestSniffStreamType(t *testing.T) {
 	for name, tt := range tests {
 		if got := sniffStreamType(tt.start); got != tt.want {
 			t.Errorf("%s: sniffStreamType = %q, want %q", name, got, tt.want)
+		}
+	}
+}
+
+func TestMeasureBandwidth(t *testing.T) {
+	for _, c := range []struct {
+		previous, size int
+		d              time.Duration
+		want           int
+	}{
+		{0, 1_000_000, time.Second, 8_000_000},            // 1 MB in 1 s: 8 Mbit/s
+		{10_000_000, 1_000_000, time.Second, 9_000_000},   // averaged with the previous value
+		{10_000_000, 250_000, 2 * time.Second, 5_500_000}, // a slow segment halves the distance
+		{10_000_000, 0, time.Second, 10_000_000},          // nothing downloaded: unchanged
+		{10_000_000, 1_000_000, 0, 10_000_000},            // no time: unchanged
+	} {
+		if got := measureBandwidth(c.previous, c.size, c.d); got != c.want {
+			t.Errorf("measureBandwidth(%d, %d, %v) = %d, want %d", c.previous, c.size, c.d, got, c.want)
 		}
 	}
 }

@@ -23,10 +23,10 @@ Still open:
 
 - VLC: refuses to run as root, and as `nobody` exits silently in the devcontainer. The Docker image runs xTeVe as
   the `xteve` user, check it there.
-- Plex and Emby themselves. In Docker, SSDP discovery needs host networking.
-- HLS bandwidth: the measured network bandwidth is bytes/s * 1000 instead of bits/s and is averaged over the whole
-  stream including waits between segments, so after the first segment the highest variant is always chosen. Fixing
-  only the unit would move streams down to the lowest variant: measure the download time of each segment instead.
+- Plex and Emby themselves. Both can add the tuner by its address (`http://<host>:34400`), which needs only the TCP
+  port. SSDP discovery does not work through a published UDP port: the M-SEARCH requests go to the multicast address
+  239.255.255.250, which Docker does not forward into a bridge network. It needs host networking or a macvlan
+  network.
 
 ## 2. Follow-ups of the package split
 

@@ -51,10 +51,7 @@ type ThisStream struct {
 	NewSegCount      int
 	OldSegCount      int
 	Sequence         int64
-	TimeDiff         float64
-	TimeEnd          time.Time
 	TimeSegDuration  float64
-	TimeStart        time.Time
 	Version          int
 	Wait             float64
 
@@ -317,6 +314,9 @@ func parseM3U8(stream *ThisStream) (err error) {
 	return
 }
 
+// bandwidthHeadroom is the part of the measured network bandwidth a variant may use.
+const bandwidthHeadroom = 0.8
+
 func switchBandwidth(stream *ThisStream) (err error) {
 	var bandwidth []int
 	var dynamicStream DynamicStream
@@ -333,13 +333,15 @@ func switchBandwidth(stream *ThisStream) (err error) {
 		return
 	}
 
-	// Use the highest bandwidth the network can handle, or the lowest one
-	// if the network speed is unknown or slower than every variant
+	// Use the highest bandwidth the network can handle with headroom, or the lowest one if the network speed is
+	// unknown or too slow for every variant. The headroom keeps a network at the border of two variants from
+	// switching between them on every playlist.
 	dynamicStream = stream.DynamicStream[bandwidth[0]]
 
 	if stream.NetworkBandwidth > 0 {
+		var usable = float64(stream.NetworkBandwidth) * bandwidthHeadroom
 		for _, b := range bandwidth {
-			if b > stream.NetworkBandwidth {
+			if float64(b) > usable {
 				break
 			}
 			dynamicStream = stream.DynamicStream[b]

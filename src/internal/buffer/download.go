@@ -29,14 +29,14 @@ func (m *Manager) download(s *stream) {
 	}
 	logger.Debug(1, fmt.Sprintf("Create virtual filesystem Folder:%s", s.folder))
 
-	var networkBandwidth = config.Get().M3U8AdaptiveBandwidthMBPS * 1e+6
 	var bufferSize = config.Get().BufferSize
 
 	// st is the state of the download, only used here
 	var st = ThisStream{URL: s.url, Folder: s.folder, stop: s.stop}
+	// The bandwidth of the network starts with the setting and follows the downloaded HLS segments
+	st.NetworkBandwidth = config.Get().M3U8AdaptiveBandwidthMBPS * 1e6
 	var tmpSegment = 1
 	var timeOut = 0
-	var bandwidth bandwidthCalculation
 
 	// defaultSegment starts again with the stream URL (or where it redirected to)
 	var defaultSegment = func() {
@@ -51,7 +51,6 @@ func (m *Manager) download(s *stream) {
 		st.HLS = false
 		st.Sequence = 0
 		st.Wait = 0
-		st.NetworkBandwidth = networkBandwidth
 
 		timeOut++
 	}
@@ -71,10 +70,6 @@ func (m *Manager) download(s *stream) {
 			logger.Info("Streaming URL:" + st.URL)
 		}
 
-		st.TimeStart = time.Now()
-		bandwidth.Start = st.TimeStart
-		bandwidth.Size = 0
-
 		// Download the segments, an empty list starts again with the stream URL
 		for len(st.Segment) > 0 && !s.stopped() {
 			var segment = st.Segment[0]
@@ -83,6 +78,7 @@ func (m *Manager) download(s *stream) {
 				break
 			}
 
+			var requested = time.Now()
 			resp, req, err := m.get(s, &st, currentURL)
 			if err != nil {
 				return
@@ -149,9 +145,13 @@ func (m *Manager) download(s *stream) {
 
 			// Video Stream (TS)
 			case slices.Contains(tsContentTypes, contentType):
-				if !m.writeSegments(s, &st, resp, bufferSize, &tmpSegment, &bandwidth, &networkBandwidth) {
+				var size, ok = m.writeSegments(s, &st, resp, bufferSize, &tmpSegment)
+				if !ok {
 					closeBody(resp)
 					return
+				}
+				if st.HLS {
+					st.NetworkBandwidth = measureBandwidth(st.NetworkBandwidth, size, time.Since(requested))
 				}
 				timeOut = 0
 
@@ -167,14 +167,12 @@ func (m *Manager) download(s *stream) {
 
 			// Calculate the waiting time for the Download of the next Segment
 			if st.HLS && segment.Duration > 0 {
-				st.TimeEnd = time.Now()
-				st.TimeDiff = st.TimeEnd.Sub(st.TimeStart).Seconds()
-
-				var sleep = max((segment.Duration-st.TimeDiff)-(segment.Duration*0.25), 0)
+				var took = time.Since(requested).Seconds()
+				var sleep = max((segment.Duration-took)-(segment.Duration*0.25), 0)
 
 				logger.Debug(1, fmt.Sprintf(
-					"HLS Status:Download time: %f s | Segment duration: %f s | Sleep: %f s Sequence: %d",
-					st.TimeDiff, segment.Duration, sleep, segment.Sequence,
+					"HLS Status:Download time: %f s | Segment duration: %f s | Sleep: %f s Sequence: %d | "+
+						"Bandwidth: %d bit/s", took, segment.Duration, sleep, segment.Sequence, st.NetworkBandwidth,
 				))
 
 				if sleep > 0 && !s.sleep(time.Duration(math.Ceil(sleep*10))*100*time.Millisecond) {
@@ -257,9 +255,8 @@ func (m *Manager) get(s *stream, st *ThisStream, url string) (*http.Response, *h
 // writeSegments writes the TS stream of resp into segment files of half the buffer size. It reports false if the
 // download has to end: the stream was stopped or failed.
 func (m *Manager) writeSegments(
-	s *stream, st *ThisStream, resp *http.Response, bufferSize int, tmpSegment *int, bandwidth *bandwidthCalculation,
-	networkBandwidth *int,
-) bool {
+	s *stream, st *ThisStream, resp *http.Response, bufferSize int, tmpSegment *int,
+) (int, bool) {
 	var buffer = make([]byte, 1024*bufferSize*2)
 	var tmpFileSize = 1024 * bufferSize
 
@@ -272,10 +269,12 @@ func (m *Manager) writeSegments(
 	if err != nil {
 		m.cfg.Error(err, 0)
 		s.fail(err)
-		return false
+		return 0, false
 	}
 
 	var fileSize int
+	// size is the number of bytes of the response
+	var size int
 
 	for {
 		if fileSize == 0 {
@@ -288,39 +287,33 @@ func (m *Manager) writeSegments(
 			m.cfg.Error(err, 0)
 			s.fail(err)
 			closeFile(bufferFile)
-			return false
+			return size, false
 		}
 
 		if _, err := bufferFile.Write(buffer[:n]); err != nil {
 			m.cfg.Error(err, 0)
 			s.fail(err)
 			closeFile(bufferFile)
-			return false
+			return size, false
 		}
 
 		fileSize += n
 
 		if s.stopped() {
 			closeFile(bufferFile)
-			return false
+			return size, false
 		}
 
 		// Save the buffer
 		if fileSize >= tmpFileSize/2 || n == 0 {
-			bandwidth.Stop = time.Now()
-			bandwidth.Size += fileSize
-			bandwidth.TimeDiff = bandwidth.Stop.Sub(bandwidth.Start).Seconds()
-
-			// Used for the next request of an HLS playlist
-			*networkBandwidth = int(float64(bandwidth.Size) / bandwidth.TimeDiff * 1000)
-
+			size += fileSize
 			logger.Debug(2, fmt.Sprintf("Buffer Status:Done (%s)", tmpFile))
 
 			// The segment is complete only if it was closed without errors
 			if err := bufferFile.Close(); err != nil {
 				m.cfg.Error(err, 0)
 				s.fail(err)
-				return false
+				return size, false
 			}
 
 			st.Status = true
@@ -333,14 +326,14 @@ func (m *Manager) writeSegments(
 			if err != nil {
 				m.cfg.Error(err, 0)
 				s.fail(err)
-				return false
+				return size, false
 			}
 
 			fileSize = 0
 
 			if n == 0 {
 				closeFile(bufferFile)
-				return true
+				return size, true
 			}
 		}
 	}
@@ -375,11 +368,17 @@ func (m *Manager) removeFolder(s *stream) {
 	}
 }
 
-type bandwidthCalculation struct {
-	Size     int
-	Start    time.Time
-	Stop     time.Time
-	TimeDiff float64
+// measureBandwidth returns the bandwidth of the network in bit/s after a segment of size bytes was downloaded in d:
+// an exponential average, so that one slow segment does not switch to a lower variant at once.
+func measureBandwidth(previous, size int, d time.Duration) int {
+	if size == 0 || d <= 0 {
+		return previous
+	}
+	var measured = float64(size) * 8 / d.Seconds()
+	if previous <= 0 {
+		return int(measured)
+	}
+	return int(0.5*float64(previous) + 0.5*measured)
 }
 
 type readCloser struct {

@@ -102,6 +102,39 @@ func newTestSource(t *testing.T) *testSource {
 		}
 	})
 
+	// Adaptive HLS: a master playlist with a low and a high variant, the high one is slow
+	mux.HandleFunc("/abr/master.m3u8", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.apple.mpegurl")
+		_, _ = io.WriteString(w, "#EXTM3U\n"+
+			"#EXT-X-STREAM-INF:BANDWIDTH=1000000\nlow/index.m3u8\n"+
+			"#EXT-X-STREAM-INF:BANDWIDTH=8000000\nhigh/index.m3u8\n")
+	})
+	for _, variant := range []string{"low", "high"} {
+		mux.HandleFunc("/abr/"+variant+"/index.m3u8", func(w http.ResponseWriter, r *http.Request) {
+			var seq = time.Now().UnixMilli() / 500
+			w.Header().Set("Content-Type", "application/vnd.apple.mpegurl")
+			var playlist = fmt.Sprintf("#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:1\n"+
+				"#EXT-X-MEDIA-SEQUENCE:%d\n", seq-1)
+			for i := seq - 1; i <= seq; i++ {
+				playlist += fmt.Sprintf("#EXTINF:0.5,\nseg%d.ts\n", i)
+			}
+			_, _ = io.WriteString(w, playlist)
+		})
+		mux.HandleFunc("/abr/"+variant+"/", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "video/mp2t")
+			// 3 chunks of 18.8 KB: the high variant comes with about 2 Mbit/s
+			for range 3 {
+				if _, err := w.Write(tsChunk); err != nil {
+					return
+				}
+				w.(http.Flusher).Flush()
+				if variant == "high" {
+					time.Sleep(100 * time.Millisecond)
+				}
+			}
+		})
+	}
+
 	src.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var v, _ = src.hits.LoadOrStore(r.URL.Path, &atomic.Int32{})
 		v.(*atomic.Int32).Add(1)
@@ -404,4 +437,31 @@ func TestServeSlowSource(t *testing.T) {
 	if _, err := io.ReadFull(resp.Body, data); err != nil || !isTS(data) {
 		t.Errorf("stream after the headers: %v", err)
 	}
+}
+
+// The variant follows the measured bandwidth: the high variant is too slow, the low one is used.
+func TestServeAdaptiveHLS(t *testing.T) {
+	var source = newTestSource(t)
+	var srv = bufferTest(t, 1)
+
+	var ctx, cancel = context.WithCancel(t.Context())
+	defer cancel()
+	var res = make(chan streamResult, 1)
+	go func() { res <- readStream(ctx, srv, source.URL+"/abr/master.m3u8", 1<<30, 30*time.Second) }()
+
+	var segments = func(variant string) (n int32) {
+		source.hits.Range(func(k, v any) bool {
+			if strings.HasPrefix(k.(string), "/abr/"+variant+"/seg") {
+				n += v.(*atomic.Int32).Load()
+			}
+			return true
+		})
+		return n
+	}
+	// The setting (10 Mbit/s) chooses the high variant first
+	if !waitFor(20*time.Second, func() bool { return segments("high") > 0 && segments("low") > 0 }) {
+		t.Errorf("segments: high %d, low %d; want a switch to the low variant", segments("high"), segments("low"))
+	}
+	cancel()
+	<-res
 }
