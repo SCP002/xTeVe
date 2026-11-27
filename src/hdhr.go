@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-
-	"github.com/samber/lo"
 )
 
 func makeInteraceFromHDHR(content []byte, playlistName, id string) (channels []interface{}, err error) {
@@ -103,6 +101,10 @@ func getLineup() (jsonContent []byte, err error) {
 
 	switch Settings.EpgSource {
 	case "PMS":
+		// PMS IDs are stored by channel name. Channels with the same name get the keys "Name (2)", "Name (3)" and
+		// so on, so that each of them has its own ID and the first one keeps the ID stored for the plain name.
+		var pmsKeys = make(map[string]bool)
+
 		for i, dsa := range Data.Streams.Active {
 			var m3uChannel M3UChannelStructXEPG
 
@@ -117,7 +119,13 @@ func getLineup() (jsonContent []byte, err error) {
 			case 0:
 				// The generated number is kept if no stored PMS ID is available
 				stream.GuideNumber = fmt.Sprintf("%d", i+1000)
-				if guideNumber, err := getGuideNumberPMS(stream.GuideName); err != nil {
+				var pmsKey = stream.GuideName
+				for n := 2; pmsKeys[pmsKey]; n++ {
+					pmsKey = fmt.Sprintf("%s (%d)", stream.GuideName, n)
+				}
+				pmsKeys[pmsKey] = true
+
+				if guideNumber, err := getGuideNumberPMS(pmsKey); err != nil {
 					ShowError(err, 0)
 				} else {
 					stream.GuideNumber = guideNumber
@@ -180,6 +188,12 @@ func getLineup() (jsonContent []byte, err error) {
 
 	jsonContent, err = json.MarshalIndent(lineup, "", "  ")
 
+	if pmsChanged {
+		if saveErr := saveMapToJSONFile(System.File.PMS, Data.Cache.PMS); saveErr != nil {
+			ShowError(saveErr, 0)
+		}
+		pmsChanged = false
+	}
 	Data.Cache.PMS = nil
 
 	if saveErr := saveMapToJSONFile(System.File.URLS, Data.Cache.StreamingURLS); saveErr != nil && err == nil {
@@ -189,6 +203,10 @@ func getLineup() (jsonContent []byte, err error) {
 	return
 }
 
+// pmsChanged reports that getGuideNumberPMS added IDs to Data.Cache.PMS that are not saved yet.
+var pmsChanged bool
+
+// getGuideNumberPMS returns the stored PMS ID of a channel, or a new one. New IDs are saved by getLineup.
 func getGuideNumberPMS(channelName string) (pmsID string, err error) {
 	if len(Data.Cache.PMS) == 0 {
 		Data.Cache.PMS = make(map[string]string)
@@ -204,34 +222,21 @@ func getGuideNumberPMS(channelName string) (pmsID string, err error) {
 		}
 	}
 
-	var getNewID = func(channelName string) (id string) {
-		var i int
-
-	newID:
-
-		var ids []string
-		id = fmt.Sprintf("id-%d", i)
-
-		for _, v := range Data.Cache.PMS {
-			ids = append(ids, v)
-		}
-
-		if lo.IndexOf(ids, id) != -1 {
-			i++
-			goto newID
-		}
-
-		return
-	}
-
 	if value, ok := Data.Cache.PMS[channelName]; ok {
 		pmsID = value
 	} else {
-		pmsID = getNewID(channelName)
-		Data.Cache.PMS[channelName] = pmsID
-		if err := saveMapToJSONFile(System.File.PMS, Data.Cache.PMS); err != nil {
-			ShowError(err, 0)
+		// The first free ID: "id-0", "id-1" and so on
+		var used = make(map[string]bool, len(Data.Cache.PMS))
+		for _, v := range Data.Cache.PMS {
+			used[v] = true
 		}
+		for i := 0; ; i++ {
+			if pmsID = fmt.Sprintf("id-%d", i); !used[pmsID] {
+				break
+			}
+		}
+		Data.Cache.PMS[channelName] = pmsID
+		pmsChanged = true
 	}
 
 	return
