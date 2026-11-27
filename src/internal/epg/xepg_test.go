@@ -1,7 +1,6 @@
 package epg
 
 import (
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"testing"
@@ -55,7 +54,7 @@ func xepgTest(t *testing.T, db []XEPGChannelStruct, streams ...map[string]string
 
 	var info = &system.Info{}
 	info.File.XEPG = filepath.Join(t.TempDir(), "xepg.json")
-	var channels = make(map[string]any)
+	var channels = make(Channels)
 	for _, c := range db {
 		channels[c.XEPG] = c
 	}
@@ -68,7 +67,7 @@ func xepgTest(t *testing.T, db []XEPGChannelStruct, streams ...map[string]string
 		Streams: func() []playlist.Stream { return streams },
 	})
 	var b = m.newBuild()
-	b.mapping = make(map[string]any)
+	b.mapping = make(Mapping)
 	return b
 }
 
@@ -106,11 +105,7 @@ func xepgChannels(t *testing.T, b *build) map[string]XEPGChannelStruct {
 	t.Helper()
 
 	var channels = make(map[string]XEPGChannelStruct)
-	for _, c := range b.channels {
-		var channel XEPGChannelStruct
-		if err := json.Unmarshal([]byte(mapToJSON(c)), &channel); err != nil {
-			t.Fatal(err)
-		}
+	for _, channel := range b.channels {
 		var key = channel.Name + "/" + channel.GroupTitle
 		if _, ok := channels[key]; ok {
 			key += "/" + channel.XEPG
@@ -284,12 +279,12 @@ func TestCreateXEPGDatabaseIdenticalStreams(t *testing.T) {
 }
 
 // xmltvChannel returns an entry of the mapping menu as createXEPGMapping builds it.
-func xmltvChannel(id, icon string, names ...string) map[string]any {
+func xmltvChannel(id, icon string, names ...string) MappingChannel {
 	var displayNames []DisplayName
 	for _, n := range names {
 		displayNames = append(displayNames, DisplayName{Value: n})
 	}
-	return map[string]any{"id": id, "icon": icon, "display-names": displayNames}
+	return MappingChannel{ID: id, Icon: icon, DisplayNames: displayNames}
 }
 
 func TestMapping(t *testing.T) {
@@ -309,9 +304,9 @@ func TestMapping(t *testing.T) {
 	if err := b.createXEPGDatabase(); err != nil {
 		t.Fatal(err)
 	}
-	b.mapping = map[string]any{
-		"a.xml": map[string]any{"bbc1.uk": xmltvChannel("bbc1.uk", "http://img/bbc.png", "BBC 1")},
-		"b.xml": map[string]any{
+	b.mapping = Mapping{
+		"a.xml": {"bbc1.uk": xmltvChannel("bbc1.uk", "http://img/bbc.png", "BBC 1")},
+		"b.xml": {
 			"cnn":  xmltvChannel("cnn", "", "CNN International", "CNN"),
 			"icon": xmltvChannel("icon", "http://img/icon.png", "Icon"),
 		},
@@ -360,7 +355,7 @@ func TestMappingDefaults(t *testing.T) {
 		s.DefaultMissingEPG = "60_Minutes"
 		s.EnableMappedChannels = true
 	})
-	b.mapping = map[string]any{"a.xml": map[string]any{"bbc": xmltvChannel("bbc", "", "BBC")}}
+	b.mapping = Mapping{"a.xml": {"bbc": xmltvChannel("bbc", "", "BBC")}}
 
 	if err := b.mapChannels(); err != nil {
 		t.Fatal(err)
@@ -383,9 +378,9 @@ func TestMappingPrefersTvgID(t *testing.T) {
 	if err := b.createXEPGDatabase(); err != nil {
 		t.Fatal(err)
 	}
-	b.mapping = map[string]any{
-		"a.xml": map[string]any{"other": xmltvChannel("other", "", "BBC")},
-		"b.xml": map[string]any{"bbc.uk": xmltvChannel("bbc.uk", "", "BBC One")},
+	b.mapping = Mapping{
+		"a.xml": {"other": xmltvChannel("other", "", "BBC")},
+		"b.xml": {"bbc.uk": xmltvChannel("bbc.uk", "", "BBC One")},
 	}
 
 	if err := b.mapChannels(); err != nil {
@@ -393,5 +388,31 @@ func TestMappingPrefersTvgID(t *testing.T) {
 	}
 	if c := xepgChannels(t, b)["BBC/News"]; c.XmltvFile != "b.xml" || c.XMapping != "bbc.uk" {
 		t.Errorf("BBC: file %q, mapping %q; want b.xml, bbc.uk", c.XmltvFile, c.XMapping)
+	}
+}
+
+// A name set in the web UI is kept when the stream is renamed, an invalid rule is not used.
+func TestCreateXEPGDatabaseRenameKeepsCustomName(t *testing.T) {
+	var custom = dbChannel("x-ID.0", "1001", "Sport 1 HD", "Sport")
+	custom.XName = "My Sport"
+	custom.UpdateChannelNameRegex = "^Sport 1"
+	var invalid = dbChannel("x-ID.1", "1002", "Kids HD", "Kids")
+	invalid.UpdateChannelNameRegex = "(unclosed"
+
+	var b = xepgTest(t, []XEPGChannelStruct{custom, invalid},
+		m3uStream("Sport 1 FHD", "Sport"),
+		m3uStream("Kids FHD", "Kids"),
+	)
+
+	if err := b.createXEPGDatabase(); err != nil {
+		t.Fatal(err)
+	}
+
+	var channels = xepgChannels(t, b)
+	if c := channels["Sport 1 FHD/Sport"]; c.XEPG != "x-ID.0" || c.XName != "My Sport" {
+		t.Errorf("Sport = %+v, want the old channel with the name set in the web UI", c)
+	}
+	if c := channels["Kids FHD/Kids"]; c.XEPG == "x-ID.1" || c.XEPG == "" {
+		t.Errorf("Kids = %+v, want a new channel: the rule is invalid", c)
 	}
 }

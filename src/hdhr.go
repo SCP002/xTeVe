@@ -91,11 +91,7 @@ func getLineup() (jsonContent []byte, err error) {
 		}
 
 	case "XEPG":
-		for _, dxc := range xepgDB.Get().Channels {
-			var xepgChannel XEPGChannelStruct
-			if err = json.Unmarshal([]byte(mapToJSON(dxc)), &xepgChannel); err != nil {
-				return
-			}
+		for _, xepgChannel := range xepgDB.Get().Channels {
 			if xepgChannel.XActive {
 				add(xepgChannel.FileM3UID, xepgChannel.XChannelID, xepgChannel.XName, xepgChannel.URL)
 			}

@@ -55,7 +55,7 @@ func managerTest(t *testing.T, streams ...playlist.Stream) (*Manager, *system.In
 	if err := os.WriteFile(filepath.Join(dir, "X1.xml"), []byte(testXMLTV), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := saveMapToJSONFile(info.File.XEPG, map[string]any{}); err != nil {
+	if err := saveMapToJSONFile(info.File.XEPG, Channels{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -98,7 +98,7 @@ func TestRebuild(t *testing.T) {
 	if len(snapshot.Channels) != 2 || snapshot.Count != 1 {
 		t.Errorf("channels = %d, active = %d; want 2 and 1", len(snapshot.Channels), snapshot.Count)
 	}
-	if _, ok := snapshot.Mapping["X1.xml"].(map[string]any)["bbc.uk"]; !ok {
+	if _, ok := snapshot.Mapping["X1.xml"]["bbc.uk"]; !ok {
 		t.Errorf("mapping menu = %v", snapshot.Mapping)
 	}
 
@@ -130,13 +130,9 @@ func TestSaveMapping(t *testing.T) {
 	m.Rebuild()
 	waitScan(t, info)
 
-	var edited = func(name string) map[string]any {
-		var channels = make(map[string]any)
-		for id, c := range m.Get().Channels {
-			var channel XEPGChannel
-			if err := remarshal(c, &channel); err != nil {
-				t.Fatal(err)
-			}
+	var edited = func(name string) Channels {
+		var channels = make(Channels)
+		for id, channel := range m.Get().Channels {
 			channel.XName = name
 			channels[id] = channel
 		}
@@ -152,11 +148,7 @@ func TestSaveMapping(t *testing.T) {
 	var end = time.Now().Add(10 * time.Second)
 	for {
 		var names []string
-		for _, c := range m.Get().Channels {
-			var channel XEPGChannel
-			if err := remarshal(c, &channel); err != nil {
-				t.Fatal(err)
-			}
+		for _, channel := range m.Get().Channels {
 			names = append(names, channel.XName)
 		}
 		if len(names) == 1 && names[0] == "Second" {

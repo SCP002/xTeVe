@@ -1,6 +1,9 @@
 package src
 
-import "xteve/src/internal/logger"
+import (
+	"xteve/src/internal/epg"
+	"xteve/src/internal/logger"
+)
 
 // RequestStruct : Requests via the Websocket Interface
 type RequestStruct struct {
@@ -12,7 +15,7 @@ type RequestStruct struct {
 	UserData   map[string]any `json:"userData,omitempty"`
 
 	// Mapping
-	EpgMapping map[string]any `json:"epgMapping,omitempty"`
+	EpgMapping epg.Channels `json:"epgMapping,omitempty"`
 
 	// Restore
 	Base64 string `json:"base64,omitempty"`

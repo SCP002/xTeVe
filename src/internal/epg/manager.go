@@ -34,14 +34,14 @@ type Config struct {
 
 // Snapshot is the XEPG database with what was built along with it.
 type Snapshot struct {
-	// Channels by XEPG ID ("x-ID.12"). Values are XEPGChannel or, as loaded from xepg.json, map[string]any.
-	Channels map[string]any
+	// Channels by XEPG ID ("x-ID.12")
+	Channels Channels
 	// Count of active channels
 	Count int64
 	// XMLTV files used for the mapping
 	Files []string
-	// Mapping menu of the web UI: file name -> XMLTV channel ID -> {"id", "display-names", "icon"}
-	Mapping map[string]any
+	// Mapping menu of the web UI
+	Mapping Mapping
 	// Images caches the logos and posters of the channels
 	Images *imgcache.Cache
 }
@@ -54,7 +54,7 @@ type Manager struct {
 	mu      sync.Mutex
 	current atomic.Pointer[Snapshot]
 	// pending is the newest mapping saved in the web UI while a rebuild was running
-	pending atomic.Pointer[map[string]any]
+	pending atomic.Pointer[Channels]
 
 	cacheMu    sync.Mutex
 	xmltvCache map[string]XMLTV
@@ -64,10 +64,10 @@ type Manager struct {
 type build struct {
 	m *Manager
 
-	channels map[string]any
+	channels Channels
 	count    int64
 	files    []string
-	mapping  map[string]any
+	mapping  Mapping
 	images   *imgcache.Cache
 
 	streams       []playlist.Stream
@@ -77,7 +77,7 @@ type build struct {
 // NewManager returns a manager with an empty database.
 func NewManager(cfg Config) *Manager {
 	var m = &Manager{cfg: cfg, xmltvCache: make(map[string]XMLTV)}
-	m.current.Store(&Snapshot{Channels: map[string]any{}, Mapping: map[string]any{}})
+	m.current.Store(&Snapshot{Channels: Channels{}, Mapping: Mapping{}})
 	return m
 }
 
@@ -145,7 +145,7 @@ func (m *Manager) Rebuild() {
 
 // SaveMapping replaces the channels with the ones edited in the web UI, removes channels without stream and
 // rebuilds the database in the background. While a rebuild runs, the newest saved mapping is applied after it.
-func (m *Manager) SaveMapping(channels map[string]any) {
+func (m *Manager) SaveMapping(channels Channels) {
 	if m.mu.TryLock() {
 		m.applyMapping(channels)
 		m.mu.Unlock()
@@ -169,7 +169,7 @@ func (m *Manager) SaveMapping(channels map[string]any) {
 }
 
 // applyMapping publishes the edited channels. m.mu must be held.
-func (m *Manager) applyMapping(channels map[string]any) {
+func (m *Manager) applyMapping(channels Channels) {
 	var current = m.Get()
 	var b = m.newBuild()
 	b.channels = maps.Clone(channels)
@@ -250,7 +250,7 @@ func (m *Manager) Reset() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	var b = &build{m: m, channels: map[string]any{}, mapping: map[string]any{}}
+	var b = &build{m: m, channels: Channels{}, mapping: Mapping{}}
 	m.publish(b)
 	return saveMapToJSONFile(m.cfg.System.File.XEPG, b.channels)
 }

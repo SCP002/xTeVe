@@ -1,14 +1,12 @@
 package src
 
 import (
-	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"xteve/src/internal/epg"
-
-	"github.com/samber/lo"
 )
 
 // Create xTeVe M3U file
@@ -18,27 +16,19 @@ func buildM3U(groups []string) (m3u string, err error) {
 	var m3uChannels = make(map[float64]XEPGChannelStruct)
 	var channelNumbers []float64
 
-	for _, dxc := range xepg.Channels {
-		var xepgChannel XEPGChannelStruct
-		err := json.Unmarshal([]byte(mapToJSON(dxc)), &xepgChannel)
-		if err == nil {
-			if xepgChannel.XActive {
-				if len(groups) > 0 {
-					if lo.IndexOf(groups, xepgChannel.XGroupTitle) == -1 {
-						goto Done
-					}
-				}
-
-				var channelNumber, err = strconv.ParseFloat(strings.TrimSpace(xepgChannel.XChannelID), 64)
-
-				if err == nil {
-					m3uChannels[channelNumber] = xepgChannel
-					channelNumbers = append(channelNumbers, channelNumber)
-				}
-			}
+	for _, xepgChannel := range xepg.Channels {
+		if !xepgChannel.XActive {
+			continue
+		}
+		if len(groups) > 0 && !slices.Contains(groups, xepgChannel.XGroupTitle) {
+			continue
 		}
 
-	Done:
+		var channelNumber, err = strconv.ParseFloat(strings.TrimSpace(xepgChannel.XChannelID), 64)
+		if err == nil {
+			m3uChannels[channelNumber] = xepgChannel
+			channelNumbers = append(channelNumbers, channelNumber)
+		}
 	}
 
 	// Create M3U Content

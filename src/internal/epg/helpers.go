@@ -59,6 +59,35 @@ type M3UChannel struct {
 	StartingChannel string `json:"_starting-channel"`
 }
 
+// Channels are the channels of the XEPG database by XEPG ID ("x-ID.12").
+type Channels map[string]XEPGChannel
+
+// MappingChannel is an XMLTV channel in the mapping menu of the web UI.
+type MappingChannel struct {
+	ID           string        `json:"id"`
+	DisplayNames []DisplayName `json:"display-names"`
+	Icon         string        `json:"icon"`
+}
+
+// Mapping is the mapping menu of the web UI: XMLTV file name -> XMLTV channel ID -> channel.
+type Mapping map[string]map[string]MappingChannel
+
+// dummyFile is the XMLTV "file" of the dummy programs.
+const dummyFile = "xTeVe Dummy"
+
+// loadChannels reads xepg.json.
+func loadChannels(file string) (Channels, error) {
+	var channels = make(Channels)
+	var content, err = os.ReadFile(filepath.Clean(file))
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(content, &channels); err != nil {
+		return nil, err
+	}
+	return channels, nil
+}
+
 // XEPGChannelStruct and M3UChannelStructXEPG are the names used by the code moved from src.
 type (
 	XEPGChannelStruct    = XEPGChannel
@@ -71,14 +100,6 @@ func mapToJSON(v any) string {
 		return "{}"
 	}
 	return string(content)
-}
-
-func loadJSONFileToMap(file string) (m map[string]any, err error) {
-	content, err := os.ReadFile(filepath.Clean(file))
-	if err == nil {
-		err = json.Unmarshal(content, &m)
-	}
-	return
 }
 
 func saveMapToJSONFile(file string, v any) error {
@@ -107,6 +128,3 @@ func compressGZIP(data *[]byte, file string) error {
 	}
 	return os.WriteFile(filepath.Clean(file), buf.Bytes(), 0644)
 }
-
-// remarshal converts v into out through JSON, e.g. a channel of the database into XEPGChannel.
-func remarshal(v, out any) error { return json.Unmarshal([]byte(mapToJSON(v)), out) }

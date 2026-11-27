@@ -397,12 +397,6 @@ func saveFilter(request RequestStruct) (settings SettingsStruct, err error) {
 
 // Save XEPG Mapping
 func saveXEpgMapping(request RequestStruct) (err error) {
-	// The channels must have the format of the database
-	var channels map[string]XEPGChannelStruct
-	if err = json.Unmarshal([]byte(mapToJSON(request.EpgMapping)), &channels); err != nil {
-		return
-	}
-
 	xepgDB.SaveMapping(request.EpgMapping)
 
 	return
