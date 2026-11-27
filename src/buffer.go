@@ -1377,37 +1377,25 @@ func switchBandwidth(stream *ThisStream) (err error) {
 
 	sort.Ints(bandwidth)
 
-	if len(bandwidth) > 0 {
-
-		for i := range bandwidth {
-
-			segment.StreamInf.Bandwidth = stream.DynamicStream[bandwidth[i]].Bandwidth
-
-			dynamicStream = stream.DynamicStream[bandwidth[0]]
-
-			if stream.NetworkBandwidth == 0 {
-
-				dynamicStream = stream.DynamicStream[bandwidth[0]]
-				break
-
-			} else {
-
-				if bandwidth[i] > stream.NetworkBandwidth {
-					break
-				}
-
-				dynamicStream = stream.DynamicStream[bandwidth[i]]
-
-			}
-
-		}
-
-	} else {
-
+	if len(bandwidth) == 0 {
 		err = errors.New("M3U8 does not contain streaming URLs")
 		return
-
 	}
+
+	// Use the highest bandwidth the network can handle, or the lowest one
+	// if the network speed is unknown or slower than every variant
+	dynamicStream = stream.DynamicStream[bandwidth[0]]
+
+	if stream.NetworkBandwidth > 0 {
+		for _, b := range bandwidth {
+			if b > stream.NetworkBandwidth {
+				break
+			}
+			dynamicStream = stream.DynamicStream[b]
+		}
+	}
+
+	segment.StreamInf.Bandwidth = dynamicStream.Bandwidth
 
 	segment.URL = dynamicStream.URL
 	segment.Duration = 0
