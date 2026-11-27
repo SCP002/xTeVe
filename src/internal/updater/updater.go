@@ -24,6 +24,9 @@ import (
 // ChecksumFile is the name of the checksum file of a release.
 const ChecksumFile = "SHA256SUMS"
 
+// ErrNoRelease is returned by Latest when no release has a binary for this platform and checksums.
+var ErrNoRelease = errors.New("no release with a binary for this platform and " + ChecksumFile)
+
 // Source is where the releases are.
 type Source struct {
 	// APIURL is the GitHub API, "https://api.github.com" if empty.
@@ -130,17 +133,26 @@ func (s Source) Latest(ctx context.Context, name string) (Release, error) {
 	}
 
 	if newest.Version == "" {
-		return Release{}, fmt.Errorf("no release with %s and %s found", binaryName, ChecksumFile)
+		return Release{}, fmt.Errorf("%w (%s)", ErrNoRelease, binaryName)
 	}
 	return newest, nil
+}
+
+// Updatable reports whether a version can be updated: a local build ("dev") is not a semantic version and is never
+// updated.
+func Updatable(version string) bool { return semver.IsValid(withV(version)) }
+
+func withV(version string) string {
+	if !strings.HasPrefix(version, "v") {
+		return "v" + version
+	}
+	return version
 }
 
 // Newer reports whether release is newer than the version ("2.5.0" or "v2.5.0"). A version that is not a semantic
 // version (e.g. "dev" of a local build) is never updated.
 func Newer(release Release, version string) bool {
-	if !strings.HasPrefix(version, "v") {
-		version = "v" + version
-	}
+	version = withV(version)
 	return semver.IsValid(version) && semver.Compare(release.Version, version) > 0
 }
 

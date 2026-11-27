@@ -19,6 +19,11 @@ func BinaryUpdate() (err error) {
 		return
 	}
 
+	if !updater.Updatable(System.Version) {
+		showDebug(fmt.Sprintf("Update:Version %s is a local build and is not updated", System.Version), 1)
+		return
+	}
+
 	var ctx = context.Background()
 	var source = updater.Source{
 		Owner:      System.GitHub.User,
@@ -27,6 +32,10 @@ func BinaryUpdate() (err error) {
 	}
 
 	release, err := source.Latest(ctx, System.Name)
+	if errors.Is(err, updater.ErrNoRelease) {
+		showInfo("Update:" + userMessage(err))
+		return nil
+	}
 	if err != nil {
 		return withCode(err, 6003)
 	}

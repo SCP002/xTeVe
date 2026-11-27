@@ -3,6 +3,7 @@ package updater
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -74,8 +75,9 @@ func TestLatest(t *testing.T) {
 
 	// A release without checksums is not used
 	var noSums = testServer(t, nil, "v2.12.0")
-	if _, err := (Source{APIURL: noSums.URL, Owner: "o", Repo: "r"}).Latest(t.Context(), "xTeVe"); err == nil {
-		t.Error("a release without checksums was accepted")
+	if _, err := (Source{APIURL: noSums.URL, Owner: "o", Repo: "r"}).Latest(t.Context(), "xTeVe"); !errors.Is(
+		err, ErrNoRelease) {
+		t.Errorf("release without checksums: err = %v, want ErrNoRelease", err)
 	}
 }
 
@@ -95,6 +97,12 @@ func TestNewer(t *testing.T) {
 		if got := Newer(Release{Version: tt.release}, tt.version); got != tt.want {
 			t.Errorf("Newer(%s, %s) = %v, want %v", tt.release, tt.version, got, tt.want)
 		}
+	}
+}
+
+func TestUpdatable(t *testing.T) {
+	if Updatable("dev") || !Updatable("2.5.0") || !Updatable("v2.5.0-rc1") {
+		t.Error("Updatable: only semantic versions can be updated")
 	}
 }
 
