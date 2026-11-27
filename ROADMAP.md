@@ -38,9 +38,39 @@ The server built with `-race` reported 85 races during the checks of point 1:
 - `maintenance` against `saveSettings`, `updateServerSettings`, `buildDatabaseDVR` and `buildXEPG` (`Settings`,
   `System.ScanInProgress`).
 
-Next:
+The cause is the structure: the whole server is one package (`src`) that shares its state through global variables.
+`Data` is rebuilt as a whole (playlists, filters, XEPG), so the fix is not a mutex per field but packages that own
+their state, and immutable snapshots for the rebuilt data.
 
-- Decide on protection: a mutex per structure, or copies handed to readers. Start with the web log.
+Target layout (dependencies point down only):
+
+```
+src/internal/
+  logger/    web log: ring buffer under a mutex, levels, error codes
+  system/    paths, flags, version: set once at start; changing flags via sync/atomic
+  config/    Settings: load / save, Get() returns a copy, Update(func(*Settings)) changes under a lock
+  playlist/  M3U / HDHR sources, filters, the list of streams
+  epg/       XMLTV, XEPG database, mapping, xteve.xml
+  buffer/    xTeVe / FFmpeg / VLC buffers, tuners, clients with their own lock
+  hdhr/      HDHomeRun emulation, SSDP
+src/         web server, wiring of the packages
+```
+
+Rebuilt data (streams, XEPG channels, XMLTV mapping) is published as an immutable snapshot through `atomic.Pointer`:
+readers never see a half built state and need no lock, and rebuilds run one at a time instead of being guarded by
+`System.ScanInProgress`.
+
+Steps, each one with green tests, a `-race` run of the server with a real playlist and its own commit:
+
+1. `logger`: depends on almost nothing and removes most of the races.
+2. `system`: the part set at start, and atomic flags for the rest.
+3. `config`: the maps inside `Settings` (`Files.M3U` and others) are changed in place today, so `Get()` has to
+   return a deep copy.
+4. `buffer`: the riskiest part, with several goroutines per stream. Add tests with a local HTTP source first.
+5. `playlist` and `epg`: snapshots through `atomic.Pointer`, one rebuild at a time.
+6. `hdhr`, then what is left in `src`.
+
+The behavior seen from outside (API, file formats, web UI) stays the same.
 
 ## 3. Web UI security
 
