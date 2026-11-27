@@ -4,6 +4,7 @@ ENV GOTOOLCHAIN=auto
 
 # nodejs + npm: TypeScript compiler for ts/ -> html/js
 # ffmpeg, vlc-bin: external buffer options in xTeVe
+# libxml2-utils (xmllint), python3-lxml, python3-pip: checking XMLTV files against the XMLTV DTD
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         jq \
@@ -11,6 +12,9 @@ RUN apt-get update \
         npm \
         ffmpeg \
         vlc-bin \
+        libxml2-utils \
+        python3-lxml \
+        python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g typescript
