@@ -6,8 +6,6 @@ package src
 */
 
 import (
-	"strconv"
-
 	"xteve/src/internal/buffer"
 	"xteve/src/internal/config"
 
@@ -43,7 +41,7 @@ func bufferPlaylist(playlistID string) (name string, tuners int) {
 		playlistType = "hdhr"
 	}
 
-	return getProviderParameter(playlistID, playlistType, "name"), getTuner(playlistID, playlistType)
+	return providerName(playlistID, playlistType), getTuner(playlistID, playlistType)
 }
 
 // streamLimitVideo returns the video sent to clients when all tuners of a playlist are in use.
@@ -60,13 +58,9 @@ func getTuner(id, playlistType string) (tuner int) {
 		tuner = config.Get().Tuner
 
 	case "xteve", "ffmpeg", "vlc":
-		i, err := strconv.Atoi(getProviderParameter(id, playlistType, "tuner"))
-		if err == nil {
-			tuner = i
-		} else {
-			ShowError(err, 0)
-			tuner = 1
-		}
+		// A playlist without a number of tuners has one
+		var provider, _ = getProvider(id, playlistType)
+		tuner = max(int(provider.Tuner), 1)
 	}
 
 	return

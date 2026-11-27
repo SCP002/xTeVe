@@ -41,7 +41,7 @@ func managerTest(t *testing.T, streams ...playlist.Stream) (*Manager, *system.In
 		s.DefaultMissingEPG = "-"
 		s.EnableMappedChannels = true
 		s.CacheImages = false
-		s.Files.M3U = map[string]any{"M1": map[string]any{"name": "Playlist"}}
+		s.Files.M3U = config.Providers{"M1": {Name: "Playlist"}}
 	})
 
 	var dir = t.TempDir()

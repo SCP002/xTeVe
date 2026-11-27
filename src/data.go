@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"os"
 	"path"
 	"strconv"
@@ -187,7 +186,7 @@ func updateServerSettings(request RequestStruct) (settings SettingsStruct, err e
 
 // Save Provider Data (WebUI)
 func saveFiles(request RequestStruct, fileType string) (err error) {
-	var newData = make(map[string]any)
+	var newData map[string]config.ProviderUpdate
 	var indicator string
 
 	switch fileType {
@@ -204,12 +203,7 @@ func saveFiles(request RequestStruct, fileType string) (err error) {
 		indicator = "X"
 	}
 
-	for dataID, d := range newData {
-		var data, ok = d.(map[string]any)
-		if !ok {
-			return fmt.Errorf("invalid provider data: %v", d)
-		}
-
+	for dataID, update := range newData {
 		var reloadData = false
 		var isNew = dataID == "-"
 		if isNew {
@@ -220,19 +214,20 @@ func saveFiles(request RequestStruct, fileType string) (err error) {
 			var files = providerFiles(s, fileType)
 
 			if isNew {
-				// New Provider File, getProviderData downloads it and removes "new"
-				var entry = maps.Clone(data)
-				entry["new"] = true
-				files[dataID] = entry
+				// New Provider File, getProviderData downloads it and resets New
+				var provider = config.Provider{Type: fileType, New: true}
+				update.Apply(&provider)
+				files[dataID] = provider
 				return nil
 			}
 
 			// Existing Provider File
-			var entry, ok = files[dataID].(map[string]any)
+			var provider, ok = files[dataID]
 			if !ok {
 				return fmt.Errorf("unknown provider: %s", dataID)
 			}
-			maps.Copy(entry, data)
+			update.Apply(&provider)
+			files[dataID] = provider
 			return nil
 		})
 		if err != nil {
@@ -247,7 +242,7 @@ func saveFiles(request RequestStruct, fileType string) (err error) {
 			}
 		}
 
-		if _, ok := data["delete"]; ok {
+		if update.Delete {
 			deleteLocalProviderFiles(dataID, fileType)
 			reloadData = true
 		}
@@ -278,7 +273,7 @@ func removeProviderFile(fileType, dataID string) {
 
 // Update Provider Data manually (WebUI)
 func updateFile(request RequestStruct, fileType string) (err error) {
-	var updateData = make(map[string]any)
+	var updateData map[string]config.ProviderUpdate
 
 	switch fileType {
 	case "m3u":
@@ -328,8 +323,6 @@ func deleteLocalProviderFiles(dataID, fileType string) {
 
 // Save Filter Settings (WebUI)
 func saveFilter(request RequestStruct) (settings SettingsStruct, err error) {
-	var filterMap map[int64]any
-	var newData map[int64]any
 	var defaultFilter FilterStruct
 
 	defaultFilter.Active = true
@@ -337,43 +330,42 @@ func saveFilter(request RequestStruct) (settings SettingsStruct, err error) {
 	defaultFilter.PreserveMapping = true
 	defaultFilter.StartingChannel = strconv.FormatFloat(config.Get().MappingFirstChannel, 'f', -1, 64) // 1000
 
-	newData = request.Filter
-
 	err = config.Update(func(s *SettingsStruct) error {
 		if s.Filter == nil {
-			s.Filter = make(map[int64]any)
+			s.Filter = make(map[int64]config.FilterSettings)
 		}
-		filterMap = s.Filter
 
 		var createNewID = func() (id int64) {
 			for {
-				if _, ok := filterMap[id]; !ok {
+				if _, ok := s.Filter[id]; !ok {
 					return id
 				}
 				id++
 			}
 		}
 
-		for dataID, data := range newData {
+		for dataID, update := range request.Filter {
+			var filter, exists = s.Filter[dataID]
 			if dataID == -1 {
 				// New Filter
 				dataID = createNewID()
-				filterMap[dataID] = jsonToMap(mapToJSON(defaultFilter))
+				filter, exists = defaultFilter, true
 			}
 
 			// Clear Filters
-			if _, ok := data.(map[string]any)["delete"]; ok {
-				delete(filterMap, dataID)
+			if update.Delete {
+				delete(s.Filter, dataID)
 				continue
 			}
 
 			// Update filters, nothing is saved if one of them is invalid
-			if filter, ok := data.(map[string]any)["filter"].(string); ok && len(filter) == 0 {
+			if update.Filter != nil && len(*update.Filter) == 0 {
 				return errors.New(getErrMsg(1014))
 			}
 
-			if oldData, ok := filterMap[dataID].(map[string]any); ok {
-				maps.Copy(oldData, data.(map[string]any))
+			if exists {
+				update.Apply(&filter)
+				s.Filter[dataID] = filter
 			}
 		}
 
@@ -491,27 +483,23 @@ func saveWizard(request RequestStruct) (nextStep int, err error) {
 			})
 
 		case "m3u", "xmltv":
-			var data = make(map[string]any)
+			var provider = config.Provider{Type: key, New: true, FileSource: value.(string)}
 			var indicator string
-
-			data["type"] = key
-			data["new"] = true
-			data["file.source"] = value.(string)
 
 			switch key {
 			case "m3u":
-				data["name"] = "M3U"
+				provider.Name = "M3U"
 				indicator = "M"
 
 			case "xmltv":
-				data["name"] = "XMLTV"
+				provider.Name = "XMLTV"
 				indicator = "X"
 			}
 
 			var dataID = indicator + randomString(19)
 
 			err = config.Update(func(s *SettingsStruct) error {
-				providerFiles(s, key)[dataID] = data
+				providerFiles(s, key)[dataID] = provider
 				return nil
 			})
 			if err != nil {
@@ -569,7 +557,7 @@ func buildDatabaseDVR() (err error) {
 			sources = append(sources, playlist.Source{
 				ID:   id,
 				Type: fileType,
-				Name: getProviderParameter(id, fileType, "name"),
+				Name: providerName(id, fileType),
 				Path: file,
 			})
 		}
@@ -623,27 +611,13 @@ func getLocalProviderFiles(fileType string) (localFiles []string) {
 	return
 }
 
-// Output Provider Parameters based on the Key
-func getProviderParameter(id, fileType, key string) (s string) {
-	if data, ok := providerFilesOf(config.Get(), fileType)[id].(map[string]any); ok {
-		switch v := data[key].(type) {
-		case string:
-			s = v
-		case float64:
-			s = strconv.Itoa(int(v))
-		case int:
-			s = strconv.Itoa(v)
-		}
-	}
-
-	return
-}
-
 // Update Provider Statistics Compatibility
 func setProviderCompatibility(id, fileType string, compatibility map[string]int) {
 	var err = config.Update(func(s *SettingsStruct) error {
-		if data, ok := providerFiles(s, fileType)[id].(map[string]any); ok {
-			data["compatibility"] = compatibility
+		var files = providerFiles(s, fileType)
+		if provider, ok := files[id]; ok {
+			provider.Compatibility = compatibility
+			files[id] = provider
 		}
 		return nil
 	})

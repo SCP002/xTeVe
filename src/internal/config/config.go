@@ -42,13 +42,13 @@ type Settings struct {
 	FileXMLTV []string `json:"xmltv,omitempty"`
 
 	Files struct {
-		HDHR  map[string]any `json:"hdhr"`
-		M3U   map[string]any `json:"m3u"`
-		XMLTV map[string]any `json:"xmltv"`
+		HDHR  Providers `json:"hdhr"`
+		M3U   Providers `json:"m3u"`
+		XMLTV Providers `json:"xmltv"`
 	} `json:"files"`
 
-	FilesUpdate bool          `json:"files.update"`
-	Filter      map[int64]any `json:"filter"`
+	FilesUpdate bool                     `json:"files.update"`
+	Filter      map[int64]FilterSettings `json:"filter"`
 	// IP chosen in web client. Used to form m3u and xml files.
 	HostIP                    string   `json:"hostIP"`
 	Key                       string   `json:"key,omitempty"`
@@ -77,47 +77,11 @@ func (s *Settings) Clone() *Settings {
 	c.FileM3U = slices.Clone(s.FileM3U)
 	c.FileXMLTV = slices.Clone(s.FileXMLTV)
 	c.Update = slices.Clone(s.Update)
-	c.Files.HDHR = cloneMap(s.Files.HDHR)
-	c.Files.M3U = cloneMap(s.Files.M3U)
-	c.Files.XMLTV = cloneMap(s.Files.XMLTV)
-	c.Filter = cloneMap(s.Filter)
+	c.Files.HDHR = s.Files.HDHR.clone()
+	c.Files.M3U = s.Files.M3U.clone()
+	c.Files.XMLTV = s.Files.XMLTV.clone()
+	c.Filter = maps.Clone(s.Filter)
 	return &c
-}
-
-// cloneMap copies a map with values as decoded from JSON or built in code: nested maps and slices are copied too.
-func cloneMap[K comparable](m map[K]any) map[K]any {
-	if m == nil {
-		return nil
-	}
-	var c = make(map[K]any, len(m))
-	for k, v := range m {
-		c[k] = cloneValue(v)
-	}
-	return c
-}
-
-func cloneValue(v any) any {
-	switch v := v.(type) {
-	case map[string]any:
-		return cloneMap(v)
-	case map[int64]any:
-		return cloneMap(v)
-	case []any:
-		var c = make([]any, len(v))
-		for i, e := range v {
-			c[i] = cloneValue(e)
-		}
-		return c
-	case []string:
-		return slices.Clone(v)
-	case map[string]int:
-		return maps.Clone(v)
-	case map[string]string:
-		return maps.Clone(v)
-	default:
-		// Scalars, and values that are never changed in place
-		return v
-	}
 }
 
 // ErrNoSaver is returned by Update and Set before SetSaver was called.

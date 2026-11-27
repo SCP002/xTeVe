@@ -6,10 +6,10 @@ import (
 )
 
 // rules builds the filter rules from filter settings.
-func rules(t *testing.T, filters ...map[string]any) []Filter {
+func rules(t *testing.T, filters ...FilterSettings) []Filter {
 	t.Helper()
 
-	var settings = make(map[int64]any)
+	var settings = make(map[int64]FilterSettings)
 	for i, f := range filters {
 		settings[int64(i)] = f
 	}
@@ -20,16 +20,15 @@ func rules(t *testing.T, filters ...map[string]any) []Filter {
 	return r
 }
 
-func groupFilter(group, include, exclude string) map[string]any {
-	return map[string]any{
-		"active":          true,
-		"type":            "group-title",
-		"filter":          group,
-		"include":         include,
-		"exclude":         exclude,
-		"caseSensitive":   false,
-		"preserveMapping": true,
-		"startingChannel": "1000",
+func groupFilter(group, include, exclude string) FilterSettings {
+	return FilterSettings{
+		Active:          true,
+		Type:            "group-title",
+		Filter:          group,
+		Include:         include,
+		Exclude:         exclude,
+		PreserveMapping: true,
+		StartingChannel: "1000",
 	}
 }
 
@@ -44,7 +43,7 @@ func testStream(group, name string) map[string]string {
 func TestCreateFilterRules(t *testing.T) {
 	var filters = rules(t,
 		groupFilter("News", "HD", "SD"),
-		map[string]any{"type": "custom-filter", "filter": "Sport", "caseSensitive": true},
+		FilterSettings{Type: "custom-filter", Filter: "Sport", CaseSensitive: true},
 	)
 
 	var want = []Filter{
@@ -125,9 +124,7 @@ func TestFilterThisStreamCustom(t *testing.T) {
 		{name: "with include", rule: "News {One}", stream: testStream("News", "BBC One"), want: true},
 	}
 	for _, tt := range tests {
-		var filters = rules(t, map[string]any{
-			"type": "custom-filter", "filter": tt.rule, "caseSensitive": tt.caseSensitive,
-		})
+		var filters = rules(t, FilterSettings{Type: "custom-filter", Filter: tt.rule, CaseSensitive: tt.caseSensitive})
 
 		if got := Accept(tt.stream, filters); got != tt.want {
 			t.Errorf("%s: filterThisStream = %v, want %v", tt.name, got, tt.want)
@@ -156,9 +153,9 @@ func TestFilterThisStreamSeveralFilters(t *testing.T) {
 
 func TestFilterThisStreamOrderIndependent(t *testing.T) {
 	var news = groupFilter("News", "", "SD")
-	var custom = map[string]any{"type": "custom-filter", "filter": "BBC"}
+	var custom = FilterSettings{Type: "custom-filter", Filter: "BBC"}
 
-	for _, order := range [][]map[string]any{{news, custom}, {custom, news}} {
+	for _, order := range [][]FilterSettings{{news, custom}, {custom, news}} {
 		// Fix the order of filters instead of relying on map iteration
 		var filters = rules(t, order[0])
 		var first = filters

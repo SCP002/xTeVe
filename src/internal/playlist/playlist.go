@@ -74,7 +74,7 @@ type Compatibility = map[string]int
 
 // Options are the settings that the list depends on.
 type Options struct {
-	Filters               map[int64]any
+	Filters               map[int64]FilterSettings
 	DisallowURLDuplicates bool
 }
 

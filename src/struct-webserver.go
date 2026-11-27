@@ -1,6 +1,7 @@
 package src
 
 import (
+	"xteve/src/internal/config"
 	"xteve/src/internal/epg"
 	"xteve/src/internal/logger"
 )
@@ -63,13 +64,13 @@ type RequestStruct struct {
 	Filename string `json:"filename,omitempty"`
 
 	// Filter
-	Filter map[int64]any `json:"filter,omitempty"`
+	Filter map[int64]config.FilterUpdate `json:"filter,omitempty"`
 
 	// Files (M3U, HDHR, XMLTV)
 	Files struct {
-		HDHR  map[string]any `json:"hdhr,omitempty"`
-		M3U   map[string]any `json:"m3u,omitempty"`
-		XMLTV map[string]any `json:"xmltv,omitempty"`
+		HDHR  map[string]config.ProviderUpdate `json:"hdhr,omitempty"`
+		M3U   map[string]config.ProviderUpdate `json:"m3u,omitempty"`
+		XMLTV map[string]config.ProviderUpdate `json:"xmltv,omitempty"`
 	} `json:"files"`
 
 	// Wizard

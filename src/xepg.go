@@ -18,7 +18,7 @@ func init() {
 		System:     &System,
 		Streams:    func() []playlist.Stream { return streamsDB.Get().Active },
 		XMLTVFiles: func() []string { return getLocalProviderFiles("xmltv") },
-		XMLTVName:  func(id string) string { return getProviderParameter(id, "xmltv", "name") },
+		XMLTVName:  func(id string) string { return providerName(id, "xmltv") },
 		WriteM3U:   createM3UFile,
 	})
 }

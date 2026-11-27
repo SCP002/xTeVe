@@ -93,7 +93,7 @@ func TestBuildWithoutFilters(t *testing.T) {
 
 func TestBuildWithFilters(t *testing.T) {
 	var snapshot, _, err = Build(testSources(t), Options{
-		Filters:               map[int64]any{0: groupFilter("News", "", "CNN")},
+		Filters:               map[int64]FilterSettings{0: groupFilter("News", "", "CNN")},
 		DisallowURLDuplicates: true,
 	})
 	if err != nil {

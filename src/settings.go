@@ -1,9 +1,13 @@
 package src
 
+import (
+	"xteve/src/internal/config"
+)
+
 // providerFiles returns the provider files of fileType ("m3u", "hdhr" or "xmltv") in settings that are being
 // changed (inside config.Update), creating the map if needed.
-func providerFiles(settings *SettingsStruct, fileType string) map[string]any {
-	var files *map[string]any
+func providerFiles(settings *SettingsStruct, fileType string) config.Providers {
+	var files *config.Providers
 
 	switch fileType {
 	case "m3u":
@@ -13,17 +17,17 @@ func providerFiles(settings *SettingsStruct, fileType string) map[string]any {
 	case "xmltv":
 		files = &settings.Files.XMLTV
 	default:
-		return nil
+		return config.Providers{}
 	}
 
 	if *files == nil {
-		*files = make(map[string]any)
+		*files = make(config.Providers)
 	}
 	return *files
 }
 
 // providerFilesOf returns the provider files of fileType in settings for reading only.
-func providerFilesOf(settings *SettingsStruct, fileType string) map[string]any {
+func providerFilesOf(settings *SettingsStruct, fileType string) config.Providers {
 	switch fileType {
 	case "m3u":
 		return settings.Files.M3U
@@ -33,4 +37,16 @@ func providerFilesOf(settings *SettingsStruct, fileType string) map[string]any {
 		return settings.Files.XMLTV
 	}
 	return nil
+}
+
+// getProvider returns a provider of the current settings.
+func getProvider(id, fileType string) (config.Provider, bool) {
+	var p, ok = providerFilesOf(config.Get(), fileType)[id]
+	return p, ok
+}
+
+// providerName returns the name of a provider, "" if it does not exist.
+func providerName(id, fileType string) string {
+	var p, _ = getProvider(id, fileType)
+	return p.Name
 }

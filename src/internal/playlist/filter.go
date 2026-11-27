@@ -1,11 +1,11 @@
 package playlist
 
 import (
-	"encoding/json"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
+	"xteve/src/internal/config"
 )
 
 // Filter is a filter rule built from the filter settings.
@@ -18,33 +18,11 @@ type Filter struct {
 }
 
 // FilterSettings is a filter as saved in the settings.
-type FilterSettings struct {
-	Active          bool   `json:"active"`
-	CaseSensitive   bool   `json:"caseSensitive"`
-	PreserveMapping bool   `json:"preserveMapping"`
-	Description     string `json:"description"`
-	Exclude         string `json:"exclude"`
-	Filter          string `json:"filter"`
-	Include         string `json:"include"`
-	Name            string `json:"name"`
-	Rule            string `json:"rule,omitempty"`
-	Type            string `json:"type"`
-	StartingChannel string `json:"startingChannel"`
-}
+type FilterSettings = config.FilterSettings
 
 // Rules builds the filter rules from the filter settings.
-func Rules(settings map[int64]any) (filters []Filter, err error) {
-	for _, f := range settings {
-		var filter FilterSettings
-
-		content, err := json.Marshal(f)
-		if err != nil {
-			return nil, err
-		}
-		if err = json.Unmarshal(content, &filter); err != nil {
-			return nil, err
-		}
-
+func Rules(settings map[int64]FilterSettings) (filters []Filter, err error) {
+	for _, filter := range settings {
 		switch filter.Type {
 		case "custom-filter":
 			filters = append(filters, Filter{
