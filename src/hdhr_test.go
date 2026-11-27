@@ -82,3 +82,17 @@ func TestGetLineupPMSDuplicateNames(t *testing.T) {
 		t.Errorf("second run: guide numbers = %v, want %v", again, first)
 	}
 }
+
+// m3uStream returns a stream of the playlist "M1".
+func m3uStream(name, group string, extra ...string) map[string]string {
+	var s = map[string]string{
+		"_file.m3u.id": "M1",
+		"name":         name,
+		"group-title":  group,
+		"url":          "http://example.com/" + name + "/" + group,
+	}
+	for i := 0; i+1 < len(extra); i += 2 {
+		s[extra[i]] = extra[i+1]
+	}
+	return s
+}

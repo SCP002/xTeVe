@@ -224,11 +224,7 @@ checkVersion:
 			// Database verison <= 2.1.1 has broken XEPG mapping
 
 			// Clear XEPG mapping
-			Data.XEPG.Channels = make(map[string]any)
-			Data.XEPG.XEPGCount = 0
-			Data.Cache.Streams = struct{ Active []string }{}
-
-			if err = saveMapToJSONFile(System.File.XEPG, Data.XEPG.Channels); err != nil {
+			if err = xepgDB.Reset(); err != nil {
 				return err
 			}
 

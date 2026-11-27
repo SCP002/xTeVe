@@ -646,7 +646,7 @@ func Web(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if getFilenameFromPath(requestFile) == "html" {
-		if !System.ScanInProgress.Load() {
+		if !System.Scanning() {
 			if len(config.Get().Files.M3U) == 0 && len(config.Get().Files.HDHR) == 0 {
 				System.ConfigurationWizard.Store(true)
 			}
@@ -670,7 +670,7 @@ func Web(w http.ResponseWriter, r *http.Request) {
 			file = requestFile + "index.html"
 		}
 
-		if System.ScanInProgress.Load() {
+		if System.Scanning() {
 			file = requestFile + "maintenance.html"
 		}
 
@@ -930,7 +930,7 @@ func API(w http.ResponseWriter, r *http.Request) {
 		response.VersionAPI = System.APIVersion
 		response.StreamsActive = int64(len(streamsDB.Get().Active))
 		response.StreamsAll = int64(len(streamsDB.Get().All))
-		response.StreamsXepg = int64(Data.XEPG.XEPGCount)
+		response.StreamsXepg = xepgDB.Get().Count
 		response.EpgSource = config.Get().EpgSource
 		response.URLDvr = System.Domain()
 		response.URLM3U = System.Protocol() + "://" + System.Domain() + "/m3u/xteve.m3u"
@@ -1030,13 +1030,14 @@ func setDefaultResponseData(response ResponseStruct, data bool) (defaults Respon
 		}
 
 		if config.Get().EpgSource == "XEPG" {
-			defaults.ClientInfo.XEPGCount = Data.XEPG.XEPGCount
+			defaults.ClientInfo.XEPGCount = xepgDB.Get().Count
 
 			var XEPG = make(map[string]any)
 
 			if len(streamsDB.Get().Active) > 0 {
-				XEPG["epgMapping"] = Data.XEPG.Channels
-				XEPG["xmltvMap"] = Data.XMLTV.Mapping
+				var xepg = xepgDB.Get()
+				XEPG["epgMapping"] = xepg.Channels
+				XEPG["xmltvMap"] = xepg.Mapping
 			} else {
 				XEPG["epgMapping"] = make(map[string]any)
 				XEPG["xmltvMap"] = make(map[string]any)

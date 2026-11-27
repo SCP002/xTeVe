@@ -6,17 +6,19 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"xteve/src/internal/epg"
 
 	"github.com/samber/lo"
 )
 
 // Create xTeVe M3U file
 func buildM3U(groups []string) (m3u string, err error) {
-	var imgc = Data.Cache.Images
+	var xepg = xepgDB.Get()
+	var imgc = xepg.Images
 	var m3uChannels = make(map[float64]XEPGChannelStruct)
 	var channelNumbers []float64
 
-	for _, dxc := range Data.XEPG.Channels {
+	for _, dxc := range xepg.Channels {
 		var xepgChannel XEPGChannelStruct
 		err := json.Unmarshal([]byte(mapToJSON(dxc)), &xepgChannel)
 		if err == nil {
@@ -54,7 +56,7 @@ func buildM3U(groups []string) (m3u string, err error) {
 			channel.XChannelID,
 			channel.XName,
 			channel.XChannelID,
-			imgc.Image.GetURL(channel.TvgLogo),
+			epg.ImageURL(imgc, channel.TvgLogo),
 			channel.XGroupTitle,
 			channel.XName,
 		)

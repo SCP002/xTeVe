@@ -101,17 +101,28 @@ type Info struct {
 
 	// ConfigurationWizard reports that the first setup in the web UI is not finished yet.
 	ConfigurationWizard atomic.Bool
-	// ScanInProgress reports that the channel database is being rebuilt.
-	ScanInProgress atomic.Bool
 	// ImageCachingInProgress reports that channel and program images are being downloaded.
 	ImageCachingInProgress atomic.Bool
-	// BackgroundProcess reports that a rebuild is waiting for the running one to finish.
-	BackgroundProcess atomic.Bool
 
+	scans      atomic.Int32
 	domain     atomic.Pointer[string]
 	tls        atomic.Bool
 	tempFolder atomic.Pointer[string]
 }
+
+// BeginScan records that a database (streams or XEPG) is being rebuilt, until the returned function is called.
+func (i *Info) BeginScan() (end func()) {
+	i.scans.Add(1)
+	var once atomic.Bool
+	return func() {
+		if once.CompareAndSwap(false, true) {
+			i.scans.Add(-1)
+		}
+	}
+}
+
+// Scanning reports whether a database is being rebuilt.
+func (i *Info) Scanning() bool { return i.scans.Load() > 0 }
 
 // Domain returns the host and port that clients use to reach xTeVe, as seen in the latest request.
 func (i *Info) Domain() string {

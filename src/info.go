@@ -32,7 +32,7 @@ func ShowSystemInfo() {
 
 	fmt.Printf("Streams:             %d / %d\n", len(streamsDB.Get().Active), len(streamsDB.Get().All))
 	fmt.Printf("Filter:              %d\n", len(streamsDB.Get().Filters))
-	fmt.Printf("XEPG Chanels:        %d\n", int(Data.XEPG.XEPGCount))
+	fmt.Printf("XEPG Chanels:        %d\n", int(xepgDB.Get().Count))
 
 	fmt.Println()
 	fmt.Println("IPv4 Addresses:")

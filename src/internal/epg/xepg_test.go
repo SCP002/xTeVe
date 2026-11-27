@@ -1,11 +1,13 @@
-package src
+package epg
 
 import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"testing"
+	"xteve/src/internal/config"
 	"xteve/src/internal/playlist"
+	"xteve/src/internal/system"
 )
 
 func TestShiftXMLTVTime(t *testing.T) {
@@ -33,37 +35,49 @@ func TestShiftXMLTVTime(t *testing.T) {
 	}
 }
 
-// xepgTest sets up the XEPG database file, the active streams and the
-// settings used by createXEPGDatabase and mapping, and restores them after the
-// test.
-func xepgTest(t *testing.T, db []XEPGChannelStruct, streams ...map[string]string) {
+// xepgTest writes the XEPG database db to a temporary xepg.json, sets the settings used by the database and returns
+// a build with the active streams.
+func xepgTest(t *testing.T, db []XEPGChannelStruct, streams ...map[string]string) *build {
 	t.Helper()
 
-	var oldFile, oldStreams, oldCache = System.File.XEPG, streamsDB.Get(), Data.Cache.Streams.Active
-	var oldChannels, oldMapping = Data.XEPG.Channels, Data.XMLTV.Mapping
+	var old = config.Get()
+	config.Default().SetSaver(func(*config.Settings) error { return nil })
 	t.Cleanup(func() {
-		System.File.XEPG, Data.Cache.Streams.Active = oldFile, oldCache
-		streamsDB.Set(oldStreams)
-		Data.XEPG.Channels, Data.XMLTV.Mapping = oldChannels, oldMapping
+		if err := config.Default().Set(old); err != nil {
+			t.Error(err)
+		}
 	})
-
-	setSettings(t, func(s *SettingsStruct) {
+	setSettings(t, func(s *config.Settings) {
 		s.MappingFirstChannel = 1000
 		s.DefaultMissingEPG = "-"
 		s.EnableMappedChannels = false
 	})
 
-	System.File.XEPG = filepath.Join(t.TempDir(), "xepg.json")
+	var info = &system.Info{}
+	info.File.XEPG = filepath.Join(t.TempDir(), "xepg.json")
 	var channels = make(map[string]any)
 	for _, c := range db {
 		channels[c.XEPG] = c
 	}
-	if err := saveMapToJSONFile(System.File.XEPG, channels); err != nil {
+	if err := saveMapToJSONFile(info.File.XEPG, channels); err != nil {
 		t.Fatal(err)
 	}
 
-	streamsDB.Set(&playlist.Snapshot{Active: streams})
-	Data.XMLTV.Mapping = make(map[string]any)
+	var m = NewManager(Config{
+		System:  info,
+		Streams: func() []playlist.Stream { return streams },
+	})
+	var b = m.newBuild()
+	b.mapping = make(map[string]any)
+	return b
+}
+
+// setSettings changes the current settings for one test.
+func setSettings(t *testing.T, change func(s *config.Settings)) {
+	t.Helper()
+	if err := config.Update(func(s *config.Settings) error { change(s); return nil }); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func m3uStream(name, group string, extra ...string) map[string]string {
@@ -87,12 +101,12 @@ func dbChannel(id, number, name, group string) XEPGChannelStruct {
 	}
 }
 
-// xepgChannels returns Data.XEPG.Channels, keyed by the channel name and group.
-func xepgChannels(t *testing.T) map[string]XEPGChannelStruct {
+// xepgChannels returns the channels of the build, keyed by the channel name and group.
+func xepgChannels(t *testing.T, b *build) map[string]XEPGChannelStruct {
 	t.Helper()
 
 	var channels = make(map[string]XEPGChannelStruct)
-	for _, c := range Data.XEPG.Channels {
+	for _, c := range b.channels {
 		var channel XEPGChannelStruct
 		if err := json.Unmarshal([]byte(mapToJSON(c)), &channel); err != nil {
 			t.Fatal(err)
@@ -107,7 +121,7 @@ func xepgChannels(t *testing.T) map[string]XEPGChannelStruct {
 }
 
 func TestCreateXEPGDatabaseNewChannels(t *testing.T) {
-	xepgTest(t, []XEPGChannelStruct{dbChannel("x-ID.0", "1001", "Old", "News")},
+	var b = xepgTest(t, []XEPGChannelStruct{dbChannel("x-ID.0", "1001", "Old", "News")},
 		m3uStream("Old", "News"),
 		m3uStream("A", "News"),
 		m3uStream("B", "Sport", "_starting-channel", "2000"),
@@ -116,11 +130,11 @@ func TestCreateXEPGDatabaseNewChannels(t *testing.T) {
 			"_starting-channel", "3000"),
 	)
 
-	if err := createXEPGDatabase(); err != nil {
+	if err := b.createXEPGDatabase(); err != nil {
 		t.Fatal(err)
 	}
 
-	var channels = xepgChannels(t)
+	var channels = xepgChannels(t, b)
 	var want = map[string]string{
 		"Old/News": "1001",
 		"A/News":   "1000", // first free number
@@ -153,18 +167,19 @@ func TestCreateXEPGDatabaseExistingChannel(t *testing.T) {
 	updateGroup.XUpdateChannelGroup = true
 	var noUpdate = dbChannel("x-ID.4", "1004", "HBO", "Movies")
 
-	xepgTest(t, []XEPGChannelStruct{renamed, withUUID, updateGroup, noUpdate, dbChannel("x-ID.5", "", "Gone", "News")},
+	var gone = dbChannel("x-ID.5", "", "Gone", "News")
+	var b = xepgTest(t, []XEPGChannelStruct{renamed, withUUID, updateGroup, noUpdate, gone},
 		m3uStream("BBC", "News"),
 		m3uStream("CNN International", "News", "_uuid.key", "tvg-id", "_uuid.value", "cnn.us"),
 		m3uStream("ESPN", "Sports"),
 		m3uStream("HBO", "Film"),
 	)
 
-	if err := createXEPGDatabase(); err != nil {
+	if err := b.createXEPGDatabase(); err != nil {
 		t.Fatal(err)
 	}
 
-	var channels = xepgChannels(t)
+	var channels = xepgChannels(t, b)
 	if len(channels) != 4 {
 		t.Errorf("channels = %v, want 4 (the one without a number is removed)", channels)
 	}
@@ -196,16 +211,16 @@ func TestCreateXEPGDatabaseRenameRegex(t *testing.T) {
 	other.UpdateChannelNameRegex = "^CNN"
 	other.UpdateChannelNameByGroupRegex = "^News$"
 
-	xepgTest(t, []XEPGChannelStruct{c, other},
+	var b = xepgTest(t, []XEPGChannelStruct{c, other},
 		m3uStream("BBC One FHD", "News"),
 		m3uStream("CNN FHD", "News"),
 	)
 
-	if err := createXEPGDatabase(); err != nil {
+	if err := b.createXEPGDatabase(); err != nil {
 		t.Fatal(err)
 	}
 
-	var channels = xepgChannels(t)
+	var channels = xepgChannels(t, b)
 	if bbc := channels["BBC One FHD/News"]; bbc.XEPG != "x-ID.0" || bbc.XName != "BBC One FHD" ||
 		bbc.XChannelID != "1001" {
 		t.Errorf("BBC = %+v, want the old channel renamed", bbc)
@@ -221,13 +236,13 @@ func TestCreateXEPGDatabaseSameNameInTwoGroups(t *testing.T) {
 	var streams = []map[string]string{m3uStream("BBC", "News"), m3uStream("BBC", "UK")}
 
 	for _, order := range [][]map[string]string{streams, {streams[1], streams[0]}} {
-		xepgTest(t, []XEPGChannelStruct{dbChannel("x-ID.0", "1001", "BBC", "News")}, order...)
+		var b = xepgTest(t, []XEPGChannelStruct{dbChannel("x-ID.0", "1001", "BBC", "News")}, order...)
 
-		if err := createXEPGDatabase(); err != nil {
+		if err := b.createXEPGDatabase(); err != nil {
 			t.Fatal(err)
 		}
 
-		var channels = xepgChannels(t)
+		var channels = xepgChannels(t, b)
 		if len(channels) != 2 {
 			t.Errorf("order %v: channels = %v, want 2", order[0]["group-title"], channels)
 			continue
@@ -242,33 +257,33 @@ func TestCreateXEPGDatabaseSameNameInTwoGroups(t *testing.T) {
 }
 
 func TestCreateXEPGDatabaseIdenticalStreams(t *testing.T) {
-	var a, b = m3uStream("BBC", "News"), m3uStream("BBC", "News")
-	b["url"] = "http://example.com/backup"
-	xepgTest(t, nil, a, b)
+	var main, backup = m3uStream("BBC", "News"), m3uStream("BBC", "News")
+	backup["url"] = "http://example.com/backup"
+	var b = xepgTest(t, nil, main, backup)
 
 	// The first run creates two channels, the next ones must update both
 	for run := 1; run <= 3; run++ {
-		a["url"], b["url"] = fmt.Sprintf(
+		main["url"], backup["url"] = fmt.Sprintf(
 			"http://example.com/main/%d",
 			run,
 		), fmt.Sprintf(
 			"http://example.com/backup/%d",
 			run,
 		)
-		if err := createXEPGDatabase(); err != nil {
+		if err := b.createXEPGDatabase(); err != nil {
 			t.Fatal(err)
 		}
 		var urls = make(map[string]string)
-		for _, c := range xepgChannels(t) {
+		for _, c := range xepgChannels(t, b) {
 			urls[c.URL] = c.XEPG
 		}
-		if _, ok := urls[a["url"]]; !ok || len(urls) != 2 {
+		if _, ok := urls[main["url"]]; !ok || len(urls) != 2 {
 			t.Errorf("run %d: channels by URL = %v, want both streams", run, urls)
 		}
 	}
 }
 
-// xmltvChannel returns an entry of Data.XMLTV.Mapping as createXEPGMapping builds it.
+// xmltvChannel returns an entry of the mapping menu as createXEPGMapping builds it.
 func xmltvChannel(id, icon string, names ...string) map[string]any {
 	var displayNames []DisplayName
 	for _, n := range names {
@@ -290,11 +305,11 @@ func TestMapping(t *testing.T) {
 	updateIcon.XActive, updateIcon.XmltvFile, updateIcon.XMapping = true, "b.xml", "icon"
 	updateIcon.XUpdateChannelIcon = true
 
-	xepgTest(t, []XEPGChannelStruct{byID, byName, noMatch, mapped, mappedFileGone, updateIcon})
-	if err := createXEPGDatabase(); err != nil {
+	var b = xepgTest(t, []XEPGChannelStruct{byID, byName, noMatch, mapped, mappedFileGone, updateIcon})
+	if err := b.createXEPGDatabase(); err != nil {
 		t.Fatal(err)
 	}
-	Data.XMLTV.Mapping = map[string]any{
+	b.mapping = map[string]any{
 		"a.xml": map[string]any{"bbc1.uk": xmltvChannel("bbc1.uk", "http://img/bbc.png", "BBC 1")},
 		"b.xml": map[string]any{
 			"cnn":  xmltvChannel("cnn", "", "CNN International", "CNN"),
@@ -302,11 +317,11 @@ func TestMapping(t *testing.T) {
 		},
 	}
 
-	if err := mapping(); err != nil {
+	if err := b.mapChannels(); err != nil {
 		t.Fatal(err)
 	}
 
-	var channels = xepgChannels(t)
+	var channels = xepgChannels(t, b)
 	tests := []struct {
 		key, file, mapping string
 		active             bool
@@ -334,24 +349,24 @@ func TestMapping(t *testing.T) {
 }
 
 func TestMappingDefaults(t *testing.T) {
-	xepgTest(
+	var b = xepgTest(
 		t,
 		[]XEPGChannelStruct{dbChannel("x-ID.0", "1", "Unknown", "News"), dbChannel("x-ID.1", "2", "BBC", "News")},
 	)
-	if err := createXEPGDatabase(); err != nil {
+	if err := b.createXEPGDatabase(); err != nil {
 		t.Fatal(err)
 	}
-	setSettings(t, func(s *SettingsStruct) {
+	setSettings(t, func(s *config.Settings) {
 		s.DefaultMissingEPG = "60_Minutes"
 		s.EnableMappedChannels = true
 	})
-	Data.XMLTV.Mapping = map[string]any{"a.xml": map[string]any{"bbc": xmltvChannel("bbc", "", "BBC")}}
+	b.mapping = map[string]any{"a.xml": map[string]any{"bbc": xmltvChannel("bbc", "", "BBC")}}
 
-	if err := mapping(); err != nil {
+	if err := b.mapChannels(); err != nil {
 		t.Fatal(err)
 	}
 
-	var channels = xepgChannels(t)
+	var channels = xepgChannels(t, b)
 	if c := channels["Unknown/News"]; c.XmltvFile != "xTeVe Dummy" || c.XMapping != "60_Minutes" || !c.XActive {
 		t.Errorf("Unknown = %+v, want the active default dummy", c)
 	}
@@ -364,19 +379,19 @@ func TestMappingDefaults(t *testing.T) {
 func TestMappingPrefersTvgID(t *testing.T) {
 	var c = dbChannel("x-ID.0", "1", "BBC", "News")
 	c.TvgID = "bbc.uk"
-	xepgTest(t, []XEPGChannelStruct{c})
-	if err := createXEPGDatabase(); err != nil {
+	var b = xepgTest(t, []XEPGChannelStruct{c})
+	if err := b.createXEPGDatabase(); err != nil {
 		t.Fatal(err)
 	}
-	Data.XMLTV.Mapping = map[string]any{
+	b.mapping = map[string]any{
 		"a.xml": map[string]any{"other": xmltvChannel("other", "", "BBC")},
 		"b.xml": map[string]any{"bbc.uk": xmltvChannel("bbc.uk", "", "BBC One")},
 	}
 
-	if err := mapping(); err != nil {
+	if err := b.mapChannels(); err != nil {
 		t.Fatal(err)
 	}
-	if c := xepgChannels(t)["BBC/News"]; c.XmltvFile != "b.xml" || c.XMapping != "bbc.uk" {
+	if c := xepgChannels(t, b)["BBC/News"]; c.XmltvFile != "b.xml" || c.XMapping != "bbc.uk" {
 		t.Errorf("BBC: file %q, mapping %q; want b.xml, bbc.uk", c.XmltvFile, c.XMapping)
 	}
 }

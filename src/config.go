@@ -218,7 +218,7 @@ func Init() (err error) {
 
 // StartSystem : System is starting up
 func StartSystem(updateProviderFiles bool) (err error) {
-	if System.ScanInProgress.Load() {
+	if System.Scanning() {
 		return
 	}
 

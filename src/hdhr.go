@@ -63,7 +63,7 @@ func getDiscover() (jsonContent []byte, err error) {
 func getLineupStatus() (jsonContent []byte, err error) {
 	var lineupStatus LineupStatus
 
-	if System.ScanInProgress.Load() {
+	if System.Scanning() {
 		lineupStatus.ScanInProgress = 1
 	}
 	lineupStatus.ScanPossible = 0
@@ -130,7 +130,7 @@ func getLineup() (jsonContent []byte, err error) {
 		}
 
 	case "XEPG":
-		for _, dxc := range Data.XEPG.Channels {
+		for _, dxc := range xepgDB.Get().Channels {
 			var xepgChannel XEPGChannelStruct
 			err = json.Unmarshal([]byte(mapToJSON(dxc)), &xepgChannel)
 			if err != nil {

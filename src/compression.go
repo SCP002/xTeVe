@@ -166,23 +166,3 @@ func extractGZIP(gzipBody []byte, fileSource string) (body []byte, err error) {
 	body = resB.Bytes()
 	return
 }
-
-func compressGZIP(data *[]byte, file string) (err error) {
-	if len(file) != 0 {
-		f, err := os.Create(file)
-		if err != nil {
-			return err
-		}
-
-		w := gzip.NewWriter(f)
-		if _, err = w.Write(*data); err == nil {
-			err = w.Close()
-		}
-		if closeErr := f.Close(); err == nil {
-			err = closeErr
-		}
-		return err
-	}
-
-	return
-}

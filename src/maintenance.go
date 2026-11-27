@@ -21,7 +21,7 @@ func maintenance() {
 		var t = time.Now()
 
 		// Update the playlist and XMLTV files
-		if !System.ScanInProgress.Load() {
+		if !System.Scanning() {
 			for _, schedule := range config.Get().Update {
 				if schedule == t.Format("1504") {
 					showInfo("Update:" + schedule)
@@ -59,7 +59,7 @@ func maintenance() {
 					}
 
 					// Create XEPG Files
-					Data.Cache.XMLTV = make(map[string]XMLTV)
+					clearXMLTVCache()
 					buildXEPG(false)
 				}
 			}

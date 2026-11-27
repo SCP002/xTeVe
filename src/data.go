@@ -13,7 +13,6 @@ import (
 
 	"xteve/src/internal/authentication"
 	"xteve/src/internal/config"
-	"xteve/src/internal/imgcache"
 	"xteve/src/internal/playlist"
 )
 
@@ -173,54 +172,13 @@ func updateServerSettings(request RequestStruct) (settings SettingsStruct, err e
 			buildXEPG(false)
 		}
 
-		if cacheImages {
-			if config.Get().EpgSource == "XEPG" && !System.ImageCachingInProgress.Load() {
-				Data.Cache.Images, err = imgcache.New(
-					System.Folder.ImagesCache,
-					fmt.Sprintf("%s://%s/images/", System.Protocol(), System.Domain()),
-					config.Get().CacheImages,
-				)
-				if err != nil {
-					ShowError(err, 0)
-				}
-
-				switch config.Get().CacheImages {
-				case false:
-					if err := createXMLTVFile(); err != nil {
-						ShowError(err, 0)
-					}
-					createM3UFile()
-
-				case true:
-					go func() {
-						if err := createXMLTVFile(); err != nil {
-							ShowError(err, 0)
-						}
-						createM3UFile()
-
-						System.ImageCachingInProgress.Store(true)
-						showInfo("Image Caching:Images are cached")
-
-						if err := Data.Cache.Images.Image.Caching(); err != nil {
-							ShowError(err, 0)
-						}
-						showInfo("Image Caching:Done")
-
-						System.ImageCachingInProgress.Store(false)
-
-						buildXEPG(false)
-					}()
-				}
-			}
+		// A rebuild uses the new image setting and caches the images if they are cached now
+		if cacheImages && !reloadData && config.Get().EpgSource == "XEPG" {
+			go xepgDB.Rebuild()
 		}
 
 		if createXEPGFiles {
-			go func() {
-				if err := createXMLTVFile(); err != nil {
-					ShowError(err, 0)
-				}
-				createM3UFile()
-			}()
+			go xepgDB.WriteFiles()
 		}
 	}
 
@@ -439,53 +397,13 @@ func saveFilter(request RequestStruct) (settings SettingsStruct, err error) {
 
 // Save XEPG Mapping
 func saveXEpgMapping(request RequestStruct) (err error) {
-	var tmp = Data.XEPG
-
-	Data.Cache.Images, err = imgcache.New(
-		System.Folder.ImagesCache,
-		fmt.Sprintf("%s://%s/images/", System.Protocol(), System.Domain()),
-		config.Get().CacheImages,
-	)
-	if err != nil {
-		ShowError(err, 0)
-	}
-
-	err = json.Unmarshal([]byte(mapToJSON(request.EpgMapping)), &tmp)
-	if err != nil {
+	// The channels must have the format of the database
+	var channels map[string]XEPGChannelStruct
+	if err = json.Unmarshal([]byte(mapToJSON(request.EpgMapping)), &channels); err != nil {
 		return
 	}
 
-	err = saveMapToJSONFile(System.File.XEPG, request.EpgMapping)
-	if err != nil {
-		return err
-	}
-
-	Data.XEPG.Channels = request.EpgMapping
-
-	if System.ScanInProgress.CompareAndSwap(false, true) {
-		cleanupXEPG()
-		System.ScanInProgress.Store(false)
-		buildXEPG(true)
-	} else {
-		// If the Mapping is saved again while the Database is being created, the Database will not be updated again
-		// until later.
-		go func() {
-			// Only one waiting update
-			if !System.BackgroundProcess.CompareAndSwap(false, true) {
-				return
-			}
-			defer System.BackgroundProcess.Store(false)
-
-			for !System.ScanInProgress.CompareAndSwap(false, true) {
-				time.Sleep(time.Duration(1) * time.Second)
-			}
-
-			cleanupXEPG()
-			System.ScanInProgress.Store(false)
-			buildXEPG(false)
-			showInfo("XEPG:" + "Ready to use")
-		}()
-	}
+	xepgDB.SaveMapping(request.EpgMapping)
 
 	return
 }
@@ -630,7 +548,6 @@ func saveWizard(request RequestStruct) (nextStep int, err error) {
 				nextStep = 10
 
 				buildXEPG(false)
-				System.ScanInProgress.Store(false)
 			}
 		}
 
@@ -647,8 +564,8 @@ var streamsDB playlist.Store
 
 // Create a Database for the DVR System
 func buildDatabaseDVR() (err error) {
-	System.ScanInProgress.Store(true)
-	defer System.ScanInProgress.Store(false)
+	var endScan = System.BeginScan()
+	defer endScan()
 
 	var settings = config.Get()
 	var sources []playlist.Source

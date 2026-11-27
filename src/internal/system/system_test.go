@@ -29,11 +29,16 @@ func TestConcurrentUse(t *testing.T) {
 			for i := range 500 {
 				info.SetDomain(fmt.Sprintf("host%d:%d", g, i))
 				info.SetTLS(i%2 == 0)
-				info.ScanInProgress.CompareAndSwap(false, true)
+				var end = info.BeginScan()
 				_ = info.Domain() + info.Protocol() + info.TempFolder()
-				info.ScanInProgress.Store(false)
+				end()
+				end() // a second call has no effect
 			}
 		})
 	}
 	wg.Wait()
+
+	if info.Scanning() {
+		t.Error("Scanning after all scans ended")
+	}
 }

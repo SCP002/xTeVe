@@ -216,7 +216,7 @@ func getProviderData(fileType, fileID string) (err error) {
 		}
 
 		if fileType == "xmltv" {
-			delete(Data.Cache.XMLTV, System.Folder.Data+dataID+fileExtension)
+			xepgDB.ForgetXMLTV(System.Folder.Data + dataID + fileExtension)
 		}
 
 		if err := mergeProviderFile(fileType, dataID, data); err != nil {
