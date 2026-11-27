@@ -14,12 +14,8 @@ for target in $(go tool dist list); do
     arch=${target#*/}
     ext=""
     [[ $os == "windows" ]] && ext=".exe"
-
-    # Mobile platforms need cgo, and WebAssembly can not run a server.
-    if [[ $os == "android" || $os == "ios" || $arch == "wasm" ]]; then
-        continue
-    fi
+    [[ $arch == "wasm" ]] && ext=".wasm"
 
     echo "Building for $os / $arch"
-    CGO_ENABLED=$cgo_enabled GOOS=$os GOARCH=$arch go build -trimpath -ldflags "-s -w -X ${project_name}/version.Version=${version}" -o "${build_path}/${project_name}-${os}-${arch}${ext}" . || exit $?
+    CGO_ENABLED=$cgo_enabled GOOS=$os GOARCH=$arch go build -trimpath -ldflags "-s -w -X ${project_name}/version.Version=${version}" -o "${build_path}/${project_name}-${os}-${arch}${ext}" .
 done
