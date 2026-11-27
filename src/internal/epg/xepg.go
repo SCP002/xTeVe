@@ -1,10 +1,10 @@
 package epg
 
 import (
+	"cmp"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
-	"encoding/xml"
 	"errors"
 	"fmt"
 	"maps"
@@ -32,17 +32,12 @@ func (b *build) createXEPGMapping() {
 		var fileID = strings.TrimSuffix(filepath.Base(file), path.Ext(filepath.Base(file)))
 		logger.Info("XEPG:" + "Parse XMLTV file: " + b.m.xmltvName(fileID))
 
-		var xmltv XMLTV
-		if err := b.getLocalXMLTV(file, &xmltv); err != nil {
+		var channels, err = b.m.xmltvChannels(file)
+		if err != nil {
 			// Safe while iterating backwards: only already visited files move
 			b.files = append(b.files[:i], b.files[i+1:]...)
 			errcode.Report(fmt.Errorf("%s: %w", b.m.xmltvName(fileID), err), 0)
 			continue
-		}
-
-		var channels = make(map[string]MappingChannel, len(xmltv.Channel))
-		for _, c := range xmltv.Channel {
-			channels[c.ID] = MappingChannel{ID: c.ID, DisplayNames: c.DisplayNames, Icon: c.Icon.Src}
 		}
 		b.mapping[filepath.Base(file)] = channels
 	}
@@ -506,54 +501,95 @@ func (b *build) mapChannels() (err error) {
 	return
 }
 
-// Create XMLTV File
+// createXMLTVFile writes xteve.xml and xteve.xml.gz: the active channels, then their programmes. Each XMLTV file is
+// read once, element by element, and each programme of an active channel is written at once, so that neither the
+// XMLTV files nor xteve.xml are held in memory.
 func (b *build) createXMLTVFile() (err error) {
-	// Image Cache
-	var imgc = b.images
-
 	if len(b.files) == 0 && len(b.streams) == 0 {
 		return
 	}
 
-	logger.Info("XEPG:" + fmt.Sprintf("Create XMLTV file (%s)", b.m.cfg.System.File.XML))
+	var system = b.m.cfg.System
+	logger.Info("XEPG:" + fmt.Sprintf("Create XMLTV file (%s)", system.File.XML))
 
-	var xepgXML XMLTV
+	// The active channels by channel number, and which of them get the programmes of which XMLTV channel
+	var active []XEPGChannel
+	for _, c := range b.channels {
+		if c.XActive {
+			active = append(active, c)
+		}
+	}
+	slices.SortFunc(active, func(x, y XEPGChannel) int {
+		return cmp.Or(compareChannelNumbers(x.XChannelID, y.XChannelID), cmp.Compare(x.XEPG, y.XEPG))
+	})
 
-	xepgXML.Generator = b.m.cfg.System.Name
+	var wanted = make(map[string]map[string][]*programmeTarget) // file -> XMLTV channel ID -> channels
+	var dummies []XEPGChannel
+	for _, c := range active {
+		if c.XmltvFile == dummyFile {
+			dummies = append(dummies, c)
+			continue
+		}
+		var file = system.Folder.Data + c.XmltvFile
+		if wanted[file] == nil {
+			wanted[file] = make(map[string][]*programmeTarget)
+		}
+		wanted[file][c.XMapping] = append(wanted[file][c.XMapping], newProgrammeTarget(c))
+	}
 
-	xepgXML.Source = fmt.Sprintf("%s - %s", b.m.cfg.System.Name, b.m.cfg.System.Version)
+	w, err := newXMLTVWriter(system.File.XML, system.Compressed.GZxml, system.Name,
+		fmt.Sprintf("%s - %s", system.Name, system.Version))
+	if err != nil {
+		return err
+	}
 
-	var tmpProgram = &XMLTV{}
+	for _, c := range active {
+		var channel = Channel{
+			ID:           c.XChannelID,
+			Icon:         Icon{Src: ImageURL(b.images, c.TvgLogo)},
+			DisplayNames: []DisplayName{{Value: c.XName}},
+		}
+		if err = w.channel(&channel); err != nil {
+			w.abort()
+			return err
+		}
+	}
+
+	for _, c := range dummies {
+		for _, p := range b.createDummyProgram(c).Program {
+			if err = w.programme(p); err != nil {
+				w.abort()
+				return err
+			}
+		}
+	}
 
 	// A channel without program data is still listed; failures are reported once at the end
 	var failedChannels int
 	var firstChannelErr error
-	var channelFailed = func(err error) {
-		failedChannels++
-		if firstChannelErr == nil {
-			firstChannelErr = err
-		}
-	}
 
-	for _, xepgChannel := range b.channels {
-		{
-			if xepgChannel.XActive {
-				// Channels
-				var channel Channel
-				channel.ID = xepgChannel.XChannelID
-				channel.Icon = Icon{Src: ImageURL(imgc, xepgChannel.TvgLogo)}
-				channel.DisplayNames = append(channel.DisplayNames, DisplayName{Value: xepgChannel.XName})
+	for _, file := range slices.Sorted(maps.Keys(wanted)) {
+		var targets = wanted[file]
 
-				xepgXML.Channel = append(xepgXML.Channel, &channel)
-
-				// Programs
-
-				*tmpProgram, err = b.getProgramData(xepgChannel)
-				if err != nil {
-					channelFailed(fmt.Errorf("%s: %w", xepgChannel.XName, err))
-				} else {
-					xepgXML.Program = append(xepgXML.Program, tmpProgram.Program...)
+		var readErr = readXMLTV(file, nil, func(p *Program) error {
+			for _, t := range targets[p.Channel] {
+				if err := w.programme(b.programFor(t, p)); err != nil {
+					return &writeError{err}
 				}
+			}
+			return nil
+		})
+
+		if writeErr, ok := errors.AsType[*writeError](readErr); ok {
+			w.abort()
+			return writeErr.err
+		}
+		if readErr != nil {
+			for _, channels := range targets {
+				failedChannels += len(channels)
+			}
+			if firstChannelErr == nil {
+				firstChannelErr = fmt.Errorf("%s: %w", filepath.Base(file), readErr)
 			}
 		}
 	}
@@ -565,139 +601,97 @@ func (b *build) createXMLTVFile() (err error) {
 		)
 	}
 
-	content, err := xml.MarshalIndent(xepgXML, "  ", "    ")
-	if err != nil {
-		return
-	}
-	var xmlOutput = []byte(xml.Header + string(content))
-	if err = writeByteToFile(b.m.cfg.System.File.XML, xmlOutput); err != nil {
-		return
-	}
-
-	logger.Info("XEPG:" + fmt.Sprintf("Compress XMLTV file (%s)", b.m.cfg.System.Compressed.GZxml))
-	err = compressGZIP(&xmlOutput, b.m.cfg.System.Compressed.GZxml)
-
-	xepgXML = XMLTV{}
-
-	return
+	logger.Info("XEPG:" + fmt.Sprintf("Compress XMLTV file (%s)", system.Compressed.GZxml))
+	return w.close()
 }
 
-// Create Program Data (createXMLTVFile)
-func (b *build) getProgramData(xepgChannel XEPGChannelStruct) (xepgXML XMLTV, err error) {
-	var xmltvFile = b.m.cfg.System.Folder.Data + xepgChannel.XmltvFile
-	var channelID = xepgChannel.XMapping
+// writeError is an error of writing xteve.xml, as opposed to an error of reading an XMLTV file.
+type writeError struct{ err error }
 
-	var xmltv XMLTV
+func (e *writeError) Error() string { return e.err.Error() }
 
-	if xmltvFile == b.m.cfg.System.Folder.Data+dummyFile {
-		xmltv = b.createDummyProgram(xepgChannel)
-	} else {
-		err = b.getLocalXMLTV(xmltvFile, &xmltv)
-		if err != nil {
-			return
-		}
+// compareChannelNumbers orders channel numbers numerically, other ones after them in text order.
+func compareChannelNumbers(a, b string) int {
+	var x, errX = strconv.ParseFloat(a, 64)
+	var y, errY = strconv.ParseFloat(b, 64)
+	switch {
+	case errX == nil && errY == nil:
+		return cmp.Compare(x, y)
+	case errX == nil:
+		return -1
+	case errY == nil:
+		return 1
 	}
+	return cmp.Compare(a, b)
+}
 
-	// Timeshift in hours, from the channel settings or the "tvg-shift" M3U attribute
-	var timeshift int
-	if len(xepgChannel.XTimeshift) > 0 {
-		var parseErr error
-		if timeshift, parseErr = strconv.Atoi(xepgChannel.XTimeshift); parseErr != nil {
+// programmeTarget is an active channel that gets the programmes of an XMLTV channel.
+type programmeTarget struct {
+	channel XEPGChannel
+	// timeshift in hours, from the channel settings or the "tvg-shift" M3U attribute
+	timeshift         int
+	timeshiftReported bool
+}
+
+func newProgrammeTarget(c XEPGChannel) *programmeTarget {
+	var t = &programmeTarget{channel: c}
+	if len(c.XTimeshift) > 0 {
+		var err error
+		if t.timeshift, err = strconv.Atoi(c.XTimeshift); err != nil {
 			errcode.Report(
-				fmt.Errorf(
-					"channel %s: timeshift %q is not a whole number of hours and is ignored",
-					xepgChannel.XName,
-					xepgChannel.XTimeshift,
-				),
+				fmt.Errorf("channel %s: timeshift %q is not a whole number of hours and is ignored", c.XName,
+					c.XTimeshift),
 				0,
 			)
-			timeshift = 0
+			t.timeshift = 0
 		}
 	}
-	var timeshiftReported bool
+	return t
+}
 
-	for _, xmltvProgram := range xmltv.Program {
-		if xmltvProgram.Channel == channelID {
-			var program = &Program{}
+// programFor returns the programme of an XMLTV file as the channel shows it.
+func (b *build) programFor(t *programmeTarget, xmltvProgram *Program) *Program {
+	var xepgChannel = t.channel
+	var program = &Program{}
 
-			// Channel ID
-			program.Channel = xepgChannel.XChannelID
-			program.Start = xmltvProgram.Start
-			program.Stop = xmltvProgram.Stop
+	// Channel ID
+	program.Channel = xepgChannel.XChannelID
+	program.Start = xmltvProgram.Start
+	program.Stop = xmltvProgram.Stop
 
-			if timeshift != 0 {
-				start, startErr := shiftXMLTVTime(xmltvProgram.Start, timeshift)
-				stop, stopErr := shiftXMLTVTime(xmltvProgram.Stop, timeshift)
-				if shiftErr := errors.Join(startErr, stopErr); shiftErr != nil {
-					// The program keeps its original time; report the problem once per channel
-					if !timeshiftReported {
-						errcode.Report(
-							fmt.Errorf("channel %s: timeshift is not applied: %w", xepgChannel.XName, shiftErr),
-							0,
-						)
-						timeshiftReported = true
-					}
-				} else {
-					program.Start, program.Stop = start, stop
-				}
+	if t.timeshift != 0 {
+		start, startErr := shiftXMLTVTime(xmltvProgram.Start, t.timeshift)
+		stop, stopErr := shiftXMLTVTime(xmltvProgram.Stop, t.timeshift)
+		if shiftErr := errors.Join(startErr, stopErr); shiftErr != nil {
+			// The program keeps its original time; report the problem once per channel
+			if !t.timeshiftReported {
+				errcode.Report(fmt.Errorf("channel %s: timeshift is not applied: %w", xepgChannel.XName, shiftErr), 0)
+				t.timeshiftReported = true
 			}
-
-			// Title
-			program.Title = xmltvProgram.Title
-
-			// Subtitle
-			program.SubTitle = xmltvProgram.SubTitle
-
-			// Description
-			program.Desc = xmltvProgram.Desc
-
-			// Category
-			b.getCategory(program, xmltvProgram, xepgChannel)
-
-			// Credits
-			program.Credits = xmltvProgram.Credits
-
-			// Rating
-			program.Rating = xmltvProgram.Rating
-
-			// StarRating
-			program.StarRating = xmltvProgram.StarRating
-
-			// Country
-			program.Country = xmltvProgram.Country
-
-			// Program icon
-			b.getPoster(program, xmltvProgram)
-
-			// Language
-			program.Language = xmltvProgram.Language
-
-			// Episodes numbers
-			b.getEpisodeNum(program, xmltvProgram, xepgChannel)
-
-			// Video
-			b.getVideo(program, xmltvProgram, xepgChannel)
-
-			// Date
-			program.Date = xmltvProgram.Date
-
-			// Previously shown
-			program.PreviouslyShown = xmltvProgram.PreviouslyShown
-
-			// New
-			program.New = xmltvProgram.New
-
-			// Live
-			program.Live = xmltvProgram.Live
-
-			// Premiere
-			program.Premiere = xmltvProgram.Premiere
-
-			xepgXML.Program = append(xepgXML.Program, program)
+		} else {
+			program.Start, program.Stop = start, stop
 		}
 	}
 
-	return
+	program.Title = xmltvProgram.Title
+	program.SubTitle = xmltvProgram.SubTitle
+	program.Desc = xmltvProgram.Desc
+	b.getCategory(program, xmltvProgram, xepgChannel)
+	program.Credits = xmltvProgram.Credits
+	program.Rating = xmltvProgram.Rating
+	program.StarRating = xmltvProgram.StarRating
+	program.Country = xmltvProgram.Country
+	b.getPoster(program, xmltvProgram)
+	program.Language = xmltvProgram.Language
+	b.getEpisodeNum(program, xmltvProgram, xepgChannel)
+	b.getVideo(program, xmltvProgram, xepgChannel)
+	program.Date = xmltvProgram.Date
+	program.PreviouslyShown = xmltvProgram.PreviouslyShown
+	program.New = xmltvProgram.New
+	program.Live = xmltvProgram.Live
+	program.Premiere = xmltvProgram.Premiere
+
+	return program
 }
 
 // Create Dummy Data (createXMLTVFile)
@@ -860,37 +854,6 @@ func (b *build) getVideo(program *Program, xmltvProgram *Program, xepgChannel XE
 	}
 
 	program.Video = video
-}
-
-// Load Local Provider XMLTV file
-func (b *build) getLocalXMLTV(file string, xmltv *XMLTV) (err error) {
-	b.m.cacheMu.Lock()
-	var cached, ok = b.m.xmltvCache[file]
-	b.m.cacheMu.Unlock()
-
-	if ok {
-		*xmltv = cached
-		return
-	}
-
-	// Read XML Data
-	content, err := readByteFromFile(file)
-
-	// Local XML File does not exist in the folder: Data
-	if err != nil {
-		return errcode.With(fmt.Errorf("local copy of the file can not be read: %w", err), 1004)
-	}
-
-	// Parse XML File
-	if err = xml.Unmarshal(content, xmltv); err != nil {
-		return err
-	}
-
-	b.m.cacheMu.Lock()
-	b.m.xmltvCache[file] = *xmltv
-	b.m.cacheMu.Unlock()
-
-	return
 }
 
 // Clean up the XEPG Database

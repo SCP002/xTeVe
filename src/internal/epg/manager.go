@@ -8,8 +8,10 @@ package epg
 import (
 	"fmt"
 	"maps"
+	"os"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"xteve/src/internal/config"
 	"xteve/src/internal/errcode"
@@ -56,8 +58,15 @@ type Manager struct {
 	// pending is the newest mapping saved in the web UI while a rebuild was running
 	pending atomic.Pointer[Channels]
 
-	cacheMu    sync.Mutex
-	xmltvCache map[string]XMLTV
+	// cacheMu guards the channels of the XMLTV files, read once per file version
+	cacheMu      sync.Mutex
+	channelCache map[string]cachedChannels
+}
+
+type cachedChannels struct {
+	size     int64
+	modified time.Time
+	channels map[string]MappingChannel
 }
 
 // build is the state of one rebuild. It is published as a snapshot at the end and not changed afterwards.
@@ -76,7 +85,7 @@ type build struct {
 
 // NewManager returns a manager with an empty database.
 func NewManager(cfg Config) *Manager {
-	var m = &Manager{cfg: cfg, xmltvCache: make(map[string]XMLTV)}
+	var m = &Manager{cfg: cfg, channelCache: make(map[string]cachedChannels)}
 	m.current.Store(&Snapshot{Channels: Channels{}, Mapping: Mapping{}})
 	return m
 }
@@ -231,18 +240,48 @@ func (m *Manager) cacheImages(b *build) {
 	}()
 }
 
-// ClearXMLTVCache forgets the parsed XMLTV files, they are read again for the next rebuild.
+// ClearXMLTVCache forgets the channels read from the XMLTV files, they are read again for the next rebuild.
 func (m *Manager) ClearXMLTVCache() {
 	m.cacheMu.Lock()
 	defer m.cacheMu.Unlock()
-	m.xmltvCache = make(map[string]XMLTV)
+	m.channelCache = make(map[string]cachedChannels)
 }
 
-// ForgetXMLTV forgets one parsed XMLTV file, e.g. after it was downloaded again.
+// ForgetXMLTV forgets the channels of one XMLTV file, e.g. after it was downloaded again.
 func (m *Manager) ForgetXMLTV(file string) {
 	m.cacheMu.Lock()
 	defer m.cacheMu.Unlock()
-	delete(m.xmltvCache, file)
+	delete(m.channelCache, file)
+}
+
+// xmltvChannels returns the channels of an XMLTV file for the mapping menu. They are read again when the file
+// changed (size or time).
+func (m *Manager) xmltvChannels(file string) (map[string]MappingChannel, error) {
+	var info, err = os.Stat(file)
+	if err != nil {
+		return nil, errcode.With(fmt.Errorf("local copy of the file can not be read: %w", err), 1004)
+	}
+
+	m.cacheMu.Lock()
+	var cached, ok = m.channelCache[file]
+	m.cacheMu.Unlock()
+	if ok && cached.size == info.Size() && cached.modified.Equal(info.ModTime()) {
+		return cached.channels, nil
+	}
+
+	var channels = make(map[string]MappingChannel)
+	err = readXMLTV(file, func(c *Channel) error {
+		channels[c.ID] = MappingChannel{ID: c.ID, DisplayNames: c.DisplayNames, Icon: c.Icon.Src}
+		return nil
+	}, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	m.cacheMu.Lock()
+	m.channelCache[file] = cachedChannels{size: info.Size(), modified: info.ModTime(), channels: channels}
+	m.cacheMu.Unlock()
+	return channels, nil
 }
 
 // Reset empties the database and xepg.json.

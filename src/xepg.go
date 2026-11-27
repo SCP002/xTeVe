@@ -1,7 +1,6 @@
 package src
 
 import (
-	"encoding/xml"
 	"fmt"
 
 	"xteve/src/internal/config"
@@ -45,24 +44,6 @@ func buildXEPG(background bool) {
 	} else {
 		xepgDB.Rebuild()
 	}
-}
-
-// Check provider XMLTV File
-func checkXMLCompatibility(id string, body []byte) (err error) {
-	var xmltv XMLTV
-	var compatibility = make(map[string]int)
-
-	err = xml.Unmarshal(body, &xmltv)
-	if err != nil {
-		return
-	}
-
-	compatibility["xmltv.channels"] = len(xmltv.Channel)
-	compatibility["xmltv.programs"] = len(xmltv.Program)
-
-	setProviderCompatibility(id, "xmltv", compatibility)
-
-	return
 }
 
 // Create M3U File

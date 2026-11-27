@@ -1,8 +1,6 @@
 package epg
 
 import (
-	"bytes"
-	"compress/gzip"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -108,23 +106,4 @@ func saveMapToJSONFile(file string, v any) error {
 		return err
 	}
 	return os.WriteFile(filepath.Clean(file), content, 0644)
-}
-
-func readByteFromFile(file string) ([]byte, error) { return os.ReadFile(filepath.Clean(file)) }
-
-func writeByteToFile(file string, data []byte) error {
-	return os.WriteFile(filepath.Clean(file), data, 0644)
-}
-
-// compressGZIP writes data compressed to file.
-func compressGZIP(data *[]byte, file string) error {
-	var buf bytes.Buffer
-	var w = gzip.NewWriter(&buf)
-	if _, err := w.Write(*data); err != nil {
-		return err
-	}
-	if err := w.Close(); err != nil {
-		return err
-	}
-	return os.WriteFile(filepath.Clean(file), buf.Bytes(), 0644)
 }

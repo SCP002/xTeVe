@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -592,7 +594,8 @@ func getLocalProviderFiles(fileType string) (localFiles []string) {
 		fileExtension = ".xml"
 	}
 
-	for dataID := range providerFilesOf(config.Get(), fileType) {
+	// In a fixed order, so that new channels get the same numbers whatever the order of the map
+	for _, dataID := range slices.Sorted(maps.Keys(providerFilesOf(config.Get(), fileType))) {
 		localFiles = append(localFiles, System.Folder.Data+dataID+fileExtension)
 	}
 

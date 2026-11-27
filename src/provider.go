@@ -1,19 +1,25 @@
 package src
 
 import (
+	"bufio"
 	"cmp"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"maps"
+	"mime"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
 
 	"xteve/src/internal/config"
+	"xteve/src/internal/epg"
 	"xteve/src/internal/hdhr"
 	m3u "xteve/src/internal/m3u-parser"
 )
@@ -52,39 +58,22 @@ func getProviderData(fileType, fileID string) (err error) {
 			continue
 		}
 
-		var serverFileName string
-		var body []byte
-		var err error
-
-		switch fileType {
-		case "hdhr":
-			// Load from the HDHomeRun Tuner
-			showInfo("Tuner:" + provider.FileSource)
-			serverFileName, body, err = downloadFileFromServer("http://" + provider.FileSource + "/lineup.json")
-
-		default:
-			if strings.Contains(provider.FileSource, "http://") || strings.Contains(provider.FileSource, "https://") {
-				// Load from the Remote Server
-				showInfo("Download:" + provider.FileSource)
-				serverFileName, body, err = downloadFileFromServer(provider.FileSource)
-			} else {
-				// Load a local File
-				showInfo("Open:" + provider.FileSource)
-
-				err = checkFile(provider.FileSource)
-				if err == nil {
-					body, err = readByteFromFile(provider.FileSource)
-					serverFileName = getFilenameFromPath(provider.FileSource)
-				}
-			}
-		}
-
+		// The file is written next to the local copy and replaces it only when it is valid
+		var file = System.Folder.Data + dataID + fileExtension
+		var serverFileName, err = fetchProvider(provider.FileSource, fileType, file+".download")
 		if err == nil {
 			completeProvider(&provider, dataID, fileType, fileExtension, serverFileName)
-			err = saveProviderFile(&provider, dataID, fileType, body)
-			if err == nil {
-				showInfo("Save File:" + provider.FileSource + " [ID: " + dataID + "]")
-			}
+			err = checkProviderFile(dataID, fileType, file+".download")
+		}
+		if err == nil {
+			err = os.Rename(file+".download", System.Folder.Data+provider.File)
+		}
+		if err == nil {
+			provider.LastUpdate = time.Now().Format("2006-01-02 15:04:05")
+			provider.CounterDownload++
+			showInfo("Save File:" + provider.FileSource + " [ID: " + dataID + "]")
+		} else {
+			removeAllOrLog(file + ".download")
 		}
 
 		if err != nil {
@@ -143,39 +132,35 @@ func completeProvider(p *config.Provider, id, fileType, fileExtension, serverFil
 	}
 }
 
-// saveProviderFile checks a downloaded file and saves it as the local copy of the provider.
-func saveProviderFile(p *config.Provider, id, fileType string, body []byte) (err error) {
-	// Extract File
-	body, err = extractGZIP(body, p.FileSource)
-	if err != nil {
-		return
+// checkProviderFile checks a downloaded file: a valid M3U playlist, HDHomeRun lineup or XMLTV file. The
+// compatibility of an XMLTV file is stored at the same time.
+func checkProviderFile(id, fileType, file string) error {
+	showInfo("Check File:" + file)
+
+	if fileType == "xmltv" {
+		var channels, programmes, err = epg.Count(file)
+		if err != nil {
+			return err
+		}
+		setProviderCompatibility(id, "xmltv", map[string]int{"xmltv.channels": channels, "xmltv.programs": programmes})
+		return nil
 	}
 
-	// Check Data
-	showInfo("Check File:" + p.FileSource)
+	var content, err = os.ReadFile(file)
+	if err != nil {
+		return err
+	}
+
 	switch fileType {
 	case "m3u":
-		_, err = m3u.Parse(body)
+		_, err = m3u.Parse(content)
 
 	case "hdhr":
 		// The lineup of an HDHomeRun tuner
 		var lineup []hdhr.LineupStream
-		err = json.Unmarshal(body, &lineup)
-
-	case "xmltv":
-		err = checkXMLCompatibility(id, body)
+		err = json.Unmarshal(content, &lineup)
 	}
-	if err != nil {
-		return
-	}
-
-	if err = writeByteToFile(System.Folder.Data+p.File, body); err != nil {
-		return
-	}
-
-	p.LastUpdate = time.Now().Format("2006-01-02 15:04:05")
-	p.CounterDownload++
-	return nil
+	return err
 }
 
 // mergeProviderFile writes the results of a download into the current provider. A provider removed in the meantime
@@ -210,9 +195,61 @@ func mergeProviderFile(fileType, dataID string, downloaded config.Provider) erro
 	})
 }
 
-func downloadFileFromServer(providerURL string) (filename string, body []byte, err error) {
-	_, err = url.ParseRequestURI(providerURL)
+// fetchProvider writes the file of a provider to dst: downloaded (HTTP), from an HDHomeRun tuner or copied from a
+// local file. A gzip file is unpacked while it is written. It returns the name of the file at the source.
+func fetchProvider(source, fileType, dst string) (filename string, err error) {
+	var r io.ReadCloser
+
+	switch {
+	case fileType == "hdhr":
+		// Load from the HDHomeRun Tuner
+		showInfo("Tuner:" + source)
+		r, filename, err = openURL("http://" + source + "/lineup.json")
+
+	case strings.Contains(source, "http://") || strings.Contains(source, "https://"):
+		// Load from the Remote Server
+		showInfo("Download:" + source)
+		r, filename, err = openURL(source)
+
+	default:
+		// Load a local File
+		showInfo("Open:" + source)
+		r, err = os.Open(filepath.Clean(source))
+		filename = getFilenameFromPath(source)
+	}
 	if err != nil {
+		return
+	}
+	defer closeOrLog(r)
+
+	var in = bufio.NewReaderSize(r, 1<<16)
+	var data io.Reader = in
+
+	// Unpack gzip files (magic number 1f 8b) on the way
+	if magic, _ := in.Peek(2); len(magic) == 2 && magic[0] == 0x1f && magic[1] == 0x8b {
+		showInfo("Extract gzip:" + source)
+		var gz *gzip.Reader
+		if gz, err = gzip.NewReader(in); err != nil {
+			return
+		}
+		defer closeOrLog(gz)
+		data = gz
+	}
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return
+	}
+	defer closeKeepErr(out, &err)
+
+	_, err = io.Copy(out, data)
+	return
+}
+
+// openURL requests a URL and returns the body and the name of the file, from the Content-Disposition header or the
+// URL.
+func openURL(providerURL string) (body io.ReadCloser, filename string, err error) {
+	if _, err = url.ParseRequestURI(providerURL); err != nil {
 		return
 	}
 
@@ -226,33 +263,21 @@ func downloadFileFromServer(providerURL string) (filename string, body []byte, e
 	if err != nil {
 		return
 	}
-	defer closeOrLog(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
+		closeOrLog(resp.Body)
 		err = fmt.Errorf("%d: %s %s", resp.StatusCode, http.StatusText(resp.StatusCode), providerURL)
 		return
 	}
 
-	// Get the File Mame from the Header
-	var index = strings.Index(resp.Header.Get("Content-Disposition"), "filename")
-
-	if index > -1 {
-		var headerFilename = resp.Header.Get("Content-Disposition")[index:len(resp.Header.Get("Content-Disposition"))]
-		var value = strings.Split(headerFilename, `=`)
-		var f = strings.ReplaceAll(value[1], `"`, "")
-
-		f = strings.ReplaceAll(f, `;`, "")
-		filename = f
+	// Get the File Name from the Header
+	if _, params, err := mime.ParseMediaType(resp.Header.Get("Content-Disposition")); err == nil &&
+		len(params["filename"]) > 0 {
+		filename = params["filename"]
 		showInfo("Header filename:" + filename)
 	} else {
-		var cleanFilename = strings.SplitN(getFilenameFromPath(providerURL), "?", 2)
-		filename = cleanFilename[0]
+		filename, _, _ = strings.Cut(getFilenameFromPath(providerURL), "?")
 	}
 
-	body, err = io.ReadAll(resp.Body)
-	if err != nil {
-		return
-	}
-
-	return
+	return resp.Body, filename, nil
 }

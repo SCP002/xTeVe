@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -255,62 +256,66 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 
 // xTeVe : Web Server /xmltv/ and /m3u/
 func xTeVe(w http.ResponseWriter, r *http.Request) {
-	var requestType, groupTitle, file, content, contentType string
-	var err error
 	var path = strings.TrimPrefix(r.URL.Path, "/")
-	var groups = []string{}
 
 	setGlobalDomain(r.Host)
 
-	// XMLTV File
+	var requestType = "m3u"
 	if strings.Contains(path, "xmltv/") {
 		requestType = "xml"
-
-		file = System.Folder.Data + getFilenameFromPath(path)
-
-		content, err = readStringFromFile(file)
-		if err != nil {
-			logUnlessNotExist(err)
-			httpStatusError(w, 404)
-			return
-		}
-	}
-
-	// M3U File
-	if strings.Contains(path, "m3u/") {
-		requestType = "m3u"
-		groupTitle = r.URL.Query().Get("group-title")
-
-		if !System.Dev {
-			// false: File name is set in the header
-			// true: M3U is displayed directly in the browser
-			w.Header().Set("Content-Disposition", "attachment; filename="+getFilenameFromPath(path))
-		}
-
-		if len(groupTitle) > 0 {
-			groups = strings.Split(groupTitle, ",")
-		}
-
-		content, err = buildM3U(groups)
-		if err != nil {
-			ShowError(err, 000)
-		}
 	}
 
 	// Check Authentication
-	err = urlAuth(r, requestType)
-	if err != nil {
+	if err := urlAuth(r, requestType); err != nil {
 		ShowError(err, 000)
 		httpStatusError(w, 403)
 		return
 	}
 
-	contentType = http.DetectContentType([]byte(content))
-	if strings.Contains(strings.ToLower(contentType), "xml") {
-		contentType = "application/xml; charset=utf-8"
+	// XMLTV File: sent from the disk, it can be large
+	if requestType == "xml" {
+		var file, err = os.Open(System.Folder.Data + getFilenameFromPath(path))
+		if err != nil {
+			logUnlessNotExist(err)
+			httpStatusError(w, 404)
+			return
+		}
+		defer closeOrLog(file)
+
+		info, err := file.Stat()
+		if err != nil {
+			ShowError(err, 0)
+			httpStatusError(w, 500)
+			return
+		}
+
+		if strings.HasSuffix(info.Name(), ".gz") {
+			w.Header().Set("Content-Type", "application/x-gzip")
+		} else {
+			w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+		}
+		http.ServeContent(w, r, info.Name(), info.ModTime(), file)
+		return
 	}
 
-	w.Header().Set("Content-Type", contentType)
+	// M3U File
+	if !System.Dev {
+		// false: File name is set in the header
+		// true: M3U is displayed directly in the browser
+		w.Header().Set("Content-Disposition", "attachment; filename="+getFilenameFromPath(path))
+	}
+
+	var groups []string
+	if groupTitle := r.URL.Query().Get("group-title"); len(groupTitle) > 0 {
+		groups = strings.Split(groupTitle, ",")
+	}
+
+	content, err := buildM3U(groups)
+	if err != nil {
+		ShowError(err, 000)
+	}
+
+	w.Header().Set("Content-Type", http.DetectContentType([]byte(content)))
 	writeResponse(w, []byte(content))
 }
 
