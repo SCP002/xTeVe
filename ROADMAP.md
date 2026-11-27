@@ -14,11 +14,9 @@ The stream buffer received the most changes during the restoration and has not b
 
 ## 2. Tests
 
-Tests exist only for the M3U parser and a few helpers. Most useful next:
+Tests cover the M3U parser, `parseM3U8`, channel filters, the XEPG database and mapping, and a few helpers. Most useful
+next:
 
-- `parseM3U8`: segments, durations, bandwidth switching, relative and absolute URLs.
-- Channel filters (`filterThisStream`, `createFilterRules`): group and custom filters with include / exclude rules.
-- XEPG mapping (`createXEPGDatabase`, `mapping`): channel numbers, missing EPG data, regex renaming.
 - Backup round trip (`zipFiles` and `extractZIP` with the real file set).
 
 ## 3. Global state and data races
