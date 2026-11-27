@@ -7,9 +7,9 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
-	"os/exec"
 	"unicode"
 	"unicode/utf8"
+	"xteve/src/internal/errcode"
 )
 
 // closeOrLog closes c and logs a failure.
@@ -60,22 +60,6 @@ func writeResponse(w http.ResponseWriter, data []byte) bool {
 	return true
 }
 
-// stopProcess kills an external buffer process (FFmpeg / VLC) and waits for
-// it to exit.
-func stopProcess(cmd *exec.Cmd) {
-	if err := cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
-		ShowError(err, 0)
-	}
-
-	// A killed process always exits with an *exec.ExitError, so only other
-	// errors (such as failed output copying) are worth reporting.
-	if err := cmd.Wait(); err != nil {
-		if _, ok := errors.AsType[*exec.ExitError](err); !ok {
-			ShowError(err, 0)
-		}
-	}
-}
-
 // userMessage turns an error into a message for the web UI.
 //
 // Go error strings start with a lowercase letter, so the first letter is
@@ -89,29 +73,8 @@ func userMessage(err error) string {
 	return string(unicode.ToUpper(r)) + msg[size:]
 }
 
-// codedError attaches an xTeVe error code (see getErrMsg) to an error, so that
-// the code reaches the caller that finally reports the error with ShowError.
-type codedError struct {
-	err  error
-	code int
-}
+// withCode attaches an xTeVe error code (see getErrMsg) to err, see errcode.With.
+func withCode(err error, code int) error { return errcode.With(err, code) }
 
-func (e *codedError) Error() string { return e.err.Error() }
-
-func (e *codedError) Unwrap() error { return e.err }
-
-// withCode attaches an xTeVe error code to err. It returns nil if err is nil.
-func withCode(err error, code int) error {
-	if err == nil {
-		return nil
-	}
-	return &codedError{err: err, code: code}
-}
-
-// errorCode returns the xTeVe error code attached to err with withCode, or 0.
-func errorCode(err error) int {
-	if coded, ok := errors.AsType[*codedError](err); ok {
-		return coded.code
-	}
-	return 0
-}
+// errorCode returns the xTeVe error code attached to err, see errcode.Of.
+func errorCode(err error) int { return errcode.Of(err) }

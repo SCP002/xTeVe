@@ -5,11 +5,8 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"sync"
 	"xteve/src/internal/config"
 	"xteve/src/internal/logger"
-
-	"github.com/avfs/avfs"
 )
 
 // System : Contains all System Information
@@ -20,18 +17,6 @@ var Data DataStruct
 
 // SystemFiles : All System Files
 var SystemFiles = []string{"authentication.json", "pms.json", "settings.json", "xepg.json", "urls.json"}
-
-// BufferInformation : Information about the Buffer (active Streams, maximum Streams)
-var BufferInformation sync.Map
-
-// BufferClients : Number of Clients playing a Stream over the Buffer
-var BufferClients sync.Map
-
-// bufferVFS : Filesystem to use for the Buffer
-var bufferVFS avfs.VFS
-
-// Lock : Lock Map
-var Lock = sync.RWMutex{}
 
 // Init : System Initialization
 func Init() (err error) {

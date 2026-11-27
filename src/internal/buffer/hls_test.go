@@ -1,23 +1,25 @@
-package src
+package buffer
 
 import (
 	"testing"
 
-	"github.com/avfs/avfs/vfs/memfs"
+	"xteve/src/internal/errcode"
 )
 
-// newTestStream returns a stream for parseM3U8 whose buffer folder does not
-// exist, so that waiting for new segments stops after the first step.
+// newTestStream returns a stream for parseM3U8 that is stopped already, so that waiting for new segments ends at
+// once.
 func newTestStream(t *testing.T, body string) *ThisStream {
 	t.Helper()
 
-	bufferVFS = memfs.New()
+	var stop = make(chan struct{})
+	close(stop)
 
 	return &ThisStream{
 		Body:               body,
 		Folder:             "/missing",
 		M3U8URL:            "http://example.com/live/index.m3u8",
 		URLStreamingServer: "http://example.com",
+		stop:               stop,
 	}
 }
 
@@ -218,11 +220,8 @@ func TestParseM3U8Errors(t *testing.T) {
 			t.Errorf("%s: no error", name)
 			continue
 		}
-		if tt.code == 1050 && errorCode(err) != tt.code {
-			t.Errorf("%s: code = %d, want %d", name, errorCode(err), tt.code)
-		}
-		if tt.code == 4051 && err.Error() != getErrMsg(4051) {
-			t.Errorf("%s: error = %q, want %q", name, err, getErrMsg(4051))
+		if errcode.Of(err) != tt.code {
+			t.Errorf("%s: code = %d, want %d", name, errcode.Of(err), tt.code)
 		}
 	}
 }

@@ -6,9 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/fs"
 	"net"
 	"os"
 	"os/exec"
@@ -19,7 +17,6 @@ import (
 	"text/template"
 	"xteve/src/internal/config"
 
-	"github.com/avfs/avfs"
 	"github.com/samber/lo"
 )
 
@@ -45,40 +42,6 @@ func checkFolder(path string) (err error) {
 	}
 
 	return nil
-}
-
-// checkVFSFolder : Checks whether the Folder exists in provided virtual filesystem, if not, the Folder is created
-func checkVFSFolder(path string, vfs avfs.VFS) (err error) {
-	var debug string
-	_, err = vfs.Stat(filepath.Dir(path))
-
-	if fsIsNotExistErr(err) {
-		// Folder does not exist, will now be created
-
-		err = vfs.MkdirAll(getPlatformPath(path), 0755)
-		if err == nil {
-			debug = fmt.Sprintf("Create virtual filesystem Folder:%s", path)
-			showDebug(debug, 1)
-		} else {
-			return err
-		}
-
-		return nil
-	}
-
-	return nil
-}
-
-// fsIsNotExistErr : Returns true whether the <err> is known to report that a file or directory does not exist,
-// including virtual file system errors
-func fsIsNotExistErr(err error) bool {
-	if errors.Is(err, fs.ErrNotExist) ||
-		errors.Is(err, avfs.ErrWinPathNotFound) ||
-		errors.Is(err, avfs.ErrWinFileNotFound) {
-		return true
-	}
-
-	return false
 }
 
 // Checks whether the File exists in the Filesystem
