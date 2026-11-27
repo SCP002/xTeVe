@@ -15,9 +15,12 @@
   import * as Sidebar from '$lib/components/ui/sidebar'
   import { href, route, type Page } from '$lib/router.svelte'
   import { app, server, signOut } from '$lib/state.svelte'
+  import Filters from '../pages/Filters.svelte'
   import Log from '../pages/Log.svelte'
   import NotYet from '../pages/NotYet.svelte'
   import Overview from '../pages/Overview.svelte'
+  import Playlists from '../pages/Playlists.svelte'
+  import Xmltv from '../pages/Xmltv.svelte'
 
   const menu: { page: Page; title: string; icon: Component }[] = [
     { page: 'overview', title: 'Overview', icon: LayoutDashboard },
@@ -30,7 +33,13 @@
     { page: 'log', title: 'Log', icon: FileText },
   ]
 
-  const pages: Partial<Record<Page, Component>> = { overview: Overview, log: Log }
+  const pages: Partial<Record<Page, Component>> = {
+    overview: Overview,
+    playlists: Playlists,
+    filters: Filters,
+    xmltv: Xmltv,
+    log: Log,
+  }
 
   const info = $derived(server().clientInfo)
   const current = $derived(menu.find((m) => m.page === route.page) ?? menu[0])
