@@ -14,20 +14,19 @@ import (
 	"xteve/src/internal/config"
 )
 
-// The new web UI (web/ in the repository) is served at /ui/. Its data comes over the same WebSocket (/data/) as the
-// one of the old web UI; /ui/api/ has what the old web UI did with HTML forms: login and the first user.
+// The web UI (web/ in the repository) is served at /web/. Its data comes over the WebSocket /data/; /web/api/ has
+// the login and the first user.
 
 // uiFiles is web/dist: the build of Vite in app/, or only placeholder.html if the web UI was not built.
 var uiFiles fs.FS
 
-// SetUIFiles sets where the files of the new web UI come from.
+// SetUIFiles sets where the files of the web UI come from.
 func SetUIFiles(files fs.FS) { uiFiles = files }
 
-// uiTokenCookie is the cookie of the login token of the new web UI. Its path keeps it apart from the cookie of the
-// old web UI (/web), which has the same name.
+// uiTokenCookie is the cookie of the login token of the web UI.
 const uiTokenCookie = "Token"
 
-// UI serves the new web UI.
+// UI serves the web UI.
 func UI(w http.ResponseWriter, r *http.Request) {
 	if uiFiles == nil {
 		httpStatusError(w, http.StatusNotFound)
@@ -53,12 +52,12 @@ func UI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Files of Vite with a hash in the name never change, index.html must be loaded again
-	if strings.HasPrefix(r.URL.Path, "/ui/assets/") {
+	if strings.HasPrefix(r.URL.Path, "/web/assets/") {
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	} else {
 		w.Header().Set("Cache-Control", "no-cache")
 	}
-	http.StripPrefix("/ui/", http.FileServerFS(app)).ServeHTTP(w, r)
+	http.StripPrefix("/web/", http.FileServerFS(app)).ServeHTTP(w, r)
 }
 
 // uiSession is the state the web UI starts with.
@@ -88,19 +87,19 @@ type uiToken struct {
 	Token string `json:"token"`
 }
 
-// UIAPI answers the JSON requests of the new web UI at /ui/api/.
+// UIAPI answers the JSON requests of the web UI at /web/api/.
 func UIAPI(w http.ResponseWriter, r *http.Request) {
 	setGlobalDomain(r.Host)
 
 	switch r.URL.Path {
-	case "/ui/api/session":
+	case "/web/api/session":
 		if r.Method != http.MethodGet {
 			uiReply(w, http.StatusMethodNotAllowed, uiError{Error: "GET only"})
 			return
 		}
 		uiReply(w, http.StatusOK, currentUISession(r))
 
-	case "/ui/api/login":
+	case "/web/api/login":
 		var c, ok = uiReadCredentials(w, r)
 		if !ok {
 			return
@@ -115,7 +114,7 @@ func UIAPI(w http.ResponseWriter, r *http.Request) {
 		}
 		uiLoggedIn(w, token)
 
-	case "/ui/api/first-user":
+	case "/web/api/first-user":
 		var c, ok = uiReadCredentials(w, r)
 		if !ok {
 			return
@@ -149,7 +148,7 @@ func UIAPI(w http.ResponseWriter, r *http.Request) {
 }
 
 func currentUISession(r *http.Request) uiSession {
-	// Without playlists the configuration wizard runs, as in the old web UI
+	// Without playlists the configuration wizard runs
 	if !System.Scanning() && len(config.Get().Files.M3U) == 0 && len(config.Get().Files.HDHR) == 0 {
 		System.ConfigurationWizard.Store(true)
 	}
@@ -203,7 +202,7 @@ func uiLoggedIn(w http.ResponseWriter, token string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     uiTokenCookie,
 		Value:    token,
-		Path:     "/ui/",
+		Path:     "/web/",
 		Expires:  time.Now().Add(time.Hour),
 		SameSite: http.SameSiteStrictMode,
 	})

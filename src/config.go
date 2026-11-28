@@ -93,9 +93,6 @@ func Init() (err error) {
 		return
 	}
 
-	// Menu for the Web interface
-	System.WEB.Menu = []string{"playlist", "filter", "xmltv", "mapping", "users", "settings", "log", "logout"}
-
 	fmt.Println("For help run: " + getPlatformFile(os.Args[0]) + " -h")
 	fmt.Println()
 

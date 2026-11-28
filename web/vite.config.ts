@@ -8,8 +8,8 @@ const xteve = process.env.XTEVE ?? 'http://127.0.0.1:34400'
 
 // https://vite.dev/config/
 export default defineConfig({
-  // xTeVe serves the built web UI at /ui/
-  base: '/ui/',
+  // xTeVe serves the built web UI at /web/
+  base: '/web/',
   plugins: [tailwindcss(), svelte()],
   // dist/ keeps placeholder.html, which xTeVe shows when the web UI was not built
   build: { outDir: 'dist/app', emptyOutDir: true },
@@ -20,7 +20,7 @@ export default defineConfig({
     host: true,
     // The Host header stays the one of the dev server, which xTeVe compares with the Origin of requests
     proxy: Object.fromEntries(
-      ['/ui/api', '/data', '/images', '/data_images', '/download', '/m3u', '/xmltv'].map((path) => [
+      ['/web/api', '/data', '/images', '/data_images', '/download', '/m3u', '/xmltv'].map((path) => [
         path,
         { target: xteve, changeOrigin: false, ws: path === '/data' },
       ]),

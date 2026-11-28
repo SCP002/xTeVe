@@ -126,7 +126,6 @@ type ResponseStruct struct {
 	Log               WebScreenLogStruct                   `json:"log"`
 	LogoURL           string                               `json:"logoURL,omitempty"`
 	OpenLink          string                               `json:"openLink,omitempty"`
-	OpenMenu          string                               `json:"openMenu,omitempty"`
 	Reload            bool                                 `json:"reload,omitempty"`
 	Settings          SettingsStruct                       `json:"settings"`
 	Status            bool                                 `json:"status"`

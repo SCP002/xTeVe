@@ -8,8 +8,6 @@ compose.dev.yaml
 /.claude/
 /CLAUDE.md
 /build/
-# Web UI sources; the built web UI in html/ is embedded with go:embed
-/ts/
-# The new web UI is built in its own stage
+# The web UI is built in its own stage
 /web/node_modules/
 /web/dist/app/

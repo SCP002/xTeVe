@@ -5,7 +5,7 @@
 
   const entries = $derived(
     (server().log.log ?? []).map((text) => {
-      // Info entries keep their aligned labels with non-breaking spaces of the old web UI
+      // Info entries are aligned with non-breaking spaces (&nbsp;)
       text = text.replaceAll('&nbsp;', ' ')
       const kind = text.includes('[ERROR]') ? 'error' : text.includes('[WARNING]') ? 'warning' : 'info'
       return { text, kind }

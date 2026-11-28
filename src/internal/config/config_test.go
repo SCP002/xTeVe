@@ -58,9 +58,9 @@ func TestUpdates(t *testing.T) {
 	}
 
 	var f = FilterSettings{Filter: "News", Include: "HD"}
-	var filter, active = "Sport", true
-	FilterUpdate{Filter: &filter, Active: &active}.Apply(&f)
-	if f.Filter != "Sport" || !f.Active || f.Include != "HD" {
+	var filter, caseSensitive = "Sport", true
+	FilterUpdate{Filter: &filter, CaseSensitive: &caseSensitive}.Apply(&f)
+	if f.Filter != "Sport" || !f.CaseSensitive || f.Include != "HD" {
 		t.Errorf("filter = %+v", f)
 	}
 }

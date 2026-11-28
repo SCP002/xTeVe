@@ -40,7 +40,7 @@ export const mappable = (c: XEPGChannel) => c['x-xmltv-file'] !== '-' && c['x-ma
 
 /**
  * Returns number, or the next free one if another channel has it: whole numbers count up by 1, numbers with a
- * fraction by 0.1, as the old web UI did.
+ * fraction by 0.1.
  */
 export function freeChannelNumber(channels: Channels, id: string, number: number): number {
   const taken = new Set(

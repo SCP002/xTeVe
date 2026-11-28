@@ -19,12 +19,7 @@ import (
 	"xteve/version"
 )
 
-// webFiles is the web UI, embedded into the binary.
-//
-//go:embed html
-var webFiles embed.FS
-
-// uiFiles is the new web UI: the build of Vite in web/dist/app, or only the placeholder if it was not built.
+// uiFiles is the web UI: the build of Vite in web/dist/app, or only the placeholder if it was not built.
 //
 //go:embed all:web/dist
 var uiFiles embed.FS
@@ -146,10 +141,8 @@ func main() {
 
 	// In developer mode the web UI is read from the local html folder, so that changes show without a new build
 	if *dev {
-		src.SetWebFiles(os.DirFS("."))
 		src.SetUIFiles(os.DirFS("web/dist"))
 	} else {
-		src.SetWebFiles(webFiles)
 		var ui, err = fs.Sub(uiFiles, "web/dist")
 		if err != nil {
 			panic(err)

@@ -90,10 +90,6 @@ type Info struct {
 		User   string
 	}
 
-	WEB struct {
-		Menu []string
-	}
-
 	// ConfigurationWizard reports that the first setup in the web UI is not finished yet.
 	ConfigurationWizard atomic.Bool
 	// ImageCachingInProgress reports that channel and program images are being downloaded.

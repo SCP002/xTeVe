@@ -35,15 +35,6 @@
       }
     },
     {
-      "type": "typescript",
-      "tsconfig": "ts/tsconfig.json",
-      "problemMatcher": [
-        "$tsc"
-      ],
-      "group": "build",
-      "label": "tsc build"
-    },
-    {
       "label": "xTeVe: run",
       "detail": "go run . at port 34400, config in /root/.xteve",
       "type": "shell",
@@ -60,7 +51,7 @@
     },
     {
       "label": "Web UI: dev server",
-      "detail": "Vite at http://localhost:5173/ui/, reloads on changes, forwards to xTeVe at port 34400",
+      "detail": "Vite at http://localhost:5173/web/, reloads on changes, forwards to xTeVe at port 34400",
       "type": "shell",
       "command": "npm ci --no-audit --no-fund && npm run dev",
       "options": {

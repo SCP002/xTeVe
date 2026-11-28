@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -18,7 +17,6 @@ import (
 	"xteve/src/internal/logger"
 
 	"github.com/gorilla/websocket"
-	"github.com/samber/lo"
 )
 
 // webAlerts channel to send to client
@@ -42,9 +40,8 @@ func StartWebserver() (err error) {
 	http.HandleFunc("/xmltv/", xTeVe)
 	http.HandleFunc("/m3u/", xTeVe)
 	http.HandleFunc("/data/", WS)
-	http.HandleFunc("/web/", Web)
-	http.HandleFunc("/ui/", UI)
-	http.HandleFunc("/ui/api/", UIAPI)
+	http.HandleFunc("/web/", UI)
+	http.HandleFunc("/web/api/", UIAPI)
 	http.HandleFunc("/download/", Download)
 	http.HandleFunc("/api/", API)
 	http.HandleFunc("/images/", Images)
@@ -445,8 +442,6 @@ func WS(w http.ResponseWriter, r *http.Request) {
 
 			response.Settings, err = updateServerSettings(request)
 			if err == nil {
-				response.OpenMenu = strconv.Itoa(lo.IndexOf(System.WEB.Menu, "settings"))
-
 				if config.Get().AuthenticationWEB && !authenticationUpdate {
 					response.Reload = true
 				}
@@ -480,64 +475,36 @@ func WS(w http.ResponseWriter, r *http.Request) {
 
 		case "saveFilesM3U":
 			err = saveFiles(request, "m3u")
-			if err == nil {
-				response.OpenMenu = strconv.Itoa(lo.IndexOf(System.WEB.Menu, "playlist"))
-			}
 
 		case "updateFileM3U":
 			err = updateFile(request, "m3u")
-			if err == nil {
-				response.OpenMenu = strconv.Itoa(lo.IndexOf(System.WEB.Menu, "playlist"))
-			}
 
 		case "saveFilesHDHR":
 			err = saveFiles(request, "hdhr")
-			if err == nil {
-				response.OpenMenu = strconv.Itoa(lo.IndexOf(System.WEB.Menu, "playlist"))
-			}
 
 		case "updateFileHDHR":
 			err = updateFile(request, "hdhr")
-			if err == nil {
-				response.OpenMenu = strconv.Itoa(lo.IndexOf(System.WEB.Menu, "playlist"))
-			}
 
 		case "saveFilesXMLTV":
 			err = saveFiles(request, "xmltv")
-			if err == nil {
-				response.OpenMenu = strconv.Itoa(lo.IndexOf(System.WEB.Menu, "xmltv"))
-			}
 
 		case "updateFileXMLTV":
 			err = updateFile(request, "xmltv")
-			if err == nil {
-				response.OpenMenu = strconv.Itoa(lo.IndexOf(System.WEB.Menu, "xmltv"))
-			}
 
 		case "saveFilter":
 			response.Settings, err = saveFilter(request)
-			if err == nil {
-				response.OpenMenu = strconv.Itoa(lo.IndexOf(System.WEB.Menu, "filter"))
-			}
 
 		case "saveEpgMapping":
 			err = saveXEpgMapping(request)
 
 		case "saveUserData":
 			err = saveUserData(request)
-			if err == nil {
-				response.OpenMenu = strconv.Itoa(lo.IndexOf(System.WEB.Menu, "users"))
-			}
 
 		case "saveNewUser":
 			err = saveNewUser(request)
-			if err == nil {
-				response.OpenMenu = strconv.Itoa(lo.IndexOf(System.WEB.Menu, "users"))
-			}
 
 		case "resetLogs":
 			logger.Default().Clear()
-			response.OpenMenu = strconv.Itoa(lo.IndexOf(System.WEB.Menu, "log"))
 
 		case "xteveBackup":
 			file, errNew := xteveBackup()
@@ -618,173 +585,6 @@ func WS(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-}
-
-// Web : Web Server /web/
-func Web(w http.ResponseWriter, r *http.Request) {
-	var lang = make(map[string]any)
-	var err error
-
-	var requestFile = strings.ReplaceAll(r.URL.Path, "/web", "html")
-	var content, contentType, file string
-
-	var language LanguageUI
-
-	setGlobalDomain(r.Host)
-
-	if data, err := readWebFile("html/lang/en.json"); err != nil {
-		ShowError(err, 000)
-	} else {
-		lang = jsonToMap(string(data))
-	}
-
-	err = json.Unmarshal([]byte(mapToJSON(lang)), &language)
-	if err != nil {
-		ShowError(err, 000)
-		return
-	}
-
-	if getFilenameFromPath(requestFile) == "html" {
-		if !System.Scanning() {
-			if len(config.Get().Files.M3U) == 0 && len(config.Get().Files.HDHR) == 0 {
-				System.ConfigurationWizard.Store(true)
-			}
-		}
-
-		switch System.ConfigurationWizard.Load() {
-		case true:
-			file = requestFile + "configuration.html"
-			// The first setup runs without authentication
-			if config.Get().AuthenticationWEB {
-				err = config.Update(func(s *SettingsStruct) error {
-					s.AuthenticationWEB = false
-					return nil
-				})
-				if err != nil {
-					ShowError(err, 0)
-				}
-			}
-
-		case false:
-			file = requestFile + "index.html"
-		}
-
-		if System.Scanning() {
-			file = requestFile + "maintenance.html"
-		}
-
-		switch config.Get().AuthenticationWEB {
-		case true:
-			var username, password, confirm string
-			switch r.Method {
-			case "POST":
-				allUsers, err := authentication.GetAllUserData()
-				if err != nil {
-					ShowError(err, 0)
-					httpStatusError(w, 500)
-					return
-				}
-
-				username = r.FormValue("username")
-				password = r.FormValue("password")
-
-				if len(allUsers) == 0 {
-					confirm = r.FormValue("confirm")
-				}
-
-				// First user is created (Password confirmation is available)
-				if len(confirm) > 0 {
-					var token, err = createFirstUserForAuthentication(username, password)
-					if err != nil {
-						// A user exists already, or the name or password are not accepted
-						http.Error(w, userMessage(err), http.StatusBadRequest)
-						return
-					}
-					// Redirect so that the Data is deleted from the Browser.
-					authentication.SetCookieToken(w, token)
-					http.Redirect(w, r, "/web", http.StatusMovedPermanently)
-					return
-				}
-
-				// Username and Password available, will now be checked
-				if len(username) > 0 && len(password) > 0 {
-					var token, err = authentication.UserAuthentication(username, password)
-					if err != nil {
-						file = requestFile + "login.html"
-						lang["authenticationErr"] = language.Login.Failed
-						break
-					}
-
-					authentication.SetCookieToken(w, token)
-					http.Redirect(
-						w,
-						r,
-						"/web",
-						http.StatusMovedPermanently,
-					) // Redirect so that the Data is deleted from the Browser.
-				} else {
-					authentication.SetCookieToken(w, "-")
-					http.Redirect(
-						w,
-						r,
-						"/web",
-						http.StatusMovedPermanently,
-					) // Redirect so that the Data is deleted from the Browser.
-				}
-
-				return
-
-			case "GET":
-				lang["authenticationErr"] = ""
-				token, err := authentication.CheckTheValidityOfTheTokenFromHTTPHeader(w, r)
-
-				if err != nil {
-					file = requestFile + "login.html"
-					break
-				}
-
-				err = checkAuthorizationLevel(token, "authentication.web")
-				if err != nil {
-					file = requestFile + "login.html"
-					break
-				}
-			}
-
-			allUserData, err := authentication.GetAllUserData()
-			if err != nil {
-				ShowError(err, 000)
-				httpStatusError(w, 403)
-				return
-			}
-
-			if len(allUserData) == 0 && config.Get().AuthenticationWEB {
-				file = requestFile + "create-first-user.html"
-			}
-		}
-
-		requestFile = file
-	}
-
-	data, err := readWebFile(requestFile)
-	if err != nil {
-		httpStatusError(w, 404)
-		return
-	}
-	content = string(data)
-	contentType = getContentType(requestFile)
-
-	if contentType == "text/plain" {
-		w.Header().Set("Content-Disposition", "attachment; filename="+getFilenameFromPath(requestFile))
-	}
-
-	w.Header().Add("Content-Type", contentType)
-	w.WriteHeader(200)
-
-	if contentType == "text/html" || contentType == "application/javascript" {
-		content = parseTemplate(content, lang)
-	}
-
-	writeResponse(w, []byte(content))
 }
 
 // API : API request /api/

@@ -14,7 +14,7 @@ import (
 	"xteve/src/internal/config"
 )
 
-// uiTest sets up an empty user database with web authentication and returns a server for /ui/api/.
+// uiTest sets up an empty user database with web authentication and returns a server for /web/api/.
 func uiTest(t *testing.T) *httptest.Server {
 	t.Helper()
 	setSettings(t, func(s *SettingsStruct) {
@@ -50,7 +50,7 @@ func uiPost(t *testing.T, srv *httptest.Server, path, body string, header map[st
 
 func uiSessionOf(t *testing.T, srv *httptest.Server, cookie string) uiSession {
 	t.Helper()
-	var req, _ = http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/ui/api/session", nil)
+	var req, _ = http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/web/api/session", nil)
 	if cookie != "" {
 		req.AddCookie(&http.Cookie{Name: uiTokenCookie, Value: cookie})
 	}
@@ -85,15 +85,15 @@ func TestUIFirstUserAndLogin(t *testing.T) {
 		{`{"username":"admin","password":"secret","confirm":"secret"}`, http.StatusOK},
 		{`{"username":"other","password":"secret","confirm":"secret"}`, http.StatusConflict},
 	} {
-		if status, body := uiPost(t, srv, "/ui/api/first-user", c.body, nil); status != c.status {
+		if status, body := uiPost(t, srv, "/web/api/first-user", c.body, nil); status != c.status {
 			t.Errorf("first user %s: %d %s, want %d", c.body, status, body, c.status)
 		}
 	}
 
-	if status, _ := uiPost(t, srv, "/ui/api/login", `{"username":"admin","password":"wrong"}`, nil); status != 401 {
+	if status, _ := uiPost(t, srv, "/web/api/login", `{"username":"admin","password":"wrong"}`, nil); status != 401 {
 		t.Errorf("wrong password: %d, want 401", status)
 	}
-	status, body := uiPost(t, srv, "/ui/api/login", `{"username":"admin","password":"secret"}`, nil)
+	status, body := uiPost(t, srv, "/web/api/login", `{"username":"admin","password":"secret"}`, nil)
 	var token uiToken
 	if status != http.StatusOK || json.Unmarshal([]byte(body), &token) != nil || token.Token == "" {
 		t.Fatalf("login: %d %s", status, body)
@@ -111,7 +111,7 @@ func TestUIRequestsFromOtherSites(t *testing.T) {
 	if status, _ := uiPost(
 		t,
 		srv,
-		"/ui/api/first-user",
+		"/web/api/first-user",
 		body,
 		map[string]string{"Origin": "http://evil.example"},
 	); status != 403 {
@@ -120,13 +120,13 @@ func TestUIRequestsFromOtherSites(t *testing.T) {
 	if status, _ := uiPost(
 		t,
 		srv,
-		"/ui/api/first-user",
+		"/web/api/first-user",
 		body,
 		map[string]string{"Content-Type": "text/plain"},
 	); status != 415 {
 		t.Errorf("request without JSON: %d, want 415", status)
 	}
-	if status, _ := uiPost(t, srv, "/ui/api/first-user", body, map[string]string{"Origin": srv.URL}); status != 200 {
+	if status, _ := uiPost(t, srv, "/web/api/first-user", body, map[string]string{"Origin": srv.URL}); status != 200 {
 		t.Errorf("request of the web UI itself: %d, want 200", status)
 	}
 }
@@ -141,7 +141,7 @@ func TestUIFiles(t *testing.T) {
 
 	SetUIFiles(fstest.MapFS{"placeholder.html": {Data: []byte("not built")}})
 	t.Cleanup(func() { SetUIFiles(nil) })
-	if resp, body := get("/ui/"); resp.StatusCode != 503 || body != "not built" {
+	if resp, body := get("/web/"); resp.StatusCode != 503 || body != "not built" {
 		t.Errorf("without a build: %d %q", resp.StatusCode, body)
 	}
 
@@ -150,15 +150,15 @@ func TestUIFiles(t *testing.T) {
 		"app/index.html":        {Data: []byte("<html>app</html>")},
 		"app/assets/index-1.js": {Data: []byte("js")},
 	})
-	if resp, body := get("/ui/"); resp.StatusCode != 200 || body != "<html>app</html>" ||
+	if resp, body := get("/web/"); resp.StatusCode != 200 || body != "<html>app</html>" ||
 		resp.Header.Get("Cache-Control") != "no-cache" {
 		t.Errorf("index: %d %q %s", resp.StatusCode, body, resp.Header.Get("Cache-Control"))
 	}
-	if resp, body := get("/ui/assets/index-1.js"); resp.StatusCode != 200 || body != "js" ||
+	if resp, body := get("/web/assets/index-1.js"); resp.StatusCode != 200 || body != "js" ||
 		!strings.Contains(resp.Header.Get("Cache-Control"), "immutable") {
 		t.Errorf("asset: %d %q %s", resp.StatusCode, body, resp.Header.Get("Cache-Control"))
 	}
-	if resp, _ := get("/ui/missing.js"); resp.StatusCode != 404 {
+	if resp, _ := get("/web/missing.js"); resp.StatusCode != 404 {
 		t.Errorf("missing file: %d", resp.StatusCode)
 	}
 }

@@ -22,7 +22,6 @@ func rules(t *testing.T, filters ...FilterSettings) []Filter {
 
 func groupFilter(group, include, exclude string) FilterSettings {
 	return FilterSettings{
-		Active:          true,
 		Type:            "group-title",
 		Filter:          group,
 		Include:         include,

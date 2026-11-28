@@ -36,7 +36,6 @@ export interface ProviderUpdate {
 
 /** A filter as saved in the settings (config.FilterSettings). */
 export interface Filter {
-  active: boolean
   caseSensitive: boolean
   preserveMapping: boolean
   description: string
@@ -294,7 +293,7 @@ export interface Commands {
 
 export type Command = keyof Commands
 
-/** /ui/api/session */
+/** /web/api/session */
 export interface Session {
   authentication: boolean
   firstUser: boolean

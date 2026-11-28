@@ -1,7 +1,6 @@
 package src
 
 import (
-	"bytes"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
@@ -12,7 +11,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"text/template"
 	"xteve/src/internal/config"
 
 	"github.com/samber/lo"
@@ -345,17 +343,4 @@ func randomString(n int) string {
 	}
 
 	return string(bytes)
-}
-
-func parseTemplate(content string, tmpMap map[string]any) (result string) {
-	t := template.Must(template.New("template").Parse(content))
-
-	var tpl bytes.Buffer
-
-	if err := t.Execute(&tpl, tmpMap); err != nil {
-		ShowError(err, 0)
-	}
-	result = tpl.String()
-
-	return
 }

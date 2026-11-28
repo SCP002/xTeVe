@@ -19,7 +19,7 @@ export type Field = {
 
 const usesBuffer = (s: Record<string, unknown>) => s.buffer !== '-'
 
-/** The settings of the web UI by category, in the order of the old web UI. */
+/** The settings of the web UI by category. */
 export const categories: { id: string; title: string; fields: Field[] }[] = [
   {
     id: 'general',

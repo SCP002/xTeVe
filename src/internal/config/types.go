@@ -97,7 +97,6 @@ func (t *Tuner) UnmarshalJSON(b []byte) error {
 
 // FilterSettings is a filter as saved in the settings.
 type FilterSettings struct {
-	Active          bool   `json:"active"`
 	CaseSensitive   bool   `json:"caseSensitive"`
 	PreserveMapping bool   `json:"preserveMapping"`
 	Description     string `json:"description"`
@@ -112,7 +111,6 @@ type FilterSettings struct {
 
 // FilterUpdate is a change of a filter from the web UI: only the fields that are set change.
 type FilterUpdate struct {
-	Active          *bool   `json:"active,omitempty"`
 	CaseSensitive   *bool   `json:"caseSensitive,omitempty"`
 	PreserveMapping *bool   `json:"preserveMapping,omitempty"`
 	Description     *string `json:"description,omitempty"`
@@ -132,9 +130,6 @@ func (u FilterUpdate) Apply(f *FilterSettings) {
 		if src != nil {
 			*dst = *src
 		}
-	}
-	if u.Active != nil {
-		f.Active = *u.Active
 	}
 	if u.CaseSensitive != nil {
 		f.CaseSensitive = *u.CaseSensitive

@@ -29,13 +29,6 @@ type Notification = logger.Notification
 // SettingsStruct : Content of settings.json
 type SettingsStruct = config.Settings
 
-// LanguageUI : Language for the WebUI
-type LanguageUI struct {
-	Login struct {
-		Failed string
-	}
-}
-
 // XEPGChannelStruct : XEPG Structure
 type XEPGChannelStruct = epg.XEPGChannel
 

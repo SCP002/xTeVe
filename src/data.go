@@ -327,7 +327,6 @@ func deleteLocalProviderFiles(dataID, fileType string) {
 func saveFilter(request RequestStruct) (settings SettingsStruct, err error) {
 	var defaultFilter FilterStruct
 
-	defaultFilter.Active = true
 	defaultFilter.CaseSensitive = false
 	defaultFilter.PreserveMapping = true
 	defaultFilter.StartingChannel = strconv.FormatFloat(config.Get().MappingFirstChannel, 'f', -1, 64) // 1000

@@ -34,19 +34,8 @@ The state of `src` is split into `internal/logger`, `system`, `config`, `buffer`
 race scenarios with a real playlist (PMS and XEPG) find no race anymore. The image cache downloads without holding
 its lock, and the buffer sends its headers to slow sources after 3 s and answers `502` when a source fails before.
 
-## 3. New web UI
+## 3. Web UI
 
-The web UI in `ts/` builds the DOM by hand in old TypeScript (about 4200 lines, `menu_ts.js` alone 81 KB). It is
-rewritten in `web/` (Svelte 5, Vite, TypeScript, Tailwind, shadcn-svelte) and served at `/ui/`; the Go side and the
-WebSocket protocol (`/data/`) stay.
-
-Done: the build (`build.sh`, Dockerfile, release workflow, a placeholder for `go build` without Node), Prettier in
-`format.sh`, typed WebSocket commands sent one after the other (every answer replaces the login token), `/ui/api/`
-for the login and the first user, and every page of the old web UI: the configuration wizard, overview, playlists,
-XMLTV files, filters, mapping, users, settings with backup and restore, and the log. Each was checked against a
-running xTeVe, the mapping also with 3000 channels.
-
-Left:
-
-- Remove the old web UI (`ts/`, `html/`, `/web/`, the global `tsc` of the devcontainer) and serve the new one
-  at `/web/`.
+The web UI was rewritten in `web/` (Svelte 5, Vite, TypeScript, Tailwind, shadcn-svelte) and replaced the old one at
+`/web/`; the WebSocket protocol (`/data/`) stayed. Every page was checked against a running xTeVe, the mapping also
+with 3000 channels.

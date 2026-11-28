@@ -18,13 +18,13 @@ function token(): string {
 }
 
 function setToken(value: string) {
-  // The path of the cookie xTeVe sets at the login, apart from the cookie of the old web UI (/web)
-  document.cookie = `${tokenCookie}=${encodeURIComponent(value)}; path=/ui/; max-age=3600; SameSite=Strict`
+  // The path of the cookie xTeVe sets at the login
+  document.cookie = `${tokenCookie}=${encodeURIComponent(value)}; path=/web/; max-age=3600; SameSite=Strict`
 }
 
 /** Forgets the login token. */
 export function logout() {
-  document.cookie = `${tokenCookie}=; path=/ui/; max-age=0; SameSite=Strict`
+  document.cookie = `${tokenCookie}=; path=/web/; max-age=0; SameSite=Strict`
 }
 
 let queue: Promise<unknown> = Promise.resolve()
@@ -65,7 +65,7 @@ function request(cmd: string, data: object): Promise<ServerResponse> {
 }
 
 async function api<T>(path: string, body?: object): Promise<T> {
-  const response = await fetch(`/ui/api/${path}`, {
+  const response = await fetch(`/web/api/${path}`, {
     method: body ? 'POST' : 'GET',
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
     body: body ? JSON.stringify(body) : undefined,

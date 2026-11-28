@@ -184,7 +184,6 @@ func convertToNewFilter(oldFilter []any) (newFilterMap map[int]any) {
 
 		for i := 0; i < s.Len(); i++ {
 			var newFilter FilterStruct
-			newFilter.Active = true
 			newFilter.Name = fmt.Sprintf("Custom filter %d", i+1)
 			newFilter.Filter = s.Index(i).Interface().(string)
 			newFilter.Type = "custom-filter"
