@@ -1,78 +1,45 @@
-<div align="center" style="background-color: #111; padding: 100;">
-    <a href="https://github.com/SCP002/xTeVe"><img width="880" height="200" src="html/img/logo_b_880x200.jpg" alt="xTeVe" /></a>
+<div align="center">
+  <a href="https://github.com/SCP002/xTeVe"><img width="880" height="200" src=".github/logo.jpg" alt="xTeVe" /></a>
 </div>
-<br>
 
 # xTeVe
 
-## M3U Proxy and EPG aggregator for Plex DVR and Emby Live TV
+M3U proxy and EPG aggregator for Plex DVR, Emby Live TV and IPTV players.
 
----
+xTeVe merges IPTV playlists and XMLTV program guides, lets you choose and map the channels, and passes them on as an
+HDHomeRun tuner (Plex, Emby) or as one M3U playlist with one XMLTV guide (any IPTV player).
+
+This is a maintained fork of [xteve-project/xTeVe](https://github.com/xteve-project/xTeVe).
 
 ## Features
 
-### Files
+- **Playlists:** M3U files and HDHomeRun tuners, local or remote, merged and updated on a schedule.
+- **Program guides:** XMLTV files (also gzipped), merged into one guide that follows the XMLTV DTD. Guides that do
+  not follow it are read anyway.
+- **Channels:** filters by group or text, channel numbers, names, groups, logos (also uploaded), EPG categories,
+  timeshift, dummy programs for channels without guide.
+- **Streaming:** optional buffer (xTeVe, FFmpeg or VLC) with HLS support, re-streaming to several clients, tuner limit
+  per playlist.
+- **Images:** logos and posters can be cached by xTeVe.
+- **Web UI** with login, users and permissions for each part (web UI, Plex/Emby, M3U, XMLTV, API).
+- Backups before every scheduled update, automatic updates of xTeVe itself.
 
-* Merge external M3U files
-* Merge external XMLTV files (EPG aggregation)
-* Automatic M3U and XMLTV update
-* M3U and XMLTV export
+## Install
 
-#### Channel management
+### Binary
 
-* Filtering streams
-* Teleguide timeshift
-* Channel mapping
-* Channel order
-* Channel logos
-* Channel categories
-
-#### Streaming
-
-* Buffer with HLS / M3U8 support
-* Re-streaming
-* Number of tuners adjustable
-* Compatible with Plex / Emby EPG
-
----
-
-## Downloads
-
-* See [releases page](https://github.com/SCP002/xTeVe/releases)
-
----
-
-## TLS mode
-
-This mode can be enabled by ticking the checkbox in `Settings -> General`.
-
-Unless the server's certificate and it's private key already exists in xTeVe config directory, xTeVe will generate a self-signed automatically.
-
-Self-signed certificate will only allow TLS mode to start up but not to actually establish a secure connections.
-For truly working HTTPS, you should [generate](https://gist.github.com/fntlnz/cf14feb5a46b2eda428e000157447309) a certificate by yourself and **also** add the CA certificate to the client-side certificate storage (where the web browser, Plex etc. is).
-
-Certificate and it's private key should be placed in xTeVe config directory like so:
-
-```text
-/home/username/.xteve/certificates/xteve.crt
-/home/username/.xteve/certificates/xteve.key
-```
-
-If the certificate is signed by a certificate authority (CA), it should be the concatenation of the server's certificate, any intermediates, and the CA's certificate.
-
----
-
-## Docker
-
-### Get an image
-
-Pull from dockerhub:
+Download the binary for your system from the [releases](https://github.com/SCP002/xTeVe/releases) and start it:
 
 ```sh
-docker pull scp002/xteve:latest
+./xteve-linux-amd64
 ```
 
-**OR** build your own image from the source code in this repository:
+The settings and data are kept in `~/.xteve/` unless `-config` says otherwise.
+
+### Docker
+
+Build the image from this repository (the version is taken from `build.sh`, `--build-arg VERSION=vX.Y.Z` sets
+another one):
 
 ```sh
 git clone https://github.com/SCP002/xTeVe.git
@@ -80,191 +47,176 @@ cd xTeVe
 docker build --tag scp002/xteve .
 ```
 
-The image version is taken from `build.sh`. To set another one, add `--build-arg VERSION=vX.Y.Z`.
-
-### Create a container
+or pull it:
 
 ```sh
-docker create \
-    --tty \
-    --publish 34400:34400 \
-    --volume xteve_conf:/home/xteve/conf \
-    --name xteve \
-    scp002/xteve
+docker pull scp002/xteve:latest
 ```
 
-The volume keeps settings, playlists and the EPG data when the container is recreated.
-
-With the specific timezone, ip and port:
+Create and start a container:
 
 ```sh
 docker create \
     --tty \
     --env TZ=Europe/Amsterdam \
-    --env XTEVE_PORT=12345 \
-    --publish 192.168.88.218:12345:12345 \
+    --publish 34400:34400 \
     --volume xteve_conf:/home/xteve/conf \
     --name xteve \
     scp002/xteve
-```
 
-`XTEVE_PORT` overrides the port from the settings. Without it, the port set in the web UI is used (34400 by default).
-
-Other command line arguments of xTeVe can be appended after the image name, for example `scp002/xteve -debug=1`.
-
-### Start a container
-
-```sh
 docker start xteve
 ```
 
-#### Attach to a started container
+- The volume keeps the settings, playlists and guides when the container is recreated.
+- `XTEVE_PORT` (e.g. `--env XTEVE_PORT=12345` with `--publish 12345:12345`) overrides the port of the settings.
+- Command line options go after the image name, e.g. `scp002/xteve -debug=1`.
+- xTeVe runs as the user `xteve`, FFmpeg and VLC are included for the buffer.
+- `docker attach xteve` shows the console; `Ctrl+P`, `Ctrl+Q` detaches, `Ctrl+C` stops xTeVe.
 
-```sh
-docker attach xteve
-```
+## First start
 
-To detach from a container, press `Ctrl + P`, `Ctrl + Q`. Pressing `Ctrl + C` stops xTeVe.
+Open `http://<host>:34400/web/`. A wizard asks for the number of tuners, the EPG source, the playlist and, with XEPG,
+the XMLTV file.
 
-#### Access web UI
+The EPG source decides how xTeVe works:
 
-Open `http(s)://<ip>:<port>/web/` in browser, for example:
-`http://192.168.88.218:34400/web/`
+- **XEPG** (recommended): xTeVe builds the guide from your XMLTV files. Channels are managed on the *Mapping* page,
+  and xTeVe also offers an M3U playlist and an XMLTV guide for IPTV players.
+- **PMS**: Plex or Emby use their own guide; xTeVe only passes on the streams.
 
-#### Stop a running container
+Then choose the channels: *Filters* decide which streams of the playlists are used (without filters all are), and
+*Mapping* assigns each channel its XMLTV channel and number. Only active channels are passed on.
 
-```sh
-docker stop xteve
-```
+### Plex and Emby
 
----
+Add a DVR / live TV tuner of the type HDHomeRun with the address `<host>:34400`. Plex and Emby can also find xTeVe by
+themselves (SSDP), but only in the same network: in Docker that needs host networking (`--network host`) or a macvlan
+network, as Docker does not pass the multicast requests into a bridge network. Entering the address works in any case.
 
-### Updates and the beta branch
+With XEPG, give Plex or Emby the XMLTV guide of xTeVe as the program guide.
 
-xTeVe updates itself from the [GitHub releases](https://github.com/SCP002/xTeVe/releases) at start and once a day,
-if the automatic update is enabled in the settings. The binary of the platform is checked against the `SHA256SUMS`
-of the release before it replaces the running one, then xTeVe restarts. In Docker update the image instead.
+### IPTV players
 
-The master branch uses stable releases only, the beta branch also pre-releases.
+The *Overview* page shows the addresses:
 
-**It is not recommended to use the beta version in a production system.**  
+- M3U: `http://<host>:34400/m3u/xteve.m3u`, only some groups with `?group-title=News,Sport`
+- XMLTV: `http://<host>:34400/xmltv/xteve.xml`
 
-With the command line argument `branch` the branch can be changed. xTeVe must be started via the terminal.  
+### Login and users
 
-#### Switch from master to beta branch
+*Settings → Login* turns on a login for each part of xTeVe. The first time the web UI needs one, it asks to create the
+first user, who may use everything. Further users and what they may use are set on the *Users* page. With a login:
+
+- Plex / Emby: `username:password@<host>:34400` as the tuner address
+- M3U and XMLTV: add `?username=...&password=...` to the address
+- API: see the [API documentation](https://github.com/xteve-project/xTeVe-Documentation/blob/master/en/configuration.md#api)
+
+Passwords are stored as bcrypt hashes.
+
+### HTTPS
+
+*Settings → General → HTTPS* serves xTeVe over HTTPS. Without a certificate, xTeVe creates a self-signed one, which
+lets xTeVe start but is not trusted by browsers, Plex or Emby. For working HTTPS put your own certificate and key into
+the config folder:
 
 ```text
+~/.xteve/certificates/xteve.crt
+~/.xteve/certificates/xteve.key
+```
+
+`xteve.crt` holds the server certificate followed by its intermediates and the CA certificate. A certificate of your
+own CA must also be trusted by the clients.
+
+### Backups
+
+xTeVe makes a backup before every scheduled update (*Settings → Backup*). A backup can also be downloaded and
+restored there, or from the command line with `xteve -restore <file>`.
+
+## Updates
+
+With *Settings → General → Update xTeVe automatically*, xTeVe looks for a new release at the start and once a day,
+checks the download against the `SHA256SUMS` of the release, replaces itself and restarts. In Docker, update the
+image instead.
+
+The branch `master` takes stable releases, `beta` also pre-releases, which are not meant for production:
+
+```sh
 xteve -branch beta
-
-...
-[xTeVe] GitHub:                https://github.com/SCP002
-[xTeVe] Git Branch:            beta [SCP002]
-...
 ```
 
-#### Switch from beta to master branch
+## Command line
 
-```text
-xteve -branch master
+| Option                | Meaning                                                         |
+|-----------------------|-----------------------------------------------------------------|
+| `-config <folder>`    | Folder of the settings and data (default `~/.xteve/`)           |
+| `-port <port>`        | Port of the web server instead of the one in the settings (34400) |
+| `-restore <file>`     | Restore a backup and exit                                       |
+| `-branch master\|beta` | Release branch for updates                                      |
+| `-debug 0-3`          | Debug output                                                    |
+| `-info`               | Show system information and exit                                |
+| `-dev`                | Developer mode, see below                                       |
+| `-h`                  | Help                                                            |
 
-...
-[xTeVe] GitHub:                https://github.com/SCP002
-[xTeVe] Git Branch:            master [SCP002]
-...
-```
+## Development
 
-When the branch is changed, an update is only performed if there is a newer release and the update function is activated in the settings.  
-
----
-
-## Build from source code [Go / Golang]
-
-### Requirements
-
-* [Go](https://golang.org) (go1.27.3 or newer)
-* [Node.js](https://nodejs.org) 20.19 or newer, for the new web UI
+Requirements: [Go](https://go.dev) 1.27.3 or newer and [Node.js](https://nodejs.org) 20.19 or newer. The
+[devcontainer](.devcontainer/) has both, the linters, Prettier, and Playwright for browser checks.
 
 ### Build
 
 ```sh
-git clone https://github.com/SCP002/xTeVe.git
-cd xTeVe
-(cd web && npm ci && npm run build)
+(cd web && npm ci && npm run build)   # the web UI, embedded by go build
 go build .
 ```
 
-A binary built this way reports its version as `dev`. Without the `npm` step it still builds, but `/ui/` only says
-that the web UI was not built.
+Without the web UI build, `go build` still works and `/web/` explains how to build it. A binary built this way reports
+its version as `dev`. `./build.sh` builds the web UI and the release binaries of every OS and architecture Go supports
+into `build/`, with the version set in `build.sh`.
 
-To build release binaries for every supported OS / architecture pair into the `build` folder, with the version from `build.sh`:
+### Web UI
 
-```sh
-./build.sh
-```
+The web UI in [web/](web/) is Svelte 5 with Vite, TypeScript, Tailwind and shadcn-svelte. It talks to xTeVe over the
+WebSocket `/data/` (one command per connection, typed in [web/src/lib/api/types.ts](web/src/lib/api/types.ts)) and
+`/web/api/` for the login.
 
-### New web UI
-
-The new web UI in `web/` (Svelte 5, Vite, TypeScript, Tailwind, shadcn-svelte) is served at `/ui/`; it replaces the
-old one at `/web/` page by page. During development, run xTeVe and the Vite dev server, which reloads on every change
-and forwards the WebSocket and the API to xTeVe:
+During development run xTeVe and the Vite dev server, which reloads on every change and forwards to xTeVe:
 
 ```sh
-cd web
-npm ci
-npm run dev                                      # http://localhost:5173/ui/, xTeVe at 127.0.0.1:34400
-XTEVE=http://127.0.0.1:34500 npm run dev         # xTeVe at another address
-npm run check                                    # svelte-check and tsc
+go run . -port 34400
+cd web && npm run dev                          # http://localhost:5173/web/
+XTEVE=http://127.0.0.1:34500 npm run dev       # xTeVe at another address
+npm run check                                  # svelte-check and tsc
 ```
 
-### Old web UI
+In VS Code the tasks *xTeVe: run* and *Web UI: dev server* do the same; the devcontainer publishes both ports.
+`xteve -dev` serves the web UI from `web/dist/` on disk instead of the embedded one.
 
-If TypeScript files were changed, run:
+### Code style and tests
 
 ```sh
-tsc -p ./ts/tsconfig.json
+./format.sh          # goimports, golines (120 columns), golangci-lint --fix, Prettier
+go test -race ./...
 ```
 
-The `html` folder is embedded into the binary at build time (`go:embed`), so `go build .` is enough. To see changes
-without a new build, run xTeVe in developer mode in the folder of the source code: it then reads the web UI from the
-local `html` folder.
-
-```sh
-./xteve -dev
-```
-
-### Development
-
-The repository contains a [devcontainer](.devcontainer/) with Go, the linters and the tools for the web UI.
-
-Format the code, sort imports and run the linter (also the default build task in VS Code):
-
-```sh
-./format.sh
-```
-
-Planned work is listed in [ROADMAP.md](ROADMAP.md).
+Planned work is in [ROADMAP.md](ROADMAP.md).
 
 ### Release
 
-1. Set the new version in `build.sh`, for example `version="v2.6.0"`.
-2. Commit and push a tag with the same name: `git tag v2.6.0 && git push origin v2.6.0`.
+1. Set the version in `build.sh`, e.g. `version="v2.6.0"`.
+2. Push a tag of the same name: `git tag v2.6.0 && git push origin v2.6.0`.
 
-The [release workflow](.github/workflows/release.yml) checks that the tag matches `build.sh`, runs the tests, builds the binaries and publishes them as a GitHub release.
-
----
+The [release workflow](.github/workflows/release.yml) checks the version, the web UI and the tests, builds the
+binaries and publishes them with their `SHA256SUMS` as a GitHub release.
 
 ## Forks
 
-When creating a fork, the GitHub account must be changed in the source code or the update function disabled, otherwise
-the fork updates itself to the releases of this repository.
-
-xteve.go:
+A fork must change the GitHub account in `xteve.go` or turn the updates off, otherwise it updates itself to the
+releases of this repository:
 
 ```go
 var GitHub = GitHubStruct{Branch: "master", User: "SCP002", Repo: "xTeVe", Update: true}
-
-// Branch: GitHub Branch
-// User:   GitHub Username
-// Repo:   GitHub Repository
-// Update: Updates from the GitHub releases of the repository [true|false]
 ```
+
+## License
+
+[MIT](LICENSE)
