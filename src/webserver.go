@@ -593,57 +593,8 @@ func WS(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// API : API request /api/
+// API answers the API at /api/, described in docs/api.md.
 func API(w http.ResponseWriter, r *http.Request) {
-	/*
-			API conditions (without Authentication):
-			- API must be activated in the Settings
-
-			Example API Request with curl
-			Status:
-			curl -X POST -H "Content-Type: application/json" -d '{"cmd":"status"}' http://localhost:34400/api/
-
-			- - - - -
-
-			API conditions (with Authentication):
-			- API must be activated in the Settings
-			- API must be activated in the Authentication Settings
-			- User must have API authorization
-
-			A Token is generated after each API request, which is valid once every 60 minutes.
-			A new Token is included in every answer
-
-			Example API Request with curl
-			Login request:
-			curl -X POST -H "Content-Type: application/json" \
-				-d '{"cmd":"login","username":"plex","password":"123"}' http://localhost:34400/api/
-
-			Response:
-			{
-		  	"status": true,
-		  	"token": "U0T-NTSaigh-RlbkqERsHvUpgvaaY2dyRGuwIIvv"
-			}
-
-			Status Request using a Token:
-			curl -X POST -H "Content-Type: application/json" \
-				-d '{"cmd":"status","token":"U0T-NTSaigh-RlbkqERsHvUpgvaaY2dyRGuwIIvv"}' http://localhost:34400/api/
-
-			Response:
-			{
-			  "epg.source": "XEPG",
-			  "status": true,
-			  "streams.active": 7,
-			  "streams.all": 63,
-			  "streams.xepg": 2,
-			  "token": "mXiG1NE1MrTXDtyh7PxRHK5z8iPI_LzxsQmY-LFn",
-			  "url.dvr": "localhost:34400",
-			  "url.m3u": "http://localhost:34400/m3u/xteve.m3u",
-			  "url.xepg": "http://localhost:34400/xmltv/xteve.xml",
-			  "version.api": "1.1.0",
-			  "version.xteve": "1.3.0"
-			}
-	*/
-
 	setGlobalDomain(r.Host)
 	var request APIRequestStruct
 	var response APIResponseStruct

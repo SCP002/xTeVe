@@ -38,40 +38,29 @@ The settings and data are kept in `~/.xteve/` unless `-config` says otherwise.
 
 ### Docker
 
-Build the image from this repository (the version is taken from `build.sh`, `--build-arg VERSION=vX.Y.Z` sets
-another one):
-
 ```sh
 git clone https://github.com/SCP002/xTeVe.git
 cd xTeVe
-docker build --tag scp002/xteve .
+docker compose up -d
 ```
 
-or pull it:
+[compose.yaml](compose.yaml) builds the image from the repository and starts xTeVe at port 34400. Change it to your
+needs before the first start:
+
+- `TZ`: your time zone, used for the guide and the update times.
+- `XTEVE_PORT`: another port than the one of the settings; publish the same port in `ports`.
+- `network_mode: host`: lets Plex and Emby find xTeVe by themselves (see below).
+
+The volume `xteve_conf` keeps the settings, playlists and guides when the container is recreated. xTeVe runs as the
+user `xteve`, FFmpeg and VLC are included for the buffer.
 
 ```sh
-docker pull scp002/xteve:latest
+docker compose logs -f                     # console of xTeVe
+git pull && docker compose up -d --build   # update to the latest version
+docker compose down                        # stop and remove the container, the volume stays
 ```
 
-Create and start a container:
-
-```sh
-docker create \
-    --tty \
-    --env TZ=Europe/Amsterdam \
-    --publish 34400:34400 \
-    --volume xteve_conf:/home/xteve/conf \
-    --name xteve \
-    scp002/xteve
-
-docker start xteve
-```
-
-- The volume keeps the settings, playlists and guides when the container is recreated.
-- `XTEVE_PORT` (e.g. `--env XTEVE_PORT=12345` with `--publish 12345:12345`) overrides the port of the settings.
-- Command line options go after the image name, e.g. `scp002/xteve -debug=1`.
-- xTeVe runs as the user `xteve`, FFmpeg and VLC are included for the buffer.
-- `docker attach xteve` shows the console; `Ctrl+P`, `Ctrl+Q` detaches, `Ctrl+C` stops xTeVe.
+The image takes its version from `build.sh`; `docker compose build --build-arg VERSION=vX.Y.Z` sets another one.
 
 ## First start
 
@@ -102,6 +91,8 @@ The *Overview* page shows the addresses:
 - M3U: `http://<host>:34400/m3u/xteve.m3u`, only some groups with `?group-title=News,Sport`
 - XMLTV: `http://<host>:34400/xmltv/xteve.xml`
 
+All addresses of xTeVe and the API are described in [docs/api.md](docs/api.md).
+
 ### Login and users
 
 *Settings → Login* turns on a login for each part of xTeVe. The first time the web UI needs one, it asks to create the
@@ -109,7 +100,7 @@ first user, who may use everything. Further users and what they may use are set 
 
 - Plex / Emby: `username:password@<host>:34400` as the tuner address
 - M3U and XMLTV: add `?username=...&password=...` to the address
-- API: see the [API documentation](https://github.com/xteve-project/xTeVe-Documentation/blob/master/en/configuration.md#api)
+- API: see [docs/api.md](docs/api.md)
 
 Passwords are stored as bcrypt hashes.
 
@@ -135,8 +126,8 @@ restored there, or from the command line with `xteve -restore <file>`.
 ## Updates
 
 With *Settings → General → Update xTeVe automatically*, xTeVe looks for a new release at the start and once a day,
-checks the download against the `SHA256SUMS` of the release, replaces itself and restarts. In Docker, update the
-image instead.
+checks the download against the `SHA256SUMS` of the release, replaces itself and restarts. In Docker, rebuild the
+image instead (`git pull && docker compose up -d --build`).
 
 The branch `master` takes stable releases, `beta` also pre-releases, which are not meant for production:
 

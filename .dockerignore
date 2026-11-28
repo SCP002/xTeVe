@@ -1,5 +1,6 @@
 .gitignore
 .gitattributes
+compose.yaml
 compose.dev.yaml
 /.devcontainer/
 /.git/

@@ -1,0 +1,21 @@
+# xTeVe in Docker: docker compose up -d
+services:
+  xteve:
+    build: .
+    image: xteve
+    container_name: xteve
+    restart: unless-stopped
+    tty: true
+    environment:
+      - TZ=Europe/Amsterdam
+      # Overrides the port of the settings; change the published port with it
+      # - XTEVE_PORT=34400
+    ports:
+      - "34400:34400"
+    volumes:
+      - xteve_conf:/home/xteve/conf
+    # Plex and Emby find xTeVe by themselves (SSDP) only with the network of the host; then "ports" is not used
+    # network_mode: host
+
+volumes:
+  xteve_conf:
