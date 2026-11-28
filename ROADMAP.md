@@ -39,3 +39,30 @@ its lock, and the buffer sends its headers to slow sources after 3 s and answers
 The web UI was rewritten in `web/` (Svelte 5, Vite, TypeScript, Tailwind, shadcn-svelte) and replaced the old one at
 `/web/`; the WebSocket protocol (`/data/`) stayed. Every page was checked against a running xTeVe, the mapping also
 with 3000 channels.
+
+## 4. Plex, Jellyfin, Emby and Kodi
+
+Support the four clients and cover what each of them reads from xTeVe with tests. Plex and Emby are documented
+already; Jellyfin and Kodi are not mentioned anywhere yet.
+
+- Plex: HDHomeRun tuner (`discover.json`, `lineup_status.json`, `lineup.json`, `device.xml`), SSDP discovery, the
+  XMLTV guide in XEPG mode, the channel limit of 480 (`PlexChannelLimit`).
+- Jellyfin: either the HDHomeRun tuner or an M3U tuner with the XMLTV guide of xTeVe. Jellyfin also calls
+  `/lineup.post?scan=start`, which currently falls through to `device.xml`. Its HDHomeRun discovery uses the UDP
+  protocol of libhdhomerun (port 65001), not SSDP, so check whether adding by address is enough.
+- Emby: the same two ways as Jellyfin.
+- Kodi: IPTV Simple Client with the M3U and XMLTV of xTeVe (`tvg-id`, `tvg-name`, `tvg-logo`, `group-title`,
+  `tvg-chno`). The HDHomeRun add-on of Kodi also discovers by UDP and is not supported.
+- Document Jellyfin and Kodi in the README and in `docs/api.md`.
+
+Tests:
+
+- HTTP tests of `Index` for every HDHomeRun path: status, `Content-Type`, the fields that the clients read
+  (`BaseURL`, `LineupURL`, `DeviceID`, `TunerCount`, `GuideNumber`, `GuideName`, `URL`), basic authentication of
+  `lineup.json`, and `lineup.post`.
+- `lineup.json` in PMS and XEPG mode: the guide numbers match the channels of the M3U and of xteve.xml, the channel
+  limit of Plex.
+- The M3U for Kodi, Jellyfin and Emby: the attributes above, `url-tvg`, the stream URLs with and without a buffer.
+- xteve.xml: the channel IDs match `tvg-id` of the M3U.
+- An SSDP test: an M-SEARCH for `upnp:rootdevice` gets an answer with the `LOCATION` of `device.xml`.
+- A manual check with each client in Docker (host networking for discovery), recorded in section 1.
