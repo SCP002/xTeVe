@@ -270,9 +270,15 @@ func xTeVe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// XMLTV File: sent from the disk, it can be large
+	// XMLTV File: sent from the disk, it can be large. Only the files of xTeVe: the data folder also holds the
+	// downloaded playlists, whose stream URLs may contain the credentials of the provider.
 	if requestType == "xml" {
-		var file, err = os.Open(System.Folder.Data + getFilenameFromPath(path))
+		var name = getFilenameFromPath(path)
+		if name != "xteve.xml" && name != "xteve.xml.gz" {
+			httpStatusError(w, 404)
+			return
+		}
+		var file, err = os.Open(System.Folder.Data + name)
 		if err != nil {
 			logUnlessNotExist(err)
 			httpStatusError(w, 404)
